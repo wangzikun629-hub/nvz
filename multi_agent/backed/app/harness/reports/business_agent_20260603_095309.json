@@ -1,0 +1,95 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T09:53:09",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_adapter_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=830"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: Adapter"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "analysis.metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "analysis.formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "analysis.formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "analysis.formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "analysis.needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_adapter_e2e",
+        "target": "business_agent",
+        "duration_ms": 48765.64
+      },
+      "answer_excerpt": "## 结论\nT1 Mapping rate critical：57.54%\n\n## 依据\n- AlignmentQC/Mapping rate: T1=57.54%；阈值 Mapping rate < 60.0%；来源 VZ20260427001\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::Mapping(%)\n- AlignmentQC/Unique mapping rate: T1=12.60%；阈值 Unique mapping rate < 20.0%；来源 VZ20260427001\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::Unique(%)\n- AlignmentQC/chrMT/Pt rate: T1=72.61%；阈值 chrMT/Pt rate > 30.0%；来源 VZ20260427001\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)\n- Correlation/Sample correlation: T1 vs T2=-0.6303；阈值 Sample correlation < 0.6；来源 deeptools\\Correlation\\spearman_Corr_readCou",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\adapter_e2e.json"
+    }
+  ]
+}

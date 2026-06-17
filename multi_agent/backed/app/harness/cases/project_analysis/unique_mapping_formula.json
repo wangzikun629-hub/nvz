@@ -1,0 +1,29 @@
+{
+  "id": "project_unique_mapping_formula",
+  "target": "project_analysis",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "Unique Mapping 指标具体是什么，是怎么计算的",
+  "max_evidence_files": 8,
+  "planning_hints": {
+    "force_include_html_body": true
+  },
+  "expect": {
+    "question_type": "alignment",
+    "trace_status": "ok",
+    "min_evidence_files": 1,
+    "required_workflow_file_contains": [
+      "Snakemake_Sop",
+      "align_stat.py"
+    ],
+    "required_metric": "unique_mapping_rate_percent",
+    "metric_source_level": "project_verified",
+    "formula_source_contains": "project_code",
+    "formula_file_contains": "align_stat.py",
+    "formula_contains": [
+      "Unique_Mapped_Rate",
+      "rate"
+    ],
+    "needs_verification": false
+  }
+}

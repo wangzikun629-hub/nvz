@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T10:20:00",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_mapping_chart_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "chart_metric",
+          "passed": true,
+          "detail": "expected='mapping' actual='mapping'"
+        },
+        {
+          "name": "chart_type",
+          "passed": true,
+          "detail": "expected='bar' actual='bar'"
+        },
+        {
+          "name": "chart_image_required",
+          "passed": true,
+          "detail": "image_url='/generated/charts/VZ20260427001_mapping_bar_1780453200_c0acc5.png'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=241"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_mapping_chart_e2e",
+        "target": "business_agent",
+        "duration_ms": 2571.03
+      },
+      "answer_excerpt": "## 图表已生成\n\n项目：`VZ20260427001`\n指标：`mapping`\n\n![mapping bar](/generated/charts/VZ20260427001_mapping_bar_1780453200_c0acc5.png)\n\n## 数据来源\n- 图类型：bar\n- 来源文件：VZ20260427001\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls\n- 使用字段：Sample_ID、Mapping_Rate",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\mapping_chart_e2e.json"
+    }
+  ]
+}

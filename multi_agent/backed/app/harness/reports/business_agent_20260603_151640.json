@@ -1,0 +1,70 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T15:16:40",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_chart_metric_missing",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['clarification'] actual='clarification'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='clarification' actual='clarification'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='chart_clarification' actual='chart_clarification'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=226"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_chart_metric_missing",
+        "target": "business_agent",
+        "duration_ms": 2628.8
+      },
+      "answer_excerpt": "## 需要明确图表指标\n我可以生成项目图表，但当前问题没有明确要画哪个指标。\n\n可选指标包括：\n- `Mapping`：比对率对比图\n- `Duplicate`：重复率对比图\n- `FRiP`：富集比例对比图\n- `Adapter`：接头比例对比图\n- `chrMT/Pt`：线粒体/叶绿体比例对比图\n- `Correlation`：样本相关性热图\n\n你可以这样问：`帮我画 T1 和 T2 的 Mapping 对比图` 或 `画一下样本相关性热图`。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\chart_metric_missing.json"
+    }
+  ]
+}

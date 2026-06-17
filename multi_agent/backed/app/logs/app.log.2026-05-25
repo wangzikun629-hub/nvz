@@ -1,0 +1,73 @@
+2026-05-25 15:28:19,657 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-25 15:28:20,833 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-25 15:29:36,832 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=29 cost=0.039s
+2026-05-25 15:29:51,774 | INFO     | ITS_App:87 | user=root1 query=分析一下这个VZ20260423002
+2026-05-25 15:29:51,775 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779694188840 cost=0.000s context_mode=standalone context_turns=0
+2026-05-25 15:29:51,775 | INFO     | ITS_App:890 | request route user=root1 session=session_1779694188840 mode=agent route=business resolved_project_id=VZ20260423002 force_consult=False direct_business=True followup_confirmed=False
+2026-05-25 15:29:51,777 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个VZ20260423002
+2026-05-25 15:29:51,777 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个VZ20260423002
+2026-05-25 15:29:52,016 | INFO     | ITS_App:384 | business_runtime stage=identify_project workflow_run_id=projwf_3e7a8681291b duration_ms=238.68
+2026-05-25 15:29:53,459 | INFO     | ITS_App:452 | business_runtime stage=planning workflow_run_id=projwf_3e7a8681291b duration_ms=6.02
+2026-05-25 15:29:57,068 | INFO     | ITS_App:1662 | project_analysis stage=start run_id=projrun_5a706da778f4 project=VZ20260423002 question_type=overview root=\\RaiDrive-ASUS\SFTP\Result\CUTTag\VZ20260423002
+2026-05-25 15:29:57,068 | INFO     | ITS_App:1662 | project_analysis stage=start run_id=projrun_b0b34939770a project=VZ20260423002 question_type=overview root=\\RaiDrive-ASUS\SFTP\Result\CUTTag\VZ20260423002
+2026-05-25 15:29:58,759 | INFO     | ITS_App:1671 | project_analysis stage=build_context run_id=projrun_b0b34939770a project=VZ20260423002 include_html_body=False duration_ms=1690.88
+2026-05-25 15:29:59,014 | INFO     | ITS_App:1689 | project_analysis stage=select_evidence run_id=projrun_b0b34939770a project=VZ20260423002 evidence=10 duration_ms=253.76
+2026-05-25 15:29:59,025 | INFO     | ITS_App:1671 | project_analysis stage=build_context run_id=projrun_5a706da778f4 project=VZ20260423002 include_html_body=True duration_ms=1956.53
+2026-05-25 15:29:59,025 | INFO     | ITS_App:1906 | project_analysis run_id=projrun_5a706da778f4 project=VZ20260423002 question_type=overview evidence=0 warnings=0 duration_ms=5564.98
+2026-05-25 15:29:59,026 | INFO     | ITS_App:230 | html_report_summary stage=analyze_html project=VZ20260423002 duration_ms=5566.21
+2026-05-25 15:29:59,667 | INFO     | ITS_App:1906 | project_analysis run_id=projrun_b0b34939770a project=VZ20260423002 question_type=overview evidence=10 warnings=0 duration_ms=6206.62
+2026-05-25 15:29:59,668 | INFO     | ITS_App:500 | business_runtime stage=analyze_project_data workflow_run_id=projwf_3e7a8681291b duration_ms=6208.93
+2026-05-25 15:29:59,674 | INFO     | ITS_App:609 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_3e7a8681291b status=skipped documents=0 duration_ms=1.52
+2026-05-25 15:30:12,815 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7041 max_tokens=2200 first_token_ms=13140.30
+2026-05-25 15:30:33,937 | INFO     | ITS_App:388 | llm_call done purpose=html_report_summary model=deepseek-v4-flash prompt_chars=22878 output_chars=5181 duration_ms=34909.57
+2026-05-25 15:30:33,937 | INFO     | ITS_App:239 | html_report_summary stage=generate_summary project=VZ20260423002 mode=llm_html_report_summary output_chars=5181 duration_ms=34910.00
+2026-05-25 15:30:33,939 | INFO     | ITS_App:270 | html_report_summary done project=VZ20260423002 mode=llm_html_report_summary duration_ms=40478.63
+2026-05-25 15:30:43,464 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7041 output_chars=1976 max_tokens=2200 first_token_ms=13140.30 duration_ms=43789.58
+2026-05-25 15:30:43,466 | INFO     | ITS_App:697 | business_runtime stage=compose_response workflow_run_id=projwf_3e7a8681291b output_chars=1976 duration_ms=43791.18
+2026-05-25 15:30:43,471 | INFO     | ITS_App:736 | business_runtime stage=memory_update workflow_run_id=projwf_3e7a8681291b duration_ms=4.68
+2026-05-25 15:30:43,471 | INFO     | ITS_App:752 | business_runtime workflow_run_id=projwf_3e7a8681291b analysis_run_id=projrun_b0b34939770a status=ok duration_ms=51693.14
+2026-05-25 15:30:43,473 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779694188840 total_cost=51.699s
+2026-05-25 15:30:43,806 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.016s
+2026-05-25 15:30:55,246 | INFO     | ITS_App:87 | user=root1 query=继续排查
+2026-05-25 15:30:55,247 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779694188840 cost=0.001s context_mode=follow_up context_turns=1
+2026-05-25 15:30:55,249 | INFO     | ITS_App:890 | request route user=root1 session=session_1779694188840 mode=agent route=business resolved_project_id=VZ20260423002 force_consult=False direct_business=True followup_confirmed=False
+2026-05-25 15:30:55,251 | INFO     | ITS_App:292 | [Route] project business agent: 继续排查
+2026-05-25 15:30:55,251 | INFO     | ITS_App:234 | [Route] project workflow: 继续排查
+2026-05-25 15:30:55,257 | INFO     | ITS_App:384 | business_runtime stage=identify_project workflow_run_id=projwf_aa4483bbee32 duration_ms=5.10
+2026-05-25 15:30:55,266 | INFO     | ITS_App:452 | business_runtime stage=planning workflow_run_id=projwf_aa4483bbee32 duration_ms=3.73
+2026-05-25 15:30:56,793 | INFO     | ITS_App:1662 | project_analysis stage=start run_id=projrun_79e4934c6caa project=VZ20260423002 question_type=overview root=\\RaiDrive-ASUS\SFTP\Result\CUTTag\VZ20260423002
+2026-05-25 15:30:56,826 | INFO     | ITS_App:1671 | project_analysis stage=build_context run_id=projrun_79e4934c6caa project=VZ20260423002 include_html_body=False duration_ms=32.02
+2026-05-25 15:30:56,848 | INFO     | ITS_App:1689 | project_analysis stage=select_evidence run_id=projrun_79e4934c6caa project=VZ20260423002 evidence=10 duration_ms=21.19
+2026-05-25 15:30:56,854 | INFO     | ITS_App:1906 | project_analysis run_id=projrun_79e4934c6caa project=VZ20260423002 question_type=overview evidence=10 warnings=0 duration_ms=1586.47
+2026-05-25 15:30:56,855 | INFO     | ITS_App:500 | business_runtime stage=analyze_project_data workflow_run_id=projwf_aa4483bbee32 duration_ms=1588.02
+2026-05-25 15:30:56,859 | INFO     | ITS_App:609 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_aa4483bbee32 status=skipped documents=0 duration_ms=1.46
+2026-05-25 15:31:03,182 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7033 max_tokens=2200 first_token_ms=6321.86
+2026-05-25 15:31:32,174 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7033 output_chars=1906 max_tokens=2200 first_token_ms=6321.86 duration_ms=35312.65
+2026-05-25 15:31:32,175 | INFO     | ITS_App:697 | business_runtime stage=compose_response workflow_run_id=projwf_aa4483bbee32 output_chars=1906 duration_ms=35314.20
+2026-05-25 15:31:32,179 | INFO     | ITS_App:736 | business_runtime stage=memory_update workflow_run_id=projwf_aa4483bbee32 duration_ms=3.75
+2026-05-25 15:31:32,179 | INFO     | ITS_App:752 | business_runtime workflow_run_id=projwf_aa4483bbee32 analysis_run_id=projrun_79e4934c6caa status=ok duration_ms=36927.48
+2026-05-25 15:31:32,183 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779694188840 total_cost=36.938s
+2026-05-25 15:31:32,529 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.018s
+2026-05-25 15:31:54,295 | INFO     | ITS_App:87 | user=root1 query=继续排查
+2026-05-25 15:31:54,298 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779694188840 cost=0.003s context_mode=follow_up context_turns=2
+2026-05-25 15:31:54,301 | INFO     | ITS_App:890 | request route user=root1 session=session_1779694188840 mode=agent route=business resolved_project_id=VZ20260423002 force_consult=False direct_business=True followup_confirmed=False
+2026-05-25 15:31:54,303 | INFO     | ITS_App:292 | [Route] project business agent: 继续排查
+2026-05-25 15:31:54,303 | INFO     | ITS_App:234 | [Route] project workflow: 继续排查
+2026-05-25 15:31:54,308 | INFO     | ITS_App:384 | business_runtime stage=identify_project workflow_run_id=projwf_cfe3bcfad5d6 duration_ms=5.55
+2026-05-25 15:31:54,322 | INFO     | ITS_App:452 | business_runtime stage=planning workflow_run_id=projwf_cfe3bcfad5d6 duration_ms=5.43
+2026-05-25 15:31:55,699 | INFO     | ITS_App:1662 | project_analysis stage=start run_id=projrun_26ef8d9e7bb0 project=VZ20260423002 question_type=overview root=\\RaiDrive-ASUS\SFTP\Result\CUTTag\VZ20260423002
+2026-05-25 15:31:55,735 | INFO     | ITS_App:1671 | project_analysis stage=build_context run_id=projrun_26ef8d9e7bb0 project=VZ20260423002 include_html_body=False duration_ms=35.71
+2026-05-25 15:31:55,758 | INFO     | ITS_App:1689 | project_analysis stage=select_evidence run_id=projrun_26ef8d9e7bb0 project=VZ20260423002 evidence=10 duration_ms=23.12
+2026-05-25 15:31:55,763 | INFO     | ITS_App:1906 | project_analysis run_id=projrun_26ef8d9e7bb0 project=VZ20260423002 question_type=overview evidence=10 warnings=0 duration_ms=1439.89
+2026-05-25 15:31:55,764 | INFO     | ITS_App:500 | business_runtime stage=analyze_project_data workflow_run_id=projwf_cfe3bcfad5d6 duration_ms=1441.27
+2026-05-25 15:31:55,768 | INFO     | ITS_App:609 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_cfe3bcfad5d6 status=skipped documents=0 duration_ms=1.42
+2026-05-25 15:32:06,310 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7040 max_tokens=2200 first_token_ms=10540.27
+2026-05-25 15:32:43,865 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=7040 output_chars=2153 max_tokens=2200 first_token_ms=10540.27 duration_ms=48096.62
+2026-05-25 15:32:43,867 | INFO     | ITS_App:697 | business_runtime stage=compose_response workflow_run_id=projwf_cfe3bcfad5d6 output_chars=2153 duration_ms=48098.14
+2026-05-25 15:32:43,870 | INFO     | ITS_App:736 | business_runtime stage=memory_update workflow_run_id=projwf_cfe3bcfad5d6 duration_ms=3.68
+2026-05-25 15:32:43,870 | INFO     | ITS_App:752 | business_runtime workflow_run_id=projwf_cfe3bcfad5d6 analysis_run_id=projrun_26ef8d9e7bb0 status=ok duration_ms=49568.35
+2026-05-25 15:32:43,879 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779694188840 total_cost=49.583s
+2026-05-25 15:32:43,915 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.017s
+2026-05-25 15:39:33,935 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.001s
+2026-05-25 16:00:25,526 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.001s
+2026-05-25 16:08:42,221 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=30 cost=0.001s

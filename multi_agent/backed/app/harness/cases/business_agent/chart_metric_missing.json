@@ -1,0 +1,34 @@
+{
+  "id": "business_chart_metric_missing",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "画个图看看",
+  "user_id": "harness_user",
+  "session_id": "harness_chart_missing",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "clarification"
+    ],
+    "workflow_route": "chart",
+    "analysis_run_absent": true,
+    "output_mode": "clarification",
+    "question_type": "chart_clarification",
+    "min_answer_chars": 80,
+    "answer_must_contain": [
+      "需要明确图表指标",
+      "Mapping",
+      "FRiP",
+      "Correlation"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt.",
+      "!["
+    ]
+  }
+}

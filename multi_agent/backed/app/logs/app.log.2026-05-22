@@ -1,0 +1,216 @@
+2026-05-22 13:51:21,003 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 13:51:21,200 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 13:52:21,039 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=26 cost=0.029s
+2026-05-22 13:52:49,090 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=25 cost=0.010s
+2026-05-22 13:53:03,260 | INFO     | ITS_App:87 | user=root1 query=分析一下VZ20260402005这个项目
+2026-05-22 13:53:03,262 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779429170714 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 13:53:03,263 | INFO     | ITS_App:890 | request route user=root1 session=session_1779429170714 mode=agent route=business resolved_project_id=VZ20260402005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 13:53:03,264 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260402005这个项目
+2026-05-22 13:53:03,264 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260402005这个项目
+2026-05-22 13:53:11,214 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_61f165702bb2 project=VZ20260402005 question_type=overview evidence=0 warnings=0 duration_ms=3753.94
+2026-05-22 13:53:11,429 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_73de26388f78 project=VZ20260402005 question_type=overview evidence=9 warnings=0 duration_ms=3969.05
+2026-05-22 13:53:19,460 | WARNING  | ITS_App:371 | business runtime knowledge retrieval timeout after 8.0s
+2026-05-22 13:55:16,143 | INFO     | ITS_App:523 | business_runtime workflow_run_id=projwf_93552f6ba725 analysis_run_id=projrun_73de26388f78 status=ok duration_ms=132879.44
+2026-05-22 13:55:16,144 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779429170714 total_cost=132.883s
+2026-05-22 13:55:16,481 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=26 cost=0.013s
+2026-05-22 13:59:22,992 | INFO     | ITS_App:87 | user=root1 query=分析一下·
+VZ20260416005
+2026-05-22 13:59:22,992 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779429554719 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 13:59:22,993 | INFO     | ITS_App:890 | request route user=root1 session=session_1779429554719 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 13:59:22,993 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下·
+VZ20260416005
+2026-05-22 13:59:22,993 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下·
+VZ20260416005
+2026-05-22 13:59:25,969 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_e3d539f81fb3 project=VZ20260416005 question_type=overview evidence=0 warnings=0 duration_ms=2360.47
+2026-05-22 13:59:26,392 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_e46d80cc20c1 project=VZ20260416005 question_type=overview evidence=10 warnings=0 duration_ms=2783.79
+2026-05-22 14:01:34,667 | INFO     | ITS_App:523 | business_runtime workflow_run_id=projwf_7f56105370fe analysis_run_id=projrun_e46d80cc20c1 status=ok duration_ms=131674.06
+2026-05-22 14:01:34,669 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779429554719 total_cost=131.677s
+2026-05-22 14:01:35,005 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.013s
+2026-05-22 14:04:18,783 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.001s
+2026-05-22 14:29:34,085 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 14:29:34,301 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 14:29:42,928 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.016s
+2026-05-22 14:29:55,654 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=26 cost=0.013s
+2026-05-22 14:29:59,715 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=25 cost=0.010s
+2026-05-22 14:30:06,164 | INFO     | ITS_App:87 | user=root1 query=分析一下
+VZ20260416005
+2026-05-22 14:30:06,164 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779431399815 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 14:30:06,165 | INFO     | ITS_App:890 | request route user=root1 session=session_1779431399815 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 14:30:06,165 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下
+VZ20260416005
+2026-05-22 14:30:06,165 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下
+VZ20260416005
+2026-05-22 14:30:14,011 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_b5641973782a project=VZ20260416005 question_type=overview evidence=10 warnings=0 duration_ms=4887.91
+2026-05-22 14:30:22,028 | WARNING  | ITS_App:361 | business runtime knowledge retrieval timeout after 8.0s
+2026-05-22 14:32:50,120 | INFO     | ITS_App:513 | business_runtime workflow_run_id=projwf_35ffeb0dd509 analysis_run_id=projrun_b5641973782a status=ok duration_ms=163953.71
+2026-05-22 14:32:50,124 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779431399815 total_cost=163.959s
+2026-05-22 14:32:50,453 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=26 cost=0.016s
+2026-05-22 14:32:52,035 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_f60f6991cc64 project=VZ20260416005 question_type=overview evidence=0 warnings=0 duration_ms=1914.29
+2026-05-22 14:45:25,884 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 14:45:26,073 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 14:46:58,077 | INFO     | ITS_App:87 | user=root1 query=分析一下
+VZ20260508009
+2026-05-22 14:46:58,077 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779432411124 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 14:46:58,077 | INFO     | ITS_App:890 | request route user=root1 session=session_1779432411124 mode=agent route=business resolved_project_id=VZ20260508009 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 14:46:58,077 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下
+VZ20260508009
+2026-05-22 14:46:58,077 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下
+VZ20260508009
+2026-05-22 14:47:00,827 | INFO     | ITS_App:245 | business_runtime stage=identify_project workflow_run_id=projwf_c56981146f92 duration_ms=2748.75
+2026-05-22 14:47:02,200 | INFO     | ITS_App:313 | business_runtime stage=planning workflow_run_id=projwf_c56981146f92 duration_ms=6.24
+2026-05-22 14:47:04,508 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_882d4416a010 project=VZ20260508009 question_type=overview evidence=0 warnings=0 duration_ms=2306.23
+2026-05-22 14:47:04,511 | INFO     | ITS_App:91 | html_report_summary stage=analyze_html project=VZ20260508009 duration_ms=2308.52
+2026-05-22 14:47:04,824 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_e6c5a93b4e61 project=VZ20260508009 question_type=overview evidence=10 warnings=0 duration_ms=2621.88
+2026-05-22 14:47:04,826 | INFO     | ITS_App:345 | business_runtime stage=analyze_project_data workflow_run_id=projwf_c56981146f92 duration_ms=2624.12
+2026-05-22 14:47:12,836 | WARNING  | ITS_App:413 | business runtime knowledge retrieval timeout after 8.0s
+2026-05-22 14:47:12,837 | INFO     | ITS_App:453 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_c56981146f92 status=timeout documents=0 duration_ms=8008.24
+2026-05-22 14:48:57,135 | INFO     | ITS_App:100 | html_report_summary stage=generate_summary project=VZ20260508009 mode=llm_html_report_summary output_chars=3014 duration_ms=112624.31
+2026-05-22 14:48:57,137 | INFO     | ITS_App:131 | html_report_summary done project=VZ20260508009 mode=llm_html_report_summary duration_ms=114935.65
+2026-05-22 14:49:19,231 | INFO     | ITS_App:530 | business_runtime stage=compose_response workflow_run_id=projwf_c56981146f92 output_chars=1943 duration_ms=126392.84
+2026-05-22 14:49:19,235 | INFO     | ITS_App:569 | business_runtime stage=memory_update workflow_run_id=projwf_c56981146f92 duration_ms=4.26
+2026-05-22 14:49:19,235 | INFO     | ITS_App:585 | business_runtime workflow_run_id=projwf_c56981146f92 analysis_run_id=projrun_e6c5a93b4e61 status=ok duration_ms=141157.54
+2026-05-22 14:49:19,236 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779432411124 total_cost=141.160s
+2026-05-22 14:49:19,567 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.013s
+2026-05-22 16:33:15,332 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 16:33:27,554 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 16:33:53,703 | INFO     | ITS_App:87 | user=root1 query=分析一下这个项目
+VZ20260417005
+2026-05-22 16:33:53,704 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779438797662 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 16:33:53,704 | INFO     | ITS_App:890 | request route user=root1 session=session_1779438797662 mode=agent route=business resolved_project_id=VZ20260417005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 16:33:53,704 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个项目
+VZ20260417005
+2026-05-22 16:33:53,704 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个项目
+VZ20260417005
+2026-05-22 16:33:56,464 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_0d59d3938ee9 duration_ms=2759.52
+2026-05-22 16:33:58,047 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_0d59d3938ee9 duration_ms=6.45
+2026-05-22 16:34:04,450 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_8400e7f74703 project=VZ20260417005 question_type=overview evidence=0 warnings=0 duration_ms=6401.93
+2026-05-22 16:34:04,450 | INFO     | ITS_App:1892 | project_analysis run_id=projrun_a43fafd892ca project=VZ20260417005 question_type=overview evidence=0 warnings=0 duration_ms=6401.81
+2026-05-22 16:34:04,451 | INFO     | ITS_App:408 | business_runtime stage=analyze_project_data workflow_run_id=projwf_0d59d3938ee9 duration_ms=6403.80
+2026-05-22 16:34:04,456 | INFO     | ITS_App:517 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_0d59d3938ee9 status=skipped documents=0 duration_ms=1.42
+2026-05-22 16:34:04,459 | INFO     | ITS_App:594 | business_runtime stage=compose_response workflow_run_id=projwf_0d59d3938ee9 output_chars=5176 duration_ms=2.19
+2026-05-22 16:34:04,461 | INFO     | ITS_App:633 | business_runtime stage=memory_update workflow_run_id=projwf_0d59d3938ee9 duration_ms=2.15
+2026-05-22 16:34:04,462 | INFO     | ITS_App:649 | business_runtime workflow_run_id=projwf_0d59d3938ee9 analysis_run_id=projrun_8400e7f74703 status=ok duration_ms=10756.46
+2026-05-22 16:34:04,462 | INFO     | ITS_App:154 | html_report_summary stage=analyze_html project=VZ20260417005 duration_ms=6413.33
+2026-05-22 16:34:04,684 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779438797662 total_cost=10.980s
+2026-05-22 16:34:05,017 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=28 cost=0.017s
+2026-05-22 16:35:38,088 | INFO     | ITS_App:386 | llm_call done purpose=html_report_summary model=qwen3.6-plus prompt_chars=23721 output_chars=2848 duration_ms=93625.96
+2026-05-22 16:35:38,088 | INFO     | ITS_App:163 | html_report_summary stage=generate_summary project=VZ20260417005 mode=llm_html_report_summary output_chars=2848 duration_ms=93626.40
+2026-05-22 16:35:38,090 | INFO     | ITS_App:194 | html_report_summary done project=VZ20260417005 mode=llm_html_report_summary duration_ms=100042.14
+2026-05-22 16:46:20,172 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 16:46:32,384 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 16:46:43,822 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.014s
+2026-05-22 16:46:46,609 | INFO     | ITS_App:87 | user=root1 query=分析一下这个项目
+VZ20260417005
+2026-05-22 16:46:46,610 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779439603858 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 16:46:46,610 | INFO     | ITS_App:890 | request route user=root1 session=session_1779439603858 mode=agent route=business resolved_project_id=VZ20260417005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 16:46:46,611 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个项目
+VZ20260417005
+2026-05-22 16:46:46,611 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个项目
+VZ20260417005
+2026-05-22 16:46:46,638 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_1043c30942ac duration_ms=26.69
+2026-05-22 16:46:46,838 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_1043c30942ac duration_ms=4.42
+2026-05-22 16:46:48,915 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_79ec3307f894 project=VZ20260417005 question_type=overview evidence=0 warnings=0 duration_ms=2074.03
+2026-05-22 16:46:48,917 | INFO     | ITS_App:154 | html_report_summary stage=analyze_html project=VZ20260417005 duration_ms=2076.57
+2026-05-22 16:46:49,195 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_72dededbe192 project=VZ20260417005 question_type=overview evidence=9 warnings=0 duration_ms=2354.53
+2026-05-22 16:46:49,196 | INFO     | ITS_App:408 | business_runtime stage=analyze_project_data workflow_run_id=projwf_1043c30942ac duration_ms=2355.97
+2026-05-22 16:46:49,201 | INFO     | ITS_App:517 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_1043c30942ac status=skipped documents=0 duration_ms=1.46
+2026-05-22 16:48:19,947 | INFO     | ITS_App:386 | llm_call done purpose=html_report_summary model=qwen3.6-plus prompt_chars=23721 output_chars=2754 duration_ms=91030.07
+2026-05-22 16:48:19,947 | INFO     | ITS_App:163 | html_report_summary stage=generate_summary project=VZ20260417005 mode=llm_html_report_summary output_chars=2754 duration_ms=91030.53
+2026-05-22 16:48:19,950 | INFO     | ITS_App:194 | html_report_summary done project=VZ20260417005 mode=llm_html_report_summary duration_ms=93109.59
+2026-05-22 16:48:25,664 | INFO     | ITS_App:594 | llm_call first_token purpose=fused_answer_stream model=qwen3.6-plus prompt_chars=7195 max_tokens=2200 first_token_ms=96462.88
+2026-05-22 16:48:58,224 | INFO     | ITS_App:604 | llm_call done purpose=fused_answer_stream model=qwen3.6-plus prompt_chars=7195 output_chars=2989 max_tokens=2200 first_token_ms=96462.88 duration_ms=129022.76
+2026-05-22 16:48:58,226 | INFO     | ITS_App:594 | business_runtime stage=compose_response workflow_run_id=projwf_1043c30942ac output_chars=2989 duration_ms=129024.41
+2026-05-22 16:48:58,230 | INFO     | ITS_App:633 | business_runtime stage=memory_update workflow_run_id=projwf_1043c30942ac duration_ms=3.93
+2026-05-22 16:48:58,230 | INFO     | ITS_App:649 | business_runtime workflow_run_id=projwf_1043c30942ac analysis_run_id=projrun_72dededbe192 status=ok duration_ms=131618.82
+2026-05-22 16:48:58,232 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779439603858 total_cost=131.623s
+2026-05-22 16:48:58,567 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=28 cost=0.014s
+2026-05-22 17:14:34,457 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 17:14:46,701 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 17:15:56,807 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.014s
+2026-05-22 17:15:59,651 | INFO     | ITS_App:87 | user=root1 query=分析一下这个项目
+VZ20260417005
+2026-05-22 17:15:59,652 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779441357080 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 17:15:59,653 | INFO     | ITS_App:890 | request route user=root1 session=session_1779441357080 mode=agent route=business resolved_project_id=VZ20260417005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 17:15:59,654 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个项目
+VZ20260417005
+2026-05-22 17:15:59,654 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个项目
+VZ20260417005
+2026-05-22 17:16:02,396 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_4a49cf432f8d duration_ms=2743.26
+2026-05-22 17:16:02,600 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_4a49cf432f8d duration_ms=4.06
+2026-05-22 17:16:04,697 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_a7dfc4a751c8 project=VZ20260417005 question_type=overview evidence=0 warnings=0 duration_ms=2095.28
+2026-05-22 17:16:04,698 | INFO     | ITS_App:154 | html_report_summary stage=analyze_html project=VZ20260417005 duration_ms=2097.57
+2026-05-22 17:16:04,865 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_251f5950b973 project=VZ20260417005 question_type=overview evidence=9 warnings=0 duration_ms=2264.08
+2026-05-22 17:16:04,956 | INFO     | ITS_App:408 | business_runtime stage=analyze_project_data workflow_run_id=projwf_4a49cf432f8d duration_ms=2355.99
+2026-05-22 17:16:04,962 | INFO     | ITS_App:517 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_4a49cf432f8d status=skipped documents=0 duration_ms=1.87
+2026-05-22 17:17:32,625 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=qwen3.6-plus prompt_chars=7345 max_tokens=2200 first_token_ms=87661.42
+2026-05-22 17:17:52,639 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=qwen3.6-plus prompt_chars=7345 output_chars=1767 max_tokens=2200 first_token_ms=87661.42 duration_ms=107675.78
+2026-05-22 17:17:52,640 | INFO     | ITS_App:594 | business_runtime stage=compose_response workflow_run_id=projwf_4a49cf432f8d output_chars=1767 duration_ms=107677.60
+2026-05-22 17:17:52,645 | INFO     | ITS_App:633 | business_runtime stage=memory_update workflow_run_id=projwf_4a49cf432f8d duration_ms=4.61
+2026-05-22 17:17:52,645 | INFO     | ITS_App:649 | business_runtime workflow_run_id=projwf_4a49cf432f8d analysis_run_id=projrun_251f5950b973 status=ok duration_ms=112992.03
+2026-05-22 17:17:52,648 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779441357080 total_cost=112.996s
+2026-05-22 17:17:52,983 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=28 cost=0.013s
+2026-05-22 17:18:02,306 | INFO     | ITS_App:388 | llm_call done purpose=html_report_summary model=qwen3.5-plus prompt_chars=23721 output_chars=3165 duration_ms=117606.01
+2026-05-22 17:18:02,306 | INFO     | ITS_App:163 | html_report_summary stage=generate_summary project=VZ20260417005 mode=llm_html_report_summary output_chars=3165 duration_ms=117606.75
+2026-05-22 17:18:02,308 | INFO     | ITS_App:194 | html_report_summary done project=VZ20260417005 mode=llm_html_report_summary duration_ms=119707.00
+2026-05-22 17:22:07,652 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 17:22:07,839 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 17:22:20,014 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=27 cost=0.014s
+2026-05-22 17:22:23,102 | INFO     | ITS_App:87 | user=root1 query=分析一下这个项目
+VZ20260417005
+2026-05-22 17:22:23,102 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779441740417 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 17:22:23,103 | INFO     | ITS_App:890 | request route user=root1 session=session_1779441740417 mode=agent route=business resolved_project_id=VZ20260417005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 17:22:23,103 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个项目
+VZ20260417005
+2026-05-22 17:22:23,103 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个项目
+VZ20260417005
+2026-05-22 17:22:23,124 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_bf8d9a47607b duration_ms=20.56
+2026-05-22 17:22:23,319 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_bf8d9a47607b duration_ms=4.99
+2026-05-22 17:22:25,540 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_32139cd59329 project=VZ20260417005 question_type=overview evidence=0 warnings=0 duration_ms=2219.00
+2026-05-22 17:22:25,541 | INFO     | ITS_App:154 | html_report_summary stage=analyze_html project=VZ20260417005 duration_ms=2220.85
+2026-05-22 17:22:25,662 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_dda5b6a9d5a3 project=VZ20260417005 question_type=overview evidence=9 warnings=0 duration_ms=2341.80
+2026-05-22 17:22:25,781 | INFO     | ITS_App:408 | business_runtime stage=analyze_project_data workflow_run_id=projwf_bf8d9a47607b duration_ms=2460.41
+2026-05-22 17:22:25,786 | INFO     | ITS_App:517 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_bf8d9a47607b status=skipped documents=0 duration_ms=1.77
+2026-05-22 17:22:26,906 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=deepseek-v4-flash prompt_chars=7370 max_tokens=2200 first_token_ms=1118.99
+2026-05-22 17:22:36,247 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=deepseek-v4-flash prompt_chars=7370 output_chars=2235 max_tokens=2200 first_token_ms=1118.99 duration_ms=10459.67
+2026-05-22 17:22:36,248 | INFO     | ITS_App:594 | business_runtime stage=compose_response workflow_run_id=projwf_bf8d9a47607b output_chars=2235 duration_ms=10461.57
+2026-05-22 17:22:36,252 | INFO     | ITS_App:633 | business_runtime stage=memory_update workflow_run_id=projwf_bf8d9a47607b duration_ms=3.70
+2026-05-22 17:22:36,252 | INFO     | ITS_App:649 | business_runtime workflow_run_id=projwf_bf8d9a47607b analysis_run_id=projrun_dda5b6a9d5a3 status=ok duration_ms=13149.34
+2026-05-22 17:22:36,255 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779441740417 total_cost=13.152s
+2026-05-22 17:22:36,585 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=28 cost=0.015s
+2026-05-22 17:24:12,236 | INFO     | ITS_App:388 | llm_call done purpose=html_report_summary model=qwen3.5-plus prompt_chars=23721 output_chars=3974 duration_ms=106693.33
+2026-05-22 17:24:12,236 | INFO     | ITS_App:163 | html_report_summary stage=generate_summary project=VZ20260417005 mode=llm_html_report_summary output_chars=3974 duration_ms=106693.79
+2026-05-22 17:24:12,238 | INFO     | ITS_App:194 | html_report_summary done project=VZ20260417005 mode=llm_html_report_summary duration_ms=108917.18
+2026-05-22 17:25:16,029 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-22 17:25:16,227 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-22 17:25:32,759 | INFO     | ITS_App:87 | user=root1 query=分析一下这个VZ20260423002
+2026-05-22 17:25:32,761 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779441858447 cost=0.000s context_mode=standalone context_turns=0
+2026-05-22 17:25:32,761 | INFO     | ITS_App:890 | request route user=root1 session=session_1779441858447 mode=agent route=business resolved_project_id=VZ20260423002 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 17:25:32,761 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个VZ20260423002
+2026-05-22 17:25:32,761 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个VZ20260423002
+2026-05-22 17:25:32,826 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_d138a4d4b5b4 duration_ms=65.35
+2026-05-22 17:25:33,912 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_d138a4d4b5b4 duration_ms=3.99
+2026-05-22 17:25:37,030 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_6f8123120388 project=VZ20260423002 question_type=overview evidence=0 warnings=0 duration_ms=3115.46
+2026-05-22 17:25:37,031 | INFO     | ITS_App:154 | html_report_summary stage=analyze_html project=VZ20260423002 duration_ms=3116.91
+2026-05-22 17:25:37,578 | INFO     | ITS_App:1883 | project_analysis run_id=projrun_f275fd55f42a project=VZ20260423002 question_type=overview evidence=10 warnings=0 duration_ms=3664.25
+2026-05-22 17:25:37,580 | INFO     | ITS_App:408 | business_runtime stage=analyze_project_data workflow_run_id=projwf_d138a4d4b5b4 duration_ms=3666.17
+2026-05-22 17:25:37,584 | INFO     | ITS_App:517 | business_runtime stage=retrieve_knowledge workflow_run_id=projwf_d138a4d4b5b4 status=skipped documents=0 duration_ms=1.95
+2026-05-22 17:25:59,385 | INFO     | ITS_App:388 | llm_call done purpose=html_report_summary model=deepseek-v4-flash prompt_chars=22878 output_chars=3951 duration_ms=22353.92
+2026-05-22 17:25:59,386 | INFO     | ITS_App:163 | html_report_summary stage=generate_summary project=VZ20260423002 mode=llm_html_report_summary output_chars=3951 duration_ms=22354.43
+2026-05-22 17:25:59,387 | INFO     | ITS_App:194 | html_report_summary done project=VZ20260423002 mode=llm_html_report_summary duration_ms=25473.78
+2026-05-22 17:26:10,803 | INFO     | ITS_App:596 | llm_call first_token purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=5591 max_tokens=2200 first_token_ms=33216.49
+2026-05-22 17:26:33,166 | INFO     | ITS_App:606 | llm_call done purpose=fused_answer_stream model=deepseek-v4-pro prompt_chars=5591 output_chars=1278 max_tokens=2200 first_token_ms=33216.49 duration_ms=55579.58
+2026-05-22 17:26:33,167 | INFO     | ITS_App:594 | business_runtime stage=compose_response workflow_run_id=projwf_d138a4d4b5b4 output_chars=1278 duration_ms=55581.28
+2026-05-22 17:26:33,171 | INFO     | ITS_App:633 | business_runtime stage=memory_update workflow_run_id=projwf_d138a4d4b5b4 duration_ms=3.17
+2026-05-22 17:26:33,171 | INFO     | ITS_App:649 | business_runtime workflow_run_id=projwf_d138a4d4b5b4 analysis_run_id=projrun_f275fd55f42a status=ok duration_ms=60409.86
+2026-05-22 17:26:33,172 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779441858447 total_cost=60.412s
+2026-05-22 17:26:33,511 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=29 cost=0.014s
+2026-05-22 17:36:07,671 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=29 cost=0.001s
+2026-05-22 17:38:48,133 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=29 cost=0.001s
+2026-05-22 17:39:18,581 | INFO     | ITS_App:158 | get_user_sessions done user=root1 sessions=29 cost=0.001s
+2026-05-22 17:39:36,349 | INFO     | ITS_App:87 | user=root1 query=继续分析
+2026-05-22 17:39:36,352 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779441858447 cost=0.002s context_mode=follow_up context_turns=1
+2026-05-22 17:39:36,354 | INFO     | ITS_App:890 | request route user=root1 session=session_1779441858447 mode=agent route=business resolved_project_id=VZ20260423002 force_consult=False direct_business=True followup_confirmed=False
+2026-05-22 17:39:36,356 | INFO     | ITS_App:292 | [Route] project business agent: 继续分析
+2026-05-22 17:39:36,356 | INFO     | ITS_App:234 | [Route] project workflow: 继续分析
+2026-05-22 17:39:36,362 | INFO     | ITS_App:308 | business_runtime stage=identify_project workflow_run_id=projwf_94290915ebeb duration_ms=4.97
+2026-05-22 17:39:39,083 | INFO     | ITS_App:376 | business_runtime stage=planning workflow_run_id=projwf_94290915ebeb duration_ms=4.01

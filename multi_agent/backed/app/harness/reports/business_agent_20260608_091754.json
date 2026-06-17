@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:17:54",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2943"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 146620.15
+      },
+      "answer_excerpt": "**线粒体 reads 比例异常高（T1 72.61%，T2 66.87%）的直接原因是：在总比对率偏低（~57‑58%）且唯一比对率极低（12‑15%）的情况下，绝大多数能成功比对的 reads 被分配到了线粒体 chrM 上，导致线粒体 reads 在“已比对 reads”中占比突出。这不是单纯的线粒体污染，更可能反映核基因组比对严重不足，使得线粒体信号被被动放大。**\n\n---\n\n### 关键观测值（芯片数据汇总）\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT(%)* | Adapter(%) | FRiP |\n|------|------------|-----------|--------------|-----------|------------|------|\n| T1   | 57.54      | 12.60     | 33.66        | 72.61     | 38.24      | 0.1482 |\n| T2   | 57.71      | 15.01     | 30.03        | 66.87     | 39.19      | 0.1205 |\n\n*chrMT(%) 来自 `Align/align_stat.py`，但该脚本公式未在本轮证据中提供，因此无法确认其分",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

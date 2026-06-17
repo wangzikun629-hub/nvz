@@ -1,0 +1,30 @@
+{
+  "id": "business_frip_explanation_no_project",
+  "target": "business_agent",
+  "enabled": true,
+  "question": "FRiP 是什么",
+  "user_id": "harness_no_project_user",
+  "session_id": "harness_frip_no_project",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok"
+    ],
+    "workflow_route": "knowledge",
+    "analysis_run_absent": true,
+    "output_mode": "knowledge",
+    "question_type": "knowledge",
+    "min_answer_chars": 80,
+    "answer_must_contain": [
+      "FRiP",
+      "未读取具体项目文件"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt."
+    ]
+  }
+}

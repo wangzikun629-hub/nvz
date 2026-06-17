@@ -1,0 +1,3 @@
+2026-05-13 16:24:48,661 | ERROR    | ITS_App:975 | AgentService.process_query error: name 'set_round_project_analysis_result' is not defined
+2026-05-13 16:25:59,125 | ERROR    | ITS_App:975 | AgentService.process_query error: name 'set_round_project_analysis_result' is not defined
+2026-05-13 17:20:53,094 | ERROR    | ITS_App:262 | project analysis workflow failed: name 'self' is not defined

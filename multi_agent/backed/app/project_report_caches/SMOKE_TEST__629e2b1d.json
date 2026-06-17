@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "project_id": "SMOKE_TEST",
+  "project_root": "/x",
+  "generation_version": "v3",
+  "analysis": null,
+  "updated_at": "2026-06-16T06:21:10",
+  "error": "err"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "business_project_compare_bound_context_phrase",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "与这个 VZ20260531009 项目对比",
+  "user_id": "harness_user",
+  "session_id": "harness_business_project_compare_bound_context_phrase",
+  "max_evidence_files": 6,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok"
+    ],
+    "workflow_route": "project_compare",
+    "output_mode": "project_compare",
+    "comparison_project_ids": [
+      "VZ20260427001",
+      "VZ20260531009"
+    ],
+    "min_comparison_rows": 2,
+    "answer_must_contain": [
+      "跨项目对比",
+      "VZ20260427001",
+      "VZ20260531009"
+    ],
+    "required_task_steps": [
+      "analyze_project_data",
+      "compose_response"
+    ]
+  }
+}

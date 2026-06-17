@@ -1,0 +1,419 @@
+{
+  "suite": "project_analysis",
+  "generated_at": "2026-06-03T09:57:51",
+  "total": 5,
+  "passed": 5,
+  "failed": 0,
+  "results": [
+    {
+      "id": "project_adapter_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:cutadapt_stat.py",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_4bcc5ae7dd6b",
+      "trace": {
+        "run_id": "projrun_4bcc5ae7dd6b",
+        "question_type": "qc",
+        "question_tags": [
+          "qc"
+        ],
+        "duration_ms": 5056.48,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_adapter_formula",
+        "target": "project_analysis",
+        "duration_ms": 5057.26
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：Adapter 指标具体是什么，是怎么计算的\n- 问题类型：qc\n- 读取文件：5 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：qc\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 | 176386 |\n\n### 样本相关性\n\n| 类型 | 样本1 | 样本2 | 相关系数 |\n| --- | --- | --- | --- |\n| 最高相关 ",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\adapter_formula.json"
+    },
+    {
+      "id": "project_duplicate_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:align_stat.py",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=duplicate_rate_percent"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='align_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Align\\\\align_stat.py'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_cff40118c094",
+      "trace": {
+        "run_id": "projrun_cff40118c094",
+        "question_type": "alignment",
+        "question_tags": [
+          "alignment"
+        ],
+        "duration_ms": 6227.5,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_duplicate_formula",
+        "target": "project_analysis",
+        "duration_ms": 6228.19
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：Duplicate 指标具体是什么，是怎么计算的\n- 问题类型：alignment\n- 读取文件：5 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：alignment\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 | 176386 |\n\n### 样本相关性\n\n| 类型 | 样本1 | 样本2 | 相关系数 |\n| --- | --- | ---",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\duplicate_formula.json"
+    },
+    {
+      "id": "project_frip_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='frip' actual='frip'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:6.macs3.smk",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=frip_ratio"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='6.macs3.smk' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\rules\\\\6.macs3.smk'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_01bc5dd7704a",
+      "trace": {
+        "run_id": "projrun_01bc5dd7704a",
+        "question_type": "frip",
+        "question_tags": [
+          "frip"
+        ],
+        "duration_ms": 4709.78,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_frip_formula",
+        "target": "project_analysis",
+        "duration_ms": 4710.38
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：FRiP 指标具体是什么，是怎么计算的\n- 问题类型：frip\n- 读取文件：5 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：frip\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 | 176386 |\n\n### 样本相关性\n\n| 类型 | 样本1 | 样本2 | 相关系数 |\n| --- | --- | --- | --- |\n| 最高相关",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\frip_formula.json"
+    },
+    {
+      "id": "project_mapping_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:align_stat.py",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=mapping_rate_percent"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='align_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Align\\\\align_stat.py'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_9dfbed2c6894",
+      "trace": {
+        "run_id": "projrun_9dfbed2c6894",
+        "question_type": "alignment",
+        "question_tags": [
+          "alignment"
+        ],
+        "duration_ms": 4424.68,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_mapping_formula",
+        "target": "project_analysis",
+        "duration_ms": 4425.39
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：Mapping 指标具体是什么，是怎么计算的\n- 问题类型：alignment\n- 读取文件：5 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：alignment\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 | 176386 |\n\n### 样本相关性\n\n| 类型 | 样本1 | 样本2 | 相关系数 |\n| --- | --- | --- |",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\mapping_formula.json"
+    },
+    {
+      "id": "project_unique_mapping_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:align_stat.py",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=unique_mapping_rate_percent"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='align_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Align\\\\align_stat.py'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_fb76cf3fa6b1",
+      "trace": {
+        "run_id": "projrun_fb76cf3fa6b1",
+        "question_type": "alignment",
+        "question_tags": [
+          "alignment"
+        ],
+        "duration_ms": 4839.03,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_unique_mapping_formula",
+        "target": "project_analysis",
+        "duration_ms": 4839.73
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：Unique Mapping 指标具体是什么，是怎么计算的\n- 问题类型：alignment\n- 读取文件：5 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：alignment\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 | 176386 |\n\n### 样本相关性\n\n| 类型 | 样本1 | 样本2 | 相关系数 |\n| --- | --- ",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\unique_mapping_formula.json"
+    }
+  ]
+}

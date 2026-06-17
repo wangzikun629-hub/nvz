@@ -1,0 +1,168 @@
+2026-04-28 08:54:52,399 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 08:54:52,881 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 08:59:36,056 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 08:59:36,056 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 08:59:36,056 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 08:59:36,057 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 08:59:36,065 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.008s
+2026-04-28 08:59:36,065 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.009s
+2026-04-28 08:59:59,278 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 我应该怎么找到我的motif结合的位置
+2026-04-28 08:59:59,279 | INFO     | ITS_App:250 | prepare_history done user=root1 session=session_1777277471078 cost=0.001s context_mode=ambiguous context_turns=2
+2026-04-28 09:00:08,420 | INFO     | ITS_App:105 | [Route] technical expert: 我应该怎么找到我的motif结合的位置...
+2026-04-28 09:00:27,942 | INFO     | ITS_App:279 | process_task done user=root1 session=session_1777277471078 total_cost=28.665s
+2026-04-28 09:00:27,947 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 09:00:27,948 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 09:00:27,950 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.002s
+2026-04-28 09:00:48,991 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 fimo可有找到，但是如果我用的是homer应该怎么找呢
+2026-04-28 09:00:48,992 | INFO     | ITS_App:250 | prepare_history done user=root1 session=session_1777277471078 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 09:00:51,840 | INFO     | ITS_App:105 | [Route] technical expert: fimo可有找到，但是如果我用的是homer应该怎么找呢...
+2026-04-28 09:01:44,298 | INFO     | ITS_App:279 | process_task done user=root1 session=session_1777277471078 total_cost=55.306s
+2026-04-28 09:01:44,302 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 09:01:44,302 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 09:01:44,303 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.002s
+2026-04-28 09:07:03,914 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 我想做 cuttag，推荐用什么试剂
+2026-04-28 09:07:03,915 | INFO     | ITS_App:250 | prepare_history done user=root1 session=session_1777277471078 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 09:07:06,284 | INFO     | ITS_App:105 | [Route] technical expert: 我想做 cuttag，推荐用什么试剂...
+2026-04-28 09:07:33,540 | INFO     | ITS_App:279 | process_task done user=root1 session=session_1777277471078 total_cost=29.626s
+2026-04-28 09:07:33,545 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 09:07:33,545 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 09:07:33,547 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.002s
+2026-04-28 09:45:39,449 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 09:45:51,980 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 09:49:33,034 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 FastQC结果解读
+2026-04-28 09:49:33,035 | INFO     | ITS_App:250 | prepare_history done user=root1 session=session_1777277471078 cost=0.001s context_mode=ambiguous context_turns=1
+2026-04-28 09:49:48,149 | INFO     | ITS_App:105 | [Route] technical expert: FastQC结果解读...
+2026-04-28 09:50:00,765 | INFO     | ITS_App:279 | process_task done user=root1 session=session_1777277471078 total_cost=27.731s
+2026-04-28 09:50:00,772 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 09:50:00,772 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 09:50:00,775 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.003s
+2026-04-28 09:50:58,676 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 CUTTag-目的富集弱案例2-比对率低、有效数据少
+2026-04-28 09:50:58,677 | INFO     | ITS_App:250 | prepare_history done user=root1 session=session_1777277471078 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 09:51:12,755 | INFO     | ITS_App:105 | [Route] technical expert: CUTTag-目的富集弱案例2-比对率低、有效数据少...
+2026-04-28 09:51:40,892 | INFO     | ITS_App:279 | process_task done user=root1 session=session_1777277471078 total_cost=42.215s
+2026-04-28 09:51:40,896 | INFO     | ITS_App:97 | 接收到获取用户会话请求
+2026-04-28 09:51:40,896 | INFO     | ITS_App:101 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 09:51:40,898 | INFO     | ITS_App:107 | get_user_sessions done user=root1 sessions=7 cost=0.002s
+2026-04-28 15:39:14,783 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 15:39:27,389 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 15:39:37,572 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:39:37,572 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:39:37,575 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=7 cost=0.002s
+2026-04-28 15:39:37,718 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:39:37,718 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:39:37,718 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=7 cost=0.000s
+2026-04-28 15:40:06,130 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 比对率低的原因
+2026-04-28 15:40:06,130 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.000s context_mode=standalone context_turns=0
+2026-04-28 15:40:06,130 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 15:40:16,541 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=10.411s
+2026-04-28 15:40:16,550 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:40:16,550 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:40:16,551 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 15:40:50,081 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 我应该怎么找到我的motif结合的位置
+2026-04-28 15:40:50,082 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 15:40:50,082 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=agent
+2026-04-28 15:41:03,967 | INFO     | ITS_App:105 | [Route] technical expert: 我应该怎么找到我的motif结合的位置...
+2026-04-28 15:41:14,226 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=24.145s
+2026-04-28 15:41:14,230 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:41:14,230 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:41:14,231 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 15:41:36,839 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 fimo可有找到，但是如果我用的是homer应该怎么找呢
+2026-04-28 15:41:36,840 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 15:41:36,840 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=agent
+2026-04-28 15:41:50,915 | INFO     | ITS_App:105 | [Route] technical expert: fimo可有找到，但是如果我用的是homer应该怎么找呢...
+2026-04-28 15:41:59,984 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=23.144s
+2026-04-28 15:41:59,988 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:41:59,988 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:41:59,990 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 15:42:10,076 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 FastQC结果解读
+2026-04-28 15:42:10,077 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.001s context_mode=ambiguous context_turns=1
+2026-04-28 15:42:10,077 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 15:42:19,975 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:42:19,975 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:42:19,975 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.000s
+2026-04-28 15:42:20,236 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:42:20,237 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:42:20,237 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.000s
+2026-04-28 15:42:28,093 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 FastQC结果解读
+2026-04-28 15:42:28,094 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.001s context_mode=ambiguous context_turns=1
+2026-04-28 15:42:28,094 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 15:42:59,892 | INFO     | ITS_App:95 | fast_rag rewrite question original=FastQC结果解读 rewritten=如何解读FastQC结果？
+2026-04-28 15:43:16,845 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=48.752s
+2026-04-28 15:43:16,850 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:43:16,850 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:43:16,852 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 15:44:22,865 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 我想做 cuttag，推荐用什么试剂
+2026-04-28 15:44:22,866 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.001s context_mode=ambiguous context_turns=1
+2026-04-28 15:44:22,866 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 15:45:38,843 | INFO     | ITS_App:95 | fast_rag rewrite question original=我想做 cuttag，推荐用什么试剂 rewritten=CUT&Tag 实验推荐使用的试剂有哪些？
+2026-04-28 15:46:11,615 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=108.750s
+2026-04-28 15:46:11,922 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 15:46:11,922 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 15:46:11,924 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 16:55:40,777 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 16:56:05,391 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 16:57:36,734 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 FastQC结果解读
+2026-04-28 16:57:36,735 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 16:57:36,735 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 16:57:52,400 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=15.665s
+2026-04-28 16:57:52,405 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 16:57:52,405 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 16:57:52,407 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 16:58:45,701 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 那我的结果正常吗
+2026-04-28 16:58:45,702 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777361992267 cost=0.000s context_mode=standalone context_turns=0
+2026-04-28 16:58:45,702 | INFO     | ITS_App:411 | request route user=root1 session=session_1777361992267 mode=auto route=fast_rag
+2026-04-28 16:59:01,708 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777361992267 total_cost=16.007s
+2026-04-28 16:59:01,712 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 16:59:01,712 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 16:59:01,714 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.002s
+2026-04-28 17:04:52,625 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:04:52,625 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:04:52,627 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.000s
+2026-04-28 17:04:52,867 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:04:52,867 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:04:52,868 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=8 cost=0.000s
+2026-04-28 17:09:24,771 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 比对率低的原因
+2026-04-28 17:09:24,771 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777367354179 cost=0.000s context_mode=standalone context_turns=0
+2026-04-28 17:09:24,771 | INFO     | ITS_App:411 | request route user=root1 session=session_1777367354179 mode=auto route=fast_rag
+2026-04-28 17:09:47,099 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777367354179 total_cost=22.327s
+2026-04-28 17:09:47,102 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:09:47,102 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:09:47,104 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s
+2026-04-28 17:18:13,569 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 17:18:26,059 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 17:18:37,010 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:18:37,010 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:18:37,012 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s
+2026-04-28 17:18:37,280 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:18:37,280 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:18:37,280 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.000s
+2026-04-28 17:18:47,209 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 我想做 cuttag，推荐用什么试剂
+2026-04-28 17:18:47,209 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777367354179 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 17:18:47,209 | INFO     | ITS_App:411 | request route user=root1 session=session_1777367354179 mode=auto route=fast_rag
+2026-04-28 17:18:57,286 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777367354179 total_cost=10.076s
+2026-04-28 17:18:57,290 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:18:57,290 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:18:57,292 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s
+2026-04-28 17:25:35,154 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-28 17:26:00,615 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-28 17:26:34,514 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:26:34,514 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:26:34,515 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:26:34,515 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:26:34,520 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.005s
+2026-04-28 17:26:34,520 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.005s
+2026-04-28 17:27:08,592 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 查找已知 motif 的具体结合位置
+2026-04-28 17:27:08,593 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777367354179 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 17:27:08,593 | INFO     | ITS_App:411 | request route user=root1 session=session_1777367354179 mode=auto route=agent
+2026-04-28 17:27:22,197 | INFO     | ITS_App:105 | [Route] technical expert: 查找已知 motif 的具体结合位置...
+2026-04-28 17:27:32,197 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777367354179 total_cost=23.605s
+2026-04-28 17:27:32,201 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:27:32,201 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:27:32,203 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s
+2026-04-28 17:28:11,234 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 CUT&Tag 中抗体质量会如何影响富集结果
+2026-04-28 17:28:11,235 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777367354179 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-28 17:28:11,235 | INFO     | ITS_App:411 | request route user=root1 session=session_1777367354179 mode=auto route=fast_rag
+2026-04-28 17:28:34,342 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777367354179 total_cost=23.109s
+2026-04-28 17:28:34,347 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-28 17:28:34,347 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-28 17:28:34,349 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s

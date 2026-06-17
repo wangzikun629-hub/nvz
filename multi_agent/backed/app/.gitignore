@@ -1,0 +1,9 @@
+.project_sftp_cache/
+harness/.runtime/
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+project_memories/
+project_session_states/
+user_memories/

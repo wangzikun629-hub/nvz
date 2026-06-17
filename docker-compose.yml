@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  # ─── FastAPI 后端 ────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kefu_backend
+    restart: unless-stopped
+    env_file:
+      - multi_agent/backed/app/.env
+    environment:
+      # 覆盖 .env 中的 localhost，指向 Docker 网络内的服务名
+      MYSQL_HOST: mysql
+      KNOWLEDGE_BASE_URL: http://knowledge:8001
+    ports:
+      - "8000:8000"
+    volumes:
+      # SFTP 缓存持久化
+      - sftp_cache:/app/multi_agent/backed/app/.project_sftp_cache
+      # SSH 密钥（用于 SFTP 连接）—— 挂载宿主机 ~/.ssh
+      - ${HOME}/.ssh:/home/appuser/.ssh:ro
+      # 本地项目数据目录（如有）
+      # - /your/data/path:/data:ro
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - kefu_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ─── MySQL ──────────────────────────────────────────────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: kefu_mysql
+    restart: unless-stopped
+    env_file:
+      - multi_agent/backed/app/.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-nvz}
+      MYSQL_USER: ${MYSQL_USER:-appuser}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - kefu_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+  # ─── Vue 前端（Nginx 静态服务）───────────────────────────────────────────────
+  frontend:
+    image: nginx:alpine
+    container_name: kefu_frontend
+    restart: unless-stopped
+    volumes:
+      - ./multi_agent/front/knowlege_platform_ui/dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+      # - "443:443"  # 启用 HTTPS 时取消注释
+    depends_on:
+      - backend
+    networks:
+      - kefu_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mysql_data:
+  sftp_cache:
+
+networks:
+  kefu_net:
+    driver: bridge

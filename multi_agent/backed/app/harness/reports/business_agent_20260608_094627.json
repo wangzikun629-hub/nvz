@@ -1,0 +1,90 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:46:27",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2941"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 72.61%, 66.87%"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": false,
+          "detail": "unexpected: 叶绿体, 质体"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 38600.4
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='project_diagnostic', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['mt_rate_percent'], question_tags=['alignment', 'diagnostic'], confidence=0.82, reason='diagnostic_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "target_metrics": [],
+      "answer_excerpt": "针对\"为什么线粒体 reads 比例高\"的问题，当前最直接的情况是：**本轮提供的证据文件中并未包含可解析的比对统计表（如 AlignmentQC.xls）**，因此无法给出该项目具体的 MT ratio 数值、也无法在数值基础上做精确原因定位。但可以根据项目配置和流程参数，从机制层面分析导致线粒体 reads 比例偏高的可能原因链路。\n\n## 当前能确认的项目参数与流程背景\n\n- **物种与参考基因组**：`species=hg38`（人类），因此线粒体 reads 指向的是 **human mtDNA**，不是叶绿体/质体 reads。\n- **细胞器过滤配置**：`organelle_chroms=MT chrM chrMT Pt chrPt`，说明流程具备识别线粒体染色体的能力。\n- **比对后统计的阶段位置**：线粒体比例通常是在比对到参考基因组后，按染色体统计 reads 分布得来。如果这个比例是**过滤前**的统计值，那它反映的是**初始比对结果中的 mtDNA 背景**，而不是过滤后 still present 的\"残留\"。\n- **去重处理**：`remove_duplicates=false`，说明即使存在由 mtDNA 高覆盖引起的重复 reads，也不会被流程移除，这可能间接影响下游 FRiP 和 peak calling，但本身不会\"制造\"更多的线粒体 r",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

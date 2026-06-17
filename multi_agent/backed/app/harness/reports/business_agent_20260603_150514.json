@@ -1,0 +1,70 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T15:05:14",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_frip_explanation_no_project",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=202"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_frip_explanation_no_project",
+        "target": "business_agent",
+        "duration_ms": 1.57
+      },
+      "answer_excerpt": "## 指标解释\nFRiP（Fraction of Reads in Peaks）表示落入 peak 区域的 reads 占比，常用于评估 CUT&Tag/ChIP-seq 信号富集质量。项目内解释时还需要结合 peak 数量、mapping、duplicate 和样本角色判断。\n\n## 说明\n这是通用概念解释，未读取具体项目文件。若你想知道当前项目里的计算公式或样本数值，需要先绑定项目或指定项目编号。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\frip_explanation_no_project.json"
+    }
+  ]
+}

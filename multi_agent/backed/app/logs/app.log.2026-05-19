@@ -1,0 +1,80 @@
+2026-05-19 14:14:15,341 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 14:14:27,623 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 14:15:57,131 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.015s
+2026-05-19 14:16:47,076 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 14:16:47,076 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779171357166 cost=0.000s context_mode=standalone context_turns=0
+2026-05-19 14:16:47,077 | INFO     | ITS_App:890 | request route user=root1 session=session_1779171357166 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 14:16:47,079 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 14:16:47,079 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 14:16:49,793 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 5] 拒绝访问。: '\\\\RaiDrive-ASUS\\SFTP\\Result\\CUTTag\\VZ20260416005\\.business_agent'
+2026-05-19 14:16:49,797 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779171357166 total_cost=2.721s
+2026-05-19 14:16:49,816 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=26 cost=0.011s
+2026-05-19 15:21:32,286 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 15:21:44,503 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 15:21:49,694 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=26 cost=0.014s
+2026-05-19 15:21:53,339 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 15:21:53,341 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779175309723 cost=0.000s context_mode=standalone context_turns=0
+2026-05-19 15:21:53,341 | INFO     | ITS_App:890 | request route user=root1 session=session_1779175309723 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 15:21:53,341 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 15:21:53,341 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 15:21:56,191 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 5] 拒绝访问。: '\\\\RaiDrive-ASUS\\SFTP\\Result\\CUTTag\\VZ20260416005\\.business_agent'
+2026-05-19 15:21:56,194 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779175309723 total_cost=2.854s
+2026-05-19 15:21:56,212 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.010s
+2026-05-19 15:28:01,290 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 15:28:13,500 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 15:28:26,386 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.014s
+2026-05-19 15:28:35,483 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 15:28:35,483 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779175309723 cost=0.000s context_mode=follow_up context_turns=1
+2026-05-19 15:28:35,484 | INFO     | ITS_App:890 | request route user=root1 session=session_1779175309723 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 15:28:35,485 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 15:28:35,485 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 15:28:35,502 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 5] 拒绝访问。: '\\\\RaiDrive-ASUS\\SFTP\\Result\\CUTTag\\VZ20260416005\\.business_agent'
+2026-05-19 15:28:35,504 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779175309723 total_cost=0.022s
+2026-05-19 15:28:35,523 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.013s
+2026-05-19 15:31:05,082 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 15:31:17,293 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 15:31:21,706 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.015s
+2026-05-19 15:31:31,041 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 15:31:31,042 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779175309723 cost=0.001s context_mode=follow_up context_turns=2
+2026-05-19 15:31:31,043 | INFO     | ITS_App:890 | request route user=root1 session=session_1779175309723 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 15:31:31,043 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 15:31:31,045 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 15:31:35,804 | INFO     | ITS_App:1447 | project_analysis run_id=projrun_fa4c6c07b672 project=VZ20260416005 question_type=overview evidence=5 warnings=0 duration_ms=3411.04
+2026-05-19 15:32:09,309 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_e651a94d807f analysis_run_id=projrun_fa4c6c07b672 status=ok duration_ms=38264.76
+2026-05-19 15:32:09,311 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779175309723 total_cost=38.269s
+2026-05-19 15:32:09,333 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.013s
+2026-05-19 15:39:20,533 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 15:39:32,741 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 15:39:42,807 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 15:39:42,807 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779171357166 cost=0.000s context_mode=follow_up context_turns=1
+2026-05-19 15:39:42,809 | INFO     | ITS_App:890 | request route user=root1 session=session_1779171357166 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 15:39:42,809 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 15:39:42,810 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 15:39:45,986 | INFO     | ITS_App:1447 | project_analysis run_id=projrun_38685ec63d92 project=VZ20260416005 question_type=overview evidence=6 warnings=0 duration_ms=294.54
+2026-05-19 15:41:10,492 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_743a1cd79759 analysis_run_id=projrun_38685ec63d92 status=ok duration_ms=87682.62
+2026-05-19 15:41:10,494 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779171357166 total_cost=87.686s
+2026-05-19 15:41:10,907 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.100s
+2026-05-19 16:14:17,806 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 16:14:29,991 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 16:14:43,281 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=26 cost=0.014s
+2026-05-19 16:14:45,192 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.013s
+2026-05-19 16:14:49,327 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260416005这个项目
+2026-05-19 16:14:49,328 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779178486130 cost=0.000s context_mode=standalone context_turns=0
+2026-05-19 16:14:49,328 | INFO     | ITS_App:890 | request route user=root1 session=session_1779178486130 mode=agent route=business resolved_project_id=VZ20260416005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 16:14:49,329 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260416005这个项目
+2026-05-19 16:14:49,329 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260416005这个项目
+2026-05-19 16:14:56,610 | INFO     | ITS_App:1768 | project_analysis run_id=projrun_7872e343310a project=VZ20260416005 question_type=overview evidence=10 warnings=0 duration_ms=4295.18
+2026-05-19 16:16:11,959 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_02efe209f0c2 analysis_run_id=projrun_7872e343310a status=ok duration_ms=82629.41
+2026-05-19 16:16:11,961 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779178486130 total_cost=82.633s
+2026-05-19 16:16:12,295 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=26 cost=0.014s
+2026-05-19 16:39:58,336 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-19 16:40:10,526 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-19 16:43:47,184 | INFO     | ITS_App:83 | user=root1 query=分析一下VZ20260402005这个项目
+2026-05-19 16:43:47,185 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1779180184257 cost=0.000s context_mode=standalone context_turns=0
+2026-05-19 16:43:47,185 | INFO     | ITS_App:890 | request route user=root1 session=session_1779180184257 mode=agent route=business resolved_project_id=VZ20260402005 force_consult=False direct_business=True followup_confirmed=False
+2026-05-19 16:43:47,185 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下VZ20260402005这个项目
+2026-05-19 16:43:47,185 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下VZ20260402005这个项目
+2026-05-19 16:43:51,119 | INFO     | ITS_App:1820 | project_analysis run_id=projrun_ab85a910a688 project=VZ20260402005 question_type=overview evidence=9 warnings=0 duration_ms=1030.73
+2026-05-19 16:45:35,947 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_6eb7203a7894 analysis_run_id=projrun_ab85a910a688 status=ok duration_ms=108762.22
+2026-05-19 16:45:35,949 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1779180184257 total_cost=108.766s
+2026-05-19 16:45:36,351 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=27 cost=0.088s

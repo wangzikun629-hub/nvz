@@ -1,0 +1,52 @@
+2026-04-20 10:29:12,077 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-20 10:29:55,379 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 10:33:23,944 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 10:37:49,875 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 10:38:52,462 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 10:40:53,635 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 10:41:58,026 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 10:45:53,177 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-20 11:03:52,994 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-20 11:12:01,843 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-20 11:14:17,272 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 11:18:41,541 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 11:19:44,536 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 11:29:00,898 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 11:30:05,596 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 13:40:01,055 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-20 15:38:52,285 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:39:56,652 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 15:40:05,063 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 15:40:57,499 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:41:59,538 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 15:42:04,282 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 15:43:12,642 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:43:27,680 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:44:30,394 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 15:44:32,698 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 15:51:02,619 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:52:06,292 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 15:52:09,050 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 15:56:08,899 | ERROR    | ITS_App:16 | 搜索MCP连接失败: unhandled errors in a TaskGroup (1 sub-exception)
+2026-04-20 15:56:58,305 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 15:58:02,071 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 15:58:18,166 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 16:01:26,726 | ERROR    | ITS_App:16 | 搜索MCP连接失败: unhandled errors in a TaskGroup (1 sub-exception)
+2026-04-20 16:01:39,439 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 16:02:44,545 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:03:00,359 | ERROR    | ITS_App:52 | technical agent fallback failed: Tool bailian_web_search not found in agent 诺唯赞生物科技有限公司资讯与技术专家
+2026-04-20 16:07:35,539 | ERROR    | ITS_App:16 | 搜索MCP连接失败: unhandled errors in a TaskGroup (1 sub-exception)
+2026-04-20 16:08:05,454 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 16:09:08,597 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:11:57,241 | ERROR    | ITS_App:16 | 搜索MCP连接失败: unhandled errors in a TaskGroup (1 sub-exception)
+2026-04-20 16:15:02,648 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 16:16:06,559 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:16:24,941 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 16:17:29,057 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:22:17,766 | ERROR    | ITS_App:16 | 搜索MCP连接失败: unhandled errors in a TaskGroup (1 sub-exception)
+2026-04-20 16:24:00,134 | ERROR    | ITS_App:29 | technical agent failed: Server not initialized. Make sure you call `connect()` first.
+2026-04-20 16:25:03,776 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:36:23,108 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 16:47:24,740 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 17:08:36,258 | ERROR    | ITS_App:36 | 发送请求获取知识库服务下的知识库数据失败:
+2026-04-20 17:36:39,240 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 

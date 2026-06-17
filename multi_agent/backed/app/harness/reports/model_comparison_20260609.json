@@ -1,0 +1,620 @@
+{
+  "generated_at": "2026-06-09T09:36:51",
+  "case_count": 6,
+  "ranking": [
+    {
+      "rank": 1,
+      "name": "deepseek-v4-pro",
+      "average_score": 100.0,
+      "passed_cases": 6,
+      "total_cases": 6
+    },
+    {
+      "rank": 2,
+      "name": "qwen3.6-plus",
+      "average_score": 96.67,
+      "passed_cases": 5,
+      "total_cases": 6
+    }
+  ],
+  "models": [
+    {
+      "name": "deepseek-v4-pro",
+      "model": "deepseek-v4-pro",
+      "average_score": 100.0,
+      "passed_cases": 6,
+      "total_cases": 6,
+      "cases": [
+        {
+          "case_id": "adapter_stage_semantics",
+          "category": "qc_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "原始 reads"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "不代表"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "修剪后",
+                "FastQC"
+              ]
+            },
+            {
+              "name": "forbidden:clean reads 中仍有 38.3% 接头残留",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=864 max=900"
+            }
+          ],
+          "answer": "**直接结论**：不能。原始 reads 38.3% 的 Adapter 检出率是修剪前的测量，不代表 clean reads 中仍有相同比例的接头残留。\n\n**关键证据**  \n- `adapter_percent`：38.3%，阶段为 `raw_reads_pre_trim`，分母为 `raw R1 reads`（来源：`Filter/T1.trim.log::Read 1 with adapter`）。  \n- `clean_read_retention_percent`：99.6%，阶段为 `trim_filter_output`，分母为 `processed read pairs`（来源：`Filter/T1.trim.log::Pairs written`）。\n\n**原因排序**  \n1. **已证实** —— 38.3% 的接头检出率是针对 **未经修剪的原始 reads**（步骤 `raw_reads_pre_trim`），检出点即触发切除，并非最终残留率。  \n2. **推测** —— 修剪软件（如 cutadapt）通常在识别到接头后直接切除并保留插入片段，因此 clean reads 中已去掉检出接头，不应仍包含大量接头序列。  \n3. **证据不足** —— 未提供修剪后 clean reads 的接头残留检测指标（如 FastQC “Adapter Content”），无法直接判断 clean reads 中是否真正有接头污染。\n\n**验证动作**  \n- 对最终 clean reads 执行 **FastQC**，重点查看 **“Adapter Content”** 模块，确认各位置上接头残留的实际比例。  \n- 若存在接头残留，建议检查修剪参数（如接头序列、最小重叠长度、错误率阈值）是否合理。\n\n**证据边界**  \n- 现有证据仅包含 **修剪前** 的检出率和 **整体保留率**，无修剪后接头残留数据。不能据此对 clean reads 的接头污染程度做出确定结论。",
+          "error": ""
+        },
+        {
+          "case_id": "hg38_organelle_semantics",
+          "category": "species_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "线粒体"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "83,192"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "114,574"
+              ]
+            },
+            {
+              "name": "required_point_4",
+              "passed": true,
+              "detail": [
+                "阈值"
+              ]
+            },
+            {
+              "name": "forbidden:叶绿体 reads 占比高",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:叶绿体污染",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=885 max=1000"
+            }
+          ],
+          "answer": "**直接结论**  \n观测到比对至线粒体（chrMT）的 reads 占比为 72.61%（83,192/114,574）。因未验证项目阈值，不能判定该比例是否“偏高”或“异常”，仅能指出当前样本中线粒体来源序列占据绝对优势。\n\n**关键证据**  \n- 来源文件：`Alignment/T1/T1.mt_stat.txt` 中 `MT_rate(%)` 字段。  \n- 分子（比对至线粒体的 reads 数）：83,192。  \n- 分母（总比对 reads 数）：114,574。  \n- 计算值：83,192 ÷ 114,574 × 100% = 72.61%。\n\n**原因排序（全部为推测，证据不足）**  \n1. **样本生物属性**：样本可能来自线粒体含量极高的组织（如肌肉、心脏），导致内源性 mtDNA 拷贝数远超核 DNA [推测]。  \n2. **文库制备偏好**：建库过程中片段筛选偏向小片段，而线粒体 DNA 片段较短，容易被富集 [推测]。  \n3. **提取方法影响**：提取 DNA 时使用的试剂或步骤优先回收环状/小分子 DNA，使 mtDNA 比例升高 [推测]。  \n4. **参考/比对偏差**：参考基因组的核序列组装不完整或屏蔽不当，导致部分核 reads 错误分配到 chrMT；或线粒体序列存在核内同源片段（NUMT）被计入 [推测]。  \n\n**验证动作**  \n- 核对样本组织来源及采样条件。  \n- 检查比对日志，确认比对至 chrMT 与核染色体的 reads 数及多比对率。  \n- 分析插入片段长度分布，判断是否存在小片段偏好。  \n- 若无信息，建议用独立方法（如 qPCR 或数字 PCR）测量 mtDNA/nuDNA 拷贝数。  \n- 对疑似 NUMT 区域，提取未比对 reads 重新与屏蔽重复的参考比对。  \n\n**证据边界**  \n仅基于一个样本的 `mt_rate` 单值，无生物学重复、无对照组、未提供实验设计或扩增条件，无法判定该比例是否超出正常波动范围，也无法确认是生物学现象还是技术干扰。",
+          "error": ""
+        },
+        {
+          "case_id": "unverified_threshold_boundary",
+          "category": "threshold_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "57.54%"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "未提供经验证",
+                "阈值验证状态：未验证"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "无法"
+              ]
+            },
+            {
+              "name": "forbidden:确定偏低",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:项目不合格",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:未通过质控",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=661 max=900"
+            }
+          ],
+          "answer": "**直接结论**  \n无法确定该 mapping rate 是否偏低，因为项目未提供经验证的质量阈值，且仅有单一指标。\n\n**关键证据**  \n- 项目证据：比对率 57.54%（114,574 / 199,116 reads），来源于 Alignment/T1/T1.summary.txt。  \n- 参考物种：hg38（人类）。  \n- 阈值验证状态：未验证。\n\n**原因排序**（均需标注证据状态）  \n- *证据不足*：缺乏可比对的期望阈值（如项目标准、同物种文库的典型范围），无法判断 57.54% 是高是低。  \n- *推测*：若为常规 RNA‑seq 或 ChIP‑seq，人类数据比对率通常 > 80%；但若为低复杂度样本（如 small RNA、靶向捕获）或存在大量污染，57% 可能属正常。  \n- *证据不足*：无其他质量指标（如重复率、rRNA 残留、插入片段分布）辅助判断。\n\n**验证动作**  \n1. 确认项目或平台对该物种/文库类型的预期 mapping rate 阈值（如 ≥ 80%）。  \n2. 查看同批次其他样本的 mapping rate，检查是否系统性偏低。  \n3. 检查原始 reads 质量（FastQC），排查接头残留、低质量碱基或污染源。  \n4. 分析未比对 reads 的来源（如比对到其他基因组、rRNA 数据库）。\n\n**证据边界**  \n仅依据提供的单个样本的 mapping rate 值，无阈值、无真实参考分布、无多维度质控数据，结论局限于“无法判定”。",
+          "error": ""
+        },
+        {
+          "case_id": "treatment_groups_not_replicates",
+          "category": "sample_role_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "不同处理组"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "不能"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "生物学重复"
+              ]
+            },
+            {
+              "name": "forbidden:T1 与 T2 的生物学重复性差",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=699 max=900"
+            }
+          ],
+          "answer": "**直接结论**  \n不能。T1 与 T2 分别属于不同处理组（treatment_A 与 treatment_B），它们不是生物学重复，相关性不高不能反映生物学重复的好坏。  \n\n**关键证据**  \n- 样本分组：T1 来自 treatment_A，T2 来自 treatment_B（依据 `sample_roles`）。  \n- 相关性：T1 vs T2 的 Spearman 相关系数为 0.62（来源 `spearman_Corr_readCounts.tab`）。  \n\n**原因排序**  \n1. 【已证实】T1 和 T2 为不同处理条件下的样本，其表达差异可能同时包含生物学差异和处理效应，因此相关性降低是预期内的现象。  \n2. 【推测】若同组内的生物学重复间相关性高，则说明重复性好；若同组重复间相关性也低，则可能提示重复差。当前无数据判定。  \n3. 【证据不足】未提供 treatment_A 内部或 treatment_B 内部的重复样本及其相关性。  \n\n**验证动作**  \n- 获取 treatment_A 内部的生物学重复之间的 Spearman 相关系数（例如 T1 与其他 A 组重复）。  \n- 同样获取 treatment_B 内部的重复相关性。  \n- 若组内中位数相关性明显高于 0.62，可认为重复性良好；若组内相关性同样偏低（需预先设定阈值），才提示重复性可能存在问题。  \n\n**证据边界**  \n仅提供了 T1 与 T2 的组间相关性，无法推断组内生物学重复的一致性。所有数字的分子/分母仅涉及这两个样本，未报告任何组内重复的数量和相关系数。",
+          "error": ""
+        },
+        {
+          "case_id": "numeric_traceability",
+          "category": "evidence_traceability",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "72.61%"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "83,192"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "114,574"
+              ]
+            },
+            {
+              "name": "required_point_4",
+              "passed": true,
+              "detail": [
+                "T1.mt_stat.txt"
+              ]
+            },
+            {
+              "name": "forbidden:项目不合格",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=617 max=1100"
+            }
+          ],
+          "answer": "**直接结论**  \nT1 样本的线粒体 reads 比例为 72.61%，即 83,192 条线粒体 reads 占总 reads 114,574 条的百分比。该指标是否偏离正常范围尚无法判断，因为适用阈值未经项目验证。\n\n**关键证据**  \n- 来源：`Alignment/T1/T1.mt_stat.txt::MT_rate(%)`  \n- 数值：72.61%（分子 83,192，分母 114,574，公式 MT_reads / Total_reads × 100）\n\n**原因排序**  \n1. **（已证实）** 线粒体 reads 计数与总 reads 计数直接计算得出该比例，结果可靠。  \n2. **（推测）** 高比例可能源于样本本身富含线粒体（如特定组织或分离线粒体），或细胞质 RNA 去除效率等因素，但无额外证据支撑具体原因列表。  \n3. **（证据不足）** 缺乏项目内正常参考范围或其他对照样本，无法判定 72.61% 是否异常。\n\n**验证动作**  \n- 获取同批次、同类型样本的线粒体 reads 比例分布，作为项目内部参考。  \n- 检查样本准备信息（是否线粒体富集实验）或测序文库类型，以解释高比例来源。  \n\n**证据边界**  \n本结论仅基于 `T1.mt_stat.txt` 文件中 MT_rate(%) 字段；未使用任何预设阈值或外部正常范围。所有后续解释需补充样本处理及对照信息。",
+          "error": ""
+        },
+        {
+          "case_id": "cause_support_labels",
+          "category": "causal_reasoning",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "推测"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "证据不足"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "验证"
+              ]
+            },
+            {
+              "name": "forbidden:已经证明是细胞器污染",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:根因已确定",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=852 max=1400"
+            },
+            {
+              "name": "cause_support_labels",
+              "passed": true,
+              "detail": [
+                "推测",
+                "证据不足"
+              ]
+            }
+          ],
+          "answer": "**直接结论**  \nT1 样本中观察到线粒体来源 reads 占比为 72.61%，而唯一比对率仅 12.60%，提示大量数据由线粒体序列贡献。由于项目阈值未验证，无法断定该比例是否异常，但高比例可能主要由样本制备引入的线粒体 DNA 背景或细胞本身线粒体含量较高导致，过滤统计顺序的影响证据不足。\n\n**关键证据**  \n- 线粒体比例：72.61%（来源：`T1.mt_stat.txt`，分母为总 reads 数）。  \n- 唯一比对率：12.60%（来源：`T1.summary.txt`）。  \n\n**原因排序**（按推测可能性，均标注证实状态）  \n1. **样本制备背景**（推测）  \n   文库构建时可能未有效去除线粒体 RNA/DNA，或细胞裂解释放大量线粒体核酸，导致线粒体 reads 占比高。低唯一比对率也支持可能存在非特异性捕获或污染。  \n2. **细胞器 DNA 背景**（推测）  \n   样本本身可能来自线粒体丰富的组织或细胞类型，导致内源性线粒体核酸比例天然偏高。但缺乏样本类型信息，无法确认。  \n3. **过滤统计顺序**（证据不足）  \n   若分析流程先将 reads 比对至线粒体基因组再统计比例，可能放大线粒体占比的显示值（例如先扣除线粒体 reads 再计算唯一比对率）。但当前证据中无过滤步骤信息，无法证实该原因。\n\n**验证动作**  \n- 检查样本制备记录（如是否采用 rRNA 去除或 polyA 富集，有无 DNase 处理等）。  \n- 比对流程溯源：确认线粒体比例的计算方式和比对顺序。  \n- 设立同批次阴性/阳性对照样本，比较线粒体比例基线。  \n- 如有核基因组比对率数据，可进一步拆分比对详情，区分背景与真实信号。\n\n**证据边界**  \n仅基于两个统计文件（`T1.mt_stat.txt`、`T1.summary.txt`）提供的两项指标，无样本类型、实验方法、分析流程、阈值参考等背景信息。所有推测均未经过实验或流程验证。",
+          "error": ""
+        }
+      ]
+    },
+    {
+      "name": "qwen3.6-plus",
+      "model": "qwen3.6-plus",
+      "average_score": 96.67,
+      "passed_cases": 5,
+      "total_cases": 6,
+      "cases": [
+        {
+          "case_id": "adapter_stage_semantics",
+          "category": "qc_semantics",
+          "passed": false,
+          "score": 80.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "原始 reads"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "不代表"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "去接头后",
+                "FastQC"
+              ]
+            },
+            {
+              "name": "forbidden:clean reads 中仍有 38.3% 接头残留",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": false,
+              "detail": "chars=931 max=900"
+            }
+          ],
+          "answer": "**直接结论**\n否。38.3%（来源：Filter/T1.trim.log::Read 1 with adapter，分母：raw R1 reads）为原始 reads 去接头前的检出比例，不代表 clean reads 中的接头残留率。\n\n**关键证据**\n- 38.3%（来源：Filter/T1.trim.log::Read 1 with adapter，分母：raw R1 reads，阶段：raw_reads_pre_trim）\n- 99.6%（来源：Filter/T1.trim.log::Pairs written，分母：processed read pairs，阶段：trim_filter_output）\n\n**原因排序**\n1. 处理阶段不同：38.3% 统计于 `raw_reads_pre_trim`（去接头前），而 clean reads 为 `trim_filter_output` 阶段产物，指标处于不同处理节点（已证实）。\n2. 流程逻辑：标准质控流程中检出接头后会执行切除操作。99.6% 的 reads 保留率（分母：processed read pairs）表明绝大多数 reads 在切除接头后被成功保留，而非携带接头残留（已证实）。\n3. 指标定义差异：`adapter_percent` 仅反映原始数据中携带接头的 reads 占比，非残留比例（已证实）。\n\n**验证动作**\n- 提取去接头后日志（如 `fastp`/`cutadapt` 的 `after trimming` 统计字段），获取 clean reads 的实际 adapter 残留率。\n- 对 clean reads 独立运行 FastQC 的 `Adapter Content` 模块，交叉验证实际残留水平。\n\n**证据边界**\n- 未提供 clean reads 的 adapter 残留率具体数值，无法量化实际残留比例（证据不足）。\n- 未提供项目预设的 adapter 残留阈值，不得判定当前残留水平是否偏高或偏低（证据不足）。\n- 仅基于 R1 日志片段推断，未包含 R2 及完整质控报告，结论适用范围限于当前提供的日志字段（已证实）。",
+          "error": ""
+        },
+        {
+          "case_id": "hg38_organelle_semantics",
+          "category": "species_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "线粒体"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "83192"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "114574"
+              ]
+            },
+            {
+              "name": "required_point_4",
+              "passed": true,
+              "detail": [
+                "阈值"
+              ]
+            },
+            {
+              "name": "forbidden:叶绿体 reads 占比高",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:叶绿体污染",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=775 max=1000"
+            }
+          ],
+          "answer": "**直接结论**\n当前 chrMT/Pt 比例观测值为 72.61%（分子 83192，分母 114574，来源：`Alignment/T1/T1.mt_stat.txt::MT_rate(%)`）。因项目阈值未验证（`threshold_verified: false`），暂不给出偏高/偏低/正常的确定性结论，仅标记为待核查指标。\n\n**关键证据**\n- 指标：`mt_rate_percent`\n- 数值：72.61%（计算依据：83192 / 114574）\n- 来源：`Alignment/T1/T1.mt_stat.txt::MT_rate(%)`\n\n**原因排序**\n1. 样本线粒体DNA天然丰度较高或核DNA发生降解，导致mt reads相对占比上升（推测，证据不足）\n2. 建库或捕获流程存在线粒体序列偏好性富集，或核基因组捕获效率偏低（推测，证据不足）\n3. 比对参数未严格过滤多映射reads，或chrMT参考序列注释差异导致统计分母/分子计算偏差（推测，证据不足）\n\n**验证动作**\n1. 调取本项目SOP或质控规范，明确 `mt_rate` 的合格阈值区间，完成阈值验证。\n2. 核对实验设计文档（如是否为线粒体靶向测序/全基因组测序）及建库质控报告，确认该比例是否符合预期实验逻辑。\n3. 复核统计脚本逻辑，确认分母 114574 的具体定义（如总比对reads数或有效reads数），并检查比对日志中chrMT reads的过滤策略。\n\n**证据边界**\n- 仅依赖单一样本单指标统计文件，缺乏实验背景、历史基线数据及明确阈值定义。\n- 所有成因分析均基于常规生信经验，未获本项目额外数据直接支撑，标注为“推测/证据不足”。\n- 结论仅反映当前统计快照，不替代完整实验质控判定；阈值验证前不得用于项目放行或拦截决策。",
+          "error": ""
+        },
+        {
+          "case_id": "unverified_threshold_boundary",
+          "category": "threshold_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "57.54%"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "阈值未"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "无法"
+              ]
+            },
+            {
+              "name": "forbidden:确定偏低",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:项目不合格",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:未通过质控",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=599 max=900"
+            }
+          ],
+          "answer": "**直接结论**：无法判定是否偏低。因项目阈值未验证（threshold_verified: false），依据规则不得给出确定的偏高/偏低结论。\n\n**关键证据**：Mapping rate 为 57.54%（分子 114574 / 分母 199116，来源：Alignment/T1/T1.summary.txt::Mapping_Rate）。\n\n**原因排序**：\n1. 原始数据存在接头污染或低质量碱基（证据不足）：未提供质控指标验证。\n2. 比对参数设置过严或参考基因组索引版本不匹配（推测）：未提供比对工具及参数记录。\n3. 测序实验类型特性导致（如RNA-seq未启用剪接比对或WGBS未转化率高）（推测）：未明确建库与测序类型。\n\n**验证动作**：\n1. 查阅项目SOP或同类实验标准，确认 Mapping Rate 验收阈值。\n2. 调取 FastQC/MultiQC 报告，核查低质量序列比例与污染情况。\n3. 复核比对流程配置，确认参考基因组（hg38）索引与测序类型、比对参数的匹配性。\n\n**证据边界**：当前证据仅含单一样本比对汇总数值，缺失质控数据、测序类型、比对参数及项目阈值。仅能客观陈述 57.54%（114574/199116，来源：Alignment/T1/T1.summary.txt::Mapping_Rate）的计算构成，无法进行质量定性或根因判定。",
+          "error": ""
+        },
+        {
+          "case_id": "treatment_groups_not_replicates",
+          "category": "sample_role_semantics",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "不同处理组"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "不能"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "生物学重复"
+              ]
+            },
+            {
+              "name": "forbidden:T1 与 T2 的生物学重复性差",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=611 max=900"
+            }
+          ],
+          "answer": "**直接结论**\n不能说明生物学重复差。T1与T2分属不同处理组，并非生物学重复关系，该相关性反映的是组间差异而非重复一致性。\n\n**关键证据**\n- 样本分组：T1归属treatment_A，T2归属treatment_B（来源：sample_roles）。\n- 相关性数值：T1 vs T2 Spearman相关系数为0.62（来源：spearman_Corr_readCounts.tab；分母：参与相关性计算的基因/特征总数，项目证据未提供具体数值）。\n\n**原因排序**\n1. 样本角色非重复（已证实）：证据明确显示T1与T2为不同处理组样本，跨组比较不适用重复性评估。\n2. 缺乏判定阈值（证据不足）：项目未提供相关性合格阈值，0.62无法定性为偏高或偏低。\n3. 处理效应干扰（推测）：不同处理可能引发全局表达谱偏移，导致跨组相关性天然低于组内重复。\n\n**验证动作**\n1. 提取同组内样本（如treatment_A的重复样本）重新计算Spearman相关系数。\n2. 对照项目SOP确认重复相关性合格阈值（如≥0.85）。\n3. 若组内相关性仍不达标，核查测序深度均一性、批次效应及样本标签是否混淆。\n\n**证据边界**\n- 仅依据单对跨组样本及单一相关性指标，未提供组内重复数据、质控报告或项目阈值。\n- 0.62的计算分母（特征数）及过滤条件未知，结论仅适用于当前样本角色判定，不延伸至整体实验质量。",
+          "error": ""
+        },
+        {
+          "case_id": "numeric_traceability",
+          "category": "evidence_traceability",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "72.61%"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "83192"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "114574"
+              ]
+            },
+            {
+              "name": "required_point_4",
+              "passed": true,
+              "detail": [
+                "T1.mt_stat.txt"
+              ]
+            },
+            {
+              "name": "forbidden:项目不合格",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=952 max=1100"
+            }
+          ],
+          "answer": "**直接结论**\nT1 线粒体 reads 比例为 72.61%（来源：`Alignment/T1/T1.mt_stat.txt::MT_rate(%)`；分母：总 reads 数 114574）。因项目明确标注 `threshold_verified: false`，当前无法判定该比例偏高或偏低，需结合实验预期与质控标准进一步评估。\n\n**关键证据**\n- 指标 `mt_rate_percent` 值：72.61%（来源：`Alignment/T1/T1.mt_stat.txt::MT_rate(%)`；分母：总 reads 数 114574）\n- 分子（MT reads）：83192（来源：同上；分母：总 reads 数 114574）\n- 分母（Total reads）：114574（来源：同上；分母：自身统计总量）\n- 计算公式：`MT_reads / Total_reads * 100`\n\n**原因排序**\n1. 核酸提取或建库过程中胞质 RNA/DNA 发生降解，导致线粒体核酸相对富集。【推测】\n2. T1 样本为高代谢组织/细胞类型（如心肌、骨骼肌或特定干细胞），生理性线粒体占比天然较高。【推测】\n3. 比对流程未配置线粒体 reads 过滤参数，或 hg38 参考基因组注释策略将部分核基因组同源序列误归至线粒体。【推测】\n*(注：当前项目证据未提供样本类型、建库协议、比对日志或质控对照，上述原因均无直接数据支撑，属证据不足状态下的技术/生物学假设。)*\n\n**验证动作**\n1. 调取项目 SOP 或同类 hg38 数据质控规范，明确 mtDNA 比例可接受阈值（如常规 bulk RNA-seq <5%，单细胞 <20%）。\n2. 核对 T1 样本来源、细胞活性记录及建库方式，确认预期 mt 比例基线。\n3. 检查比对日志（如 STAR/HISAT2 参数）与过滤脚本，确认是否需补充 `--filter-mt` 或下游剔除步骤。\n\n**证据边界**\n- 仅覆盖 T1 单一样本的比对统计结果，未提供其他样本对照、实验设计背景、原始测序质量（Q30/接头污染）及下游表达定量数据。\n- 结论严格限定于给定统计文件，不延伸至生物学功能解释、批次效应评估或跨平台比较。",
+          "error": ""
+        },
+        {
+          "case_id": "cause_support_labels",
+          "category": "causal_reasoning",
+          "passed": true,
+          "score": 100.0,
+          "checks": [
+            {
+              "name": "required_point_1",
+              "passed": true,
+              "detail": [
+                "推测"
+              ]
+            },
+            {
+              "name": "required_point_2",
+              "passed": true,
+              "detail": [
+                "证据不足"
+              ]
+            },
+            {
+              "name": "required_point_3",
+              "passed": true,
+              "detail": [
+                "验证"
+              ]
+            },
+            {
+              "name": "forbidden:已经证明是细胞器污染",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "forbidden:根因已确定",
+              "passed": true,
+              "detail": "not found"
+            },
+            {
+              "name": "conciseness",
+              "passed": true,
+              "detail": "chars=791 max=1400"
+            },
+            {
+              "name": "cause_support_labels",
+              "passed": true,
+              "detail": [
+                "推测",
+                "证据不足"
+              ]
+            }
+          ],
+          "answer": "**直接结论**\nT1 线粒体比例为 72.61%，唯一比对比例为 12.60%。因项目阈值未验证（threshold_verified: false），**不得给出偏高/偏低结论**。基于现有数据，候选原因均无直接验证，按技术干扰可能性排序如下。\n\n**关键证据**\n- 线粒体比例：72.61%（来源：T1.mt_stat.txt，分母为该文件统计的总比对reads数）\n- 唯一比对比例：12.60%（来源：T1.summary.txt，分母为该文件统计的总测序reads数）\n\n**原因排序**\n1. **过滤统计顺序（推测）**：唯一比对率仅 12.60%，提示大量 reads 存在多重比对或低质量。若分析流程先提取线粒体 reads 再执行核基因组严格过滤，会相对放大线粒体占比。\n2. **细胞器 DNA 背景（推测）**：72.61% 的线粒体 reads 可能反映样本本身线粒体转录本/基因组丰度较高，但缺乏细胞类型注释或生物学重复数据交叉验证。\n3. **样本制备背景（证据不足）**：无建库方法、细胞裂解效率、线粒体富集/去除步骤等湿实验记录，无法评估制备流程对比例的实际影响。\n\n**验证动作**\n1. 核对流程顺序：检查比对与过滤脚本，确认 `mt_rate` 计算基于过滤前还是过滤后的 reads 池，并统一分母口径。\n2. 建立项目阈值：引入同物种/同批次对照样本的 mt_rate 分布，计算 IQR 或设定经验 cutoff，完成阈值验证。\n3. 交叉质控：提取 T1 样本的核基因覆盖度、rRNA 比例及细胞类型标记基因表达量，区分技术假象与真实生物学背景。\n\n**证据边界**\n仅依赖提供的两项统计指标，未包含原始 FASTQ 质控报告、比对参数、湿实验记录及已验证的异常阈值；所有数值结论仅反映当前统计快照，不延伸至生物学功能或临床意义。",
+          "error": ""
+        }
+      ]
+    }
+  ],
+  "rescored_at": "2026-06-09T09:38:20"
+}

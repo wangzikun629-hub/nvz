@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:32:00",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2415"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 72.61%, 66.87%"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 34774.06
+      },
+      "answer_excerpt": "直接回应你的问题：在当前项目 VZ20260513002 的数据中，**我未能成功读取到具体的线粒体 reads 比例指标表**，因此无法给出“观测值是多少”以及“高到什么程度”的量化判断。只能根据项目配置（CUT&Tag、hg38、Tn5接头、双端测序）和这类实验的常见机制，帮你梳理线粒体 reads 比例偏高的主要怀疑链路。\n\n---\n\n## 为什么 CUT&Tag 实验容易出现线粒体 reads 比例偏高\n\n从本项目的工作流参数来看，实验类型为 **CUT&Tag（Tn5 转座酶）**，参考基因组为 **hg38**，且配置了明确的细胞器染色体过滤列表：`organelle_chroms=MT chrM chrMT Pt chrPt`。但在未读取到 `AlignmentQC` 具体统计表之前，只能从机制层面分析：\n\n**① Tn5 转座酶对开放染色质的偏好会连带捕获线粒体 DNA**\nCUT&Tag 的核心原理是利用 protein A-Tn5 融合蛋白结合抗体，在靶蛋白位置直接进行转座反应并插入测序接头。由于线粒体 DNA（mtDNA）通常缺乏核小体保护，且处于相对开放的染色质状态，Tn5 酶在细胞核外即可非特异性地切割线粒体 DNA 并加接头，产生大量线粒体来源的 reads。这是 CUT&Tag 实验绕不开的背景来源之一。\n\n**② 线粒体 DNA 拷贝数与细胞状态、裂",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

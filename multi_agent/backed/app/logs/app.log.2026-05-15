@@ -1,0 +1,27 @@
+2026-05-15 13:45:51,951 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-15 13:45:52,109 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-15 13:46:29,456 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.029s
+2026-05-15 13:46:39,081 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=24 cost=0.009s
+2026-05-15 13:46:42,303 | INFO     | ITS_App:83 | user=root1 query=分析一下cut_g27_g2a这个项目
+2026-05-15 13:46:42,304 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1778823999103 cost=0.000s context_mode=standalone context_turns=0
+2026-05-15 13:46:42,304 | INFO     | ITS_App:890 | request route user=root1 session=session_1778823999103 mode=agent route=business resolved_project_id=cut_g27_g2a force_consult=False direct_business=True followup_confirmed=False
+2026-05-15 13:46:42,306 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下cut_g27_g2a这个项目
+2026-05-15 13:46:42,306 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下cut_g27_g2a这个项目
+2026-05-15 13:46:56,099 | INFO     | ITS_App:1447 | project_analysis run_id=projrun_ea948a16be65 project=cut_g27_g2a question_type=overview evidence=7 warnings=0 duration_ms=996.33
+2026-05-15 13:47:43,222 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_0b92321f1932 analysis_run_id=projrun_ea948a16be65 status=ok duration_ms=60915.87
+2026-05-15 13:47:43,224 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1778823999103 total_cost=60.920s
+2026-05-15 13:47:43,551 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.010s
+2026-05-15 16:03:37,392 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-15 16:03:37,635 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-15 16:03:38,988 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.034s
+2026-05-15 16:07:32,847 | INFO     | ITS_App:83 | user=root1 query=在哪里看到接头污染严重
+2026-05-15 16:07:32,850 | INFO     | ITS_App:387 | prepare_history done user=root1 session=session_1778823999103 cost=0.003s context_mode=ambiguous context_turns=1
+2026-05-15 16:07:32,851 | INFO     | ITS_App:890 | request route user=root1 session=session_1778823999103 mode=agent route=business resolved_project_id=cut_g27_g2a force_consult=False direct_business=True followup_confirmed=False
+2026-05-15 16:07:32,853 | INFO     | ITS_App:292 | [Route] project business agent: 在哪里看到接头污染严重
+2026-05-15 16:07:32,853 | INFO     | ITS_App:234 | [Route] project workflow: 在哪里看到接头污染严重
+2026-05-15 16:11:51,832 | INFO     | ITS_App:1447 | project_analysis run_id=projrun_5cba104798d9 project=cut_g27_g2a question_type=qc evidence=8 warnings=0 duration_ms=20821.74
+2026-05-15 16:12:49,786 | INFO     | ITS_App:391 | business_runtime workflow_run_id=projwf_e273c55e9701 analysis_run_id=projrun_5cba104798d9 status=ok duration_ms=316933.36
+2026-05-15 16:12:49,794 | INFO     | ITS_App:704 | process_task done user=root1 session=session_1778823999103 total_cost=316.947s
+2026-05-15 16:12:50,149 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.021s
+2026-05-15 16:54:59,927 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.001s
+2026-05-15 16:57:44,494 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=25 cost=0.001s

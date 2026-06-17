@@ -1,0 +1,22 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T10:18:21",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_mapping_chart_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "'WindowsPath' object has no attribute 'lower'"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\mapping_chart_e2e.json"
+    }
+  ]
+}

@@ -1,0 +1,2984 @@
+[
+  {
+    "question": "这个项目设置了 PH_Igg 作为 IgG 对照。PH_Igg 样本仅 60万 reads（IP样本的约1/40），mapping rate 只有 51%（IP样本 93-95%），但 NRF 高达 0.976、PBC2 高达 76.25。从实验设计角度分析：这个 IgG 对照的测序深度是否足够？NRF 和 PBC2 的极高值说明了什么？mapping rate 仅 51% 是否影响其作为对照的有效性？",
+    "answer": "针对您提供的 PH_Igg（IgG 对照）信息，我们从实验设计与质控指标间的逻辑关联出发，逐项分析如下。\n\n---\n\n### 1. 测序深度是否足够？\n**直接结论：严重不足，无法构成有效的对照。**\n- **数值对比**：PH_Igg 仅 ~0.6 M reads，而 IP 样本（如 PH_H3K27ac）深度约 32.7 M，两者相差约 **50 倍**。ChIP-seq 中 IgG 对照的核心作用是估计非特异性背景信号强度与分布，其测序深度应与 IP 样本处于同一量级（常规建议 ≥ 10 M reads），如此悬殊的深度会导致背景抽样极不稳定，引入巨大的泊松噪声，使后续标准化（如 fold-change over IgG）完全不可靠。\n- **下游风险**：若强行以此为对照，IP 峰区的显著性将严重依赖极少数背景 reads 的随机波动，假阳性/假阴性率失控，差异分析结果毫无生物学意义。\n- **复核动作**：确认 PH_Igg 的 `sequencing_depth` 在 ReadsQC 或 AlignmentQC 表中的原始计数，排除数据传输或拆分错误；若确实仅 60 万 reads，则需重新对该文库进行深度测序或舍弃此对照。\n\n---\n\n### 2. NRF 高达 0.976、PBC2 高达 76.25 说明了什么？\n这两个指标通常反映文库复杂度与 PCR 瓶颈，但如此极端的组合提示**指标计算口径失真或文库高度异常**，而非常规的“高复杂度”。\n\n- **NRF（非冗余分数）= distinct_locations / total_mapped_fragments**  \n  0.976 意味着 > 97% 的比对片段来自不同的基因组位置，几乎不存在 PCR 重复。在超低深度（总 mapped fragments 极少）且 mapping rate 仅 51% 的情况下，该值极易被高估——因为测序深度不足，文库真实复杂度远未饱和，每个独特分子仅被捕获一次，表现为“伪高复杂度”。\n\n- **PBC2（PCR 瓶颈系数 2）通常 ≤1（1 为无瓶颈）**  \n  76.25 远大于 1，极可能是由于计算时使用了 **包含多比对 reads 的统计口径**。标准 PBC2 计算基于唯一比对 reads（即 `N1 + N2 / N_unique`），若将多重比对 reads 计入分子、而分母仍为唯一位点数，会导致分子剧烈膨胀。PH_Igg 中存在大量未能唯一比对的 reads（51% mapping，其中 unique 比例未知），这部分多比对 reads 被错误归入会导致 PBC2 畸高。  \n  **关联现象**：mapping rate 51% 远低于 IP 的 93-95%，暗示该文库可能含有大量重复序列、污染或参考基因组错配，使得大量 reads 落入多比对区域。\n\n**提示**：此对指标的矛盾组合可作为文库质量异常的信号，不能直接用于常规质控解读。\n\n**复核动作**：  \n- 提取 PH_Igg 的比对日志，拆分 `unique mapped / multi-mapped / unmapped` 三类 reads 的绝对计数。  \n- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期。  \n- 检查参考基因组配置与物种一致性，排除索引错误导致的多比对增加。\n\n---\n\n### 3. Mapping rate 仅 51% 是否影响对照有效性？\n**直接影响巨大，且会与其他问题叠加，本质上使该对照不可用。**\n\n- **背景代表性缺失**：IgG 对照的本质是捕获全基因组非特异性结合和“沾取”背景，其序列组成应与 IP 文库来源相同（即相同的细胞/组织来源、建库方法）。51% 的比对率远低于 IP 的 93%+，说明该文库有大量 reads 来源异常（如严重接头残留、污染或降解），其可比对部分代表性已严重偏离真实背景。\n- **背景峰构建偏差**：仅有约 30 万 reads 能够比对（0.6 M × 51%），再剔除多比对和可能的高重复（尽管当前 NRF 虚高），最终能用于背景估计的有效位点数可能不足 1 万。如此稀疏的信号无法稳健估计基因组范围内的背景分布，call peak 时背景阈值将完全随机。\n- **与 IP 文库的不匹配**：IP 样本都经过高效接头去除（clean reads 保留率 99.7%）和良好比对照，表明建库操作整体正常。PH_Igg 的异常仅限于自身，可能源于该文库单独的质量事故，不能直接作为同一实验体系的对照。\n\n**复核动作**：  \n- 检查 PH_Igg 的 Raw FastQC 报告，重点关注接头含量（已提供 Adapter 检出率 51.33%）、碱基质量曲线和 GC 含量分布。  \n- 若接头率异常，重新 trim 后再比对，观察 mapping rate 是否能恢复至 ~90%。  \n- 若总 reads 数与下机数量不一致，排查测序环节的 lane/样本混杂或 barcode 拆分错误。  \n- 比对后统计 `MT_Rate`（项目数据显示 PH_Igg MT_Rate 为 3.23%），判断是否存在线粒体污染导致的比对率下降。\n\n---\n\n### 综合结论\nPH_Igg 的深度、比对率和文库复杂度指标共同指向 **该样本在建库或测序阶段出现了严重问题**，现阶段完全不具备作为 IgG 对照的条件。即使部分指标经复核恢复正常，极端低深度这一缺陷也无法通过生物信息学弥补。强烈建议：**废弃该对照并重新构建/测序 IgG 文库，深度至少与 IP 样本持平，且确保比对率 ≥ 90%**。在获得合格对照前，可考虑使用 Input 样本或已有公共 IgG 数据集进行初步探索，但须明确其局限性。",
+    "answer_length": 2449,
+    "quality_score": 51,
+    "quality_passed": false,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": false,
+      "status": "repair_required",
+      "score": 51,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 6,
+          "max_score": 30,
+          "details": [
+            "severe=2",
+            "moderate=0"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 3,
+          "max_score": 20,
+          "details": [
+            "value_coverage=0/3",
+            "source_mentions=0"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 13,
+          "max_score": 15,
+          "details": [
+            "unsupported_numeric_claim_rate=0.1429"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 4,
+          "max_score": 5,
+          "details": [
+            "expected_complexity=comprehensive"
+          ]
+        },
+        "integration_depth": {
+          "score": 6,
+          "max_score": 10,
+          "details": [
+            "covered_modalities=2/3"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 0,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=False"
+          ]
+        },
+        "assay_specificity": {
+          "score": 2,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag",
+            "target_class=histone_active_mark"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 6,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=True"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 4,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=False"
+          ]
+        }
+      },
+      "legacy_dimensions": {
+        "directness": {
+          "score": 16,
+          "max_score": 20,
+          "details": [
+            "target_metric_present",
+            "no_generic_opening"
+          ]
+        },
+        "evidence_grounding": {
+          "score": 4,
+          "max_score": 25,
+          "details": [
+            "value_coverage=0/3",
+            "source_mentions=0"
+          ]
+        },
+        "reasoning_depth": {
+          "score": 15,
+          "max_score": 20,
+          "details": [
+            "component_1=True",
+            "component_2=True",
+            "component_3=False",
+            "component_4=True"
+          ]
+        },
+        "actionability": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "action_markers=5",
+            "action_terms=11"
+          ]
+        },
+        "uncertainty_discipline": {
+          "score": 0,
+          "max_score": 10,
+          "details": []
+        },
+        "concision": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "chars=2436",
+            "headings=4"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 7,
+        "supported_numeric_claim_count": 6,
+        "unsupported_numeric_claim_rate": 0.1429,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+            "metrics": [
+              "unique_mapping_rate_percent",
+              "nrf",
+              "pbc2"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      },
+      "issues": [
+        {
+          "rule": "insufficient_evidence_grounding",
+          "message": "回答未充分引用项目样本值或来源字段。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目阈值未确认，但回答没有明确证据限制。",
+          "severity": "severe"
+        },
+        {
+          "rule": "weak_integrative_reasoning",
+          "message": "复杂问题回答没有充分整合多模态证据。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_hypothesis_comparison",
+          "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+          "severity": "severe"
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "message": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+          "severity": "severe"
+        }
+      ],
+      "question_mode": "diagnostic",
+      "target_metrics": [
+        "mapping_rate_percent"
+      ],
+      "target_evidence_count": 6,
+      "scoring_evidence_count": 6,
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "alignment",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "overview_coverage": {
+        "available_metric_count": 1,
+        "required_metric_count": 1,
+        "covered_metric_count": 0,
+        "covered_metrics": []
+      },
+      "answer_chars": 2436,
+      "repair_applied": false,
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+          "metrics": [
+            "unique_mapping_rate_percent",
+            "nrf",
+            "pbc2"
+          ],
+          "numbers": [
+            1.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "passed": false,
+      "checked_numeric_claim_count": 7,
+      "supported_numeric_claim_count": 6,
+      "unsupported_numeric_claim_rate": 0.1429,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+          "metrics": [
+            "unique_mapping_rate_percent",
+            "nrf",
+            "pbc2"
+          ],
+          "numbers": [
+            1.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ],
+      "contracts": {
+        "numbers_from_project_files": false,
+        "units_and_denominators_correct": true,
+        "metric_definitions_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "causal_language_calibrated": true,
+        "threshold_limitations_present": false,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    },
+    "workflow_trace": {
+      "workflow_run_id": "projwf_351bfec2c9e6",
+      "status": "ok",
+      "duration_ms": 64840.37,
+      "analysis_run_id": "projrun_5308cfb75bd3",
+      "warning_count": 0,
+      "task_plan_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_0\\task_plan.json",
+      "workspace_root": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_0",
+      "progress_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_0\\progress.json",
+      "harness_guard": {
+        "passed": true,
+        "action": "disabled",
+        "severity": "none",
+        "violations": [],
+        "review_only": true
+      },
+      "answer_quality": {
+        "passed": false,
+        "status": "repair_required",
+        "score": 51,
+        "pass_score": 70,
+        "dimensions": {
+          "fact_correctness": {
+            "score": 6,
+            "max_score": 30,
+            "details": [
+              "severe=2",
+              "moderate=0"
+            ]
+          },
+          "evidence_coverage": {
+            "score": 3,
+            "max_score": 20,
+            "details": [
+              "value_coverage=0/3",
+              "source_mentions=0"
+            ]
+          },
+          "unsupported_conclusion_control": {
+            "score": 13,
+            "max_score": 15,
+            "details": [
+              "unsupported_numeric_claim_rate=0.1429"
+            ]
+          },
+          "unit_accuracy": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "unit_error_count=0"
+            ]
+          },
+          "experimental_design_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "design_error_count=0"
+            ]
+          },
+          "causal_discipline": {
+            "score": 5,
+            "max_score": 5,
+            "details": [
+              "causal_overstatement_count=0"
+            ]
+          },
+          "complexity_fit": {
+            "score": 4,
+            "max_score": 5,
+            "details": [
+              "expected_complexity=comprehensive"
+            ]
+          },
+          "integration_depth": {
+            "score": 6,
+            "max_score": 10,
+            "details": [
+              "covered_modalities=2/3"
+            ]
+          },
+          "hypothesis_discrimination": {
+            "score": 0,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=False"
+            ]
+          },
+          "assay_specificity": {
+            "score": 2,
+            "max_score": 5,
+            "details": [
+              "assay=cuttag",
+              "target_class=histone_active_mark"
+            ]
+          },
+          "question_core_coverage": {
+            "score": 6,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=True"
+            ]
+          },
+          "matrix_reasoning_coverage": {
+            "score": 4,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=False"
+            ]
+          }
+        },
+        "legacy_dimensions": {
+          "directness": {
+            "score": 16,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 4,
+            "max_score": 25,
+            "details": [
+              "value_coverage=0/3",
+              "source_mentions=0"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 15,
+            "max_score": 20,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=False",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=5",
+              "action_terms=11"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 0,
+            "max_score": 10,
+            "details": []
+          },
+          "concision": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "chars=2436",
+              "headings=4"
+            ]
+          }
+        },
+        "fact_verification": {
+          "version": "answer-fact-verifier-v2",
+          "passed": false,
+          "checked_numeric_claim_count": 7,
+          "supported_numeric_claim_count": 6,
+          "unsupported_numeric_claim_rate": 0.1429,
+          "unit_error_count": 0,
+          "definition_error_count": 0,
+          "sample_role_conflict_count": 0,
+          "differential_precondition_error_count": 0,
+          "causal_overstatement_count": 0,
+          "threshold_limit_error_count": 1,
+          "matrix_reasoning_error_count": 0,
+          "critical_modality_omission_count": 0,
+          "issues": [
+            {
+              "rule": "numeric_claim_not_found_in_project_evidence",
+              "severity": "severe",
+              "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+              "metrics": [
+                "unique_mapping_rate_percent",
+                "nrf",
+                "pbc2"
+              ],
+              "numbers": [
+                1.0
+              ]
+            },
+            {
+              "rule": "missing_threshold_limitation",
+              "severity": "severe",
+              "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+            }
+          ],
+          "contracts": {
+            "numbers_from_project_files": false,
+            "units_and_denominators_correct": true,
+            "metric_definitions_correct": true,
+            "sample_roles_respected": true,
+            "differential_analysis_preconditions_respected": true,
+            "causal_language_calibrated": true,
+            "threshold_limitations_present": false,
+            "matrix_reasoning_consistent": true,
+            "critical_modalities_covered": true
+          }
+        },
+        "issues": [
+          {
+            "rule": "insufficient_evidence_grounding",
+            "message": "回答未充分引用项目样本值或来源字段。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目阈值未确认，但回答没有明确证据限制。",
+            "severity": "severe"
+          },
+          {
+            "rule": "weak_integrative_reasoning",
+            "message": "复杂问题回答没有充分整合多模态证据。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_hypothesis_comparison",
+            "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+            "severity": "severe"
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "message": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+            "severity": "severe"
+          }
+        ],
+        "question_mode": "diagnostic",
+        "target_metrics": [
+          "mapping_rate_percent"
+        ],
+        "target_evidence_count": 6,
+        "scoring_evidence_count": 6,
+        "response_plan": {
+          "complexity": "comprehensive",
+          "reasoning_mode": "integrative_reasoning",
+          "required_sections": [
+            "direct_answer",
+            "fact_layer",
+            "integrated_evidence",
+            "hypothesis_comparison",
+            "limitations",
+            "verification_actions"
+          ],
+          "max_sections": 6,
+          "answer_focus": "integrated_competing_hypotheses",
+          "expected_evidence_modalities": [
+            "alignment",
+            "experiment_design",
+            "competing_hypotheses"
+          ],
+          "token_budget_hint": 5200,
+          "claim_contract": [
+            "conclusion",
+            "metric_value",
+            "data_source",
+            "decision_basis",
+            "limitation",
+            "recommended_action"
+          ],
+          "hypothesis_contract": [
+            "hypothesis_label",
+            "supporting_evidence",
+            "contradicting_evidence",
+            "missing_critical_evidence",
+            "preference_reason",
+            "verification_action"
+          ]
+        },
+        "overview_coverage": {
+          "available_metric_count": 1,
+          "required_metric_count": 1,
+          "covered_metric_count": 0,
+          "covered_metrics": []
+        },
+        "answer_chars": 2436,
+        "repair_applied": false,
+        "repair_attempted": false,
+        "enforcement_mode": "observe_only",
+        "repair_skip_reason": "interactive_project_answers_are_observe_only",
+        "original_fact_issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+            "metrics": [
+              "unique_mapping_rate_percent",
+              "nrf",
+              "pbc2"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ]
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 7,
+        "supported_numeric_claim_count": 6,
+        "unsupported_numeric_claim_rate": 0.1429,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "- 用唯一比对 reads 重新计算 NRF 和 PBC2（标准流程），核实是否符合 `PBC2 ≈ 1` 的预期",
+            "metrics": [
+              "unique_mapping_rate_percent",
+              "nrf",
+              "pbc2"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      }
+    },
+    "duration_s": 64.8
+  },
+  {
+    "question": "FRiP 矩阵显示了清晰的对比：IP样本自身FRiP为22.24%（PH_H3K27ac）和25.57%（PN_H3K27ac），交叉FRiP（一个IP对另一个IP的peak计算）为20.99%和21.49%，而IP样本在IgG对照上的FRiP仅1.07-1.11%，IgG自身FRiP仅3.13%。请系统解读这个FRiP矩阵：为什么两个IP样本的交叉FRiP接近自身FRiP（~21% vs 22-26%），而IP在IgG上的FRiP仅~1%？这种FRiP模式是否足以证明实验的特异性和重复性？",
+    "answer": "**直接结论**  \nFRiP矩阵中，两个IP样本（PH_H3K27ac、PN_H3K27ac）的自身FRiP与交叉FRiP高度一致（21‑26%），而它们对IgG峰集的FRiP仅约1%，IgG自身FRiP也仅3.13%。这一模式强烈提示两IP样本的H3K27ac修饰图谱高度相似（重复性良好），且富集信号具有高度抗体特异性（非特异性背景极低）。但“足以证明”仍需结合peak数量、样本相关性、对照绑定等条件进行验证，不能仅凭FRiP矩阵单独下定论。\n\n---\n\n### 一、为什么交叉FRiP接近自身FRiP，而IP对IgG的FRiP极低？\n\n**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**  \n- **直接观察**：PH_H3K27ac自身FRiP 22.24%，PN_H3K27ac自身FRiP 25.57%；交叉FRiP分别为20.99%（PH reads 对 PN peak）和21.49%（PN reads 对 PH peak）。  \n- **机制解释**：FRiP（Fraction of Reads in Peaks）衡量的是落入特定peak集内的可用reads比例。两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：  \n  - 两个样本的peak集（即MACS3调用的显著富集区域）定位高度重合，且宽度和数量相似；  \n  - 每个IP样本的reads在对方peak集内仍保持高覆盖，意味着共同的H3K27ac修饰区域在两个样本中均被有效富集。  \n- **关联证据**：项目数据中，PH_H3K27ac与PN_H3K27ac的spearman相关性高达0.9022（来源：Correlation矩阵），侧面印证了全基因组水平上信号模式的高度一致。  \n- **可能解释**：如果PH和PN代表生物学重复或同一条件的不同处理，这种高交叉FRiP反映的是真实的生物学重复性；若PH和PN代表不同条件，则需进一步查看差异peak，但当前仅凭FRiP矩阵不能区分。\n\n**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**  \n- **直接观察**：PH_H3K27ac与PN_H3K27ac对IgG峰集的FRiP分别为1.11%和1.07%，IgG自身FRiP也仅3.13%。  \n- **机制解释**：  \n  - IgG峰集是在无特异性富集背景下，由MACS3根据IgG样本自身比对信号调出的极少数“伪峰”（可能来自开放染色质或随机堆积）。  \n  - IP样本的reads几乎不落入这些IgG峰区域，说明IP富集信号并非来自相同的非特异性区域，抗体特异性富集被有效分离。  \n  - IgG自身FRiP仅3.13%，进一步证实IgG样本几乎没有富集能力，抗体本底极低。  \n- **关联证据**：PH_IgG与PH_H3K27ac的相关系数仅为0.3165，PH_IgG与PN_H3K27ac为0.32，这些低相关性与IP对IgG的极低FRiP一致，表明IgG信号与IP信号在空间分布上几乎无关联。  \n- **注意事项**：FRiP矩阵中IP对IgG的FRiP用了IgG的peak集（而非IP的peak集），这个方向正确地反映了“IP reads在IgG峰中的占比”，而非反向，所以结论可靠。\n\n---\n\n### 二、该FRiP模式是否足以证明实验的特异性和重复性？\n\n**条件性评估：目前证据高度支持特异性与重复性，但需补充下列验证后才能形成最终结论。**\n\n**1. 支持特异性与重复性的证据链**  \n- **特异性**：IP自身FRiP（22‑26%）远高于IgG自身FRiP（3.13%），且IP对IgG的FRiP仅约1%，说明IP信号几乎完全集中在抗体特异性富集区域，非特异性背景可忽略。  \n- **重复性**：两个IP样本的自身FRiP接近，交叉FRiP与自身FRiP的差值极小，且全基因组相关性高达0.90，表明不同样本间H3K27ac修饰图谱高度可重复。  \n- **上游QC支持**：PH_H3K27ac的比对率92.94%，唯一比对率69.44%，重复率9.18%，NRF文库复杂度0.9089，线粒体比例0.59%，这些指标（来源：AlignmentQC）未出现明显异常，说明进入peak calling的reads质量稳定，FRiP值可信。\n\n**2. 未验证的潜在风险与复核动作**  \n- **peak数量与FRiP的平衡**：FRiP值的高低与peak集合的大小直接相关。若peak数量异常多（例如数十万），则FRiP可能虚高。需要从peak calling结果中获取peak数量，与FRiP联合解读。  \n  - **复核动作**：查看MACS3输出的peak count（xls文件），确认两个IP样本的peak数量是否在组蛋白修饰ChIP-seq的合理范围（通常H3K27ac > 10,000，但不宜过多）。  \n- **peak calling时是否使用了IgG对照**：项目配置中MACS3 qvalue=0.05，但未明确使用IgG作为control。若未使用IgG对照，peak集可能包含部分非特异性区域，但即便如此，IP对IgG的FRiP极低依然说明那些区域没有富集IP reads，风险可控。  \n  - **复核动作**：确认MACS3命令中是否绑定了IgG样本作为control（`-c`参数），若未绑定，需评估是否影响peak特异性。  \n- **FRiP计算口径**：FRiP矩阵中的分母（usable reads）必须是去重、去线粒体、合格比对后的reads，且与peak calling所用BAM一致。若口径不一致，可能导致FRiP偏差。  \n  - **复核动作**：核对FRiP计算所使用的BAM文件与peak calling输入BAM的一致性，确保reads过滤标准相同。  \n- **生物学背景的确认**：PH和PN若代表不同条件（如处理vs对照），高交叉FRiP可能掩盖真实的差异峰。需要结合实验设计，查看差异peak分析结果。  \n  - **复核动作**：若项目设计为比较组，进一步检查差异peak的数量和分布，确认高重复性并未导致差异信号丢失。\n\n**总结**：当前FRiP矩阵模式强烈支持ChIP实验成功，抗体特异性高，且两个IP样本高度重复。但最终判定仍需完成上述复核，确保peak数量合理、对照使用正确、FRiP口径一致，并符合实验设计预期。",
+    "answer_length": 2752,
+    "quality_score": 61,
+    "quality_passed": false,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": false,
+      "status": "repair_required",
+      "score": 61,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "severe=4",
+            "moderate=0"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 13,
+          "max_score": 20,
+          "details": [
+            "value_coverage=5/6",
+            "source_mentions=0"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 12,
+          "max_score": 15,
+          "details": [
+            "unsupported_numeric_claim_rate=0.2308"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 4,
+          "max_score": 5,
+          "details": [
+            "expected_complexity=comprehensive"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "covered_modalities=4/6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 0,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=False"
+          ]
+        },
+        "assay_specificity": {
+          "score": 2,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag",
+            "target_class=histone_active_mark"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=True",
+            "component_3=True"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "component_1=True",
+            "component_2=True",
+            "component_3=True"
+          ]
+        }
+      },
+      "legacy_dimensions": {
+        "directness": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "target_metric_present",
+            "direct_value_or_finding",
+            "no_generic_opening"
+          ]
+        },
+        "evidence_grounding": {
+          "score": 16,
+          "max_score": 25,
+          "details": [
+            "value_coverage=5/6",
+            "source_mentions=0"
+          ]
+        },
+        "reasoning_depth": {
+          "score": 15,
+          "max_score": 20,
+          "details": [
+            "component_1=True",
+            "component_2=True",
+            "component_3=False",
+            "component_4=True"
+          ]
+        },
+        "actionability": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "action_markers=9",
+            "action_terms=11"
+          ]
+        },
+        "uncertainty_discipline": {
+          "score": 0,
+          "max_score": 10,
+          "details": []
+        },
+        "concision": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "chars=2718",
+            "headings=2"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 13,
+        "supported_numeric_claim_count": 10,
+        "unsupported_numeric_claim_rate": 0.2308,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0,
+              4.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              2.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      },
+      "issues": [
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目阈值未确认，但回答没有明确证据限制。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_hypothesis_comparison",
+          "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+          "severity": "severe"
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "message": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+          "severity": "severe"
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "message": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+          "severity": "severe"
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "message": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+          "severity": "severe"
+        }
+      ],
+      "question_mode": "diagnostic",
+      "target_metrics": [
+        "correlation",
+        "frip_ratio",
+        "peak_count"
+      ],
+      "target_evidence_count": 24,
+      "scoring_evidence_count": 24,
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "correlation",
+          "workflow_rule_source",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "overview_coverage": {
+        "available_metric_count": 3,
+        "required_metric_count": 3,
+        "covered_metric_count": 2,
+        "covered_metrics": [
+          "frip_ratio",
+          "correlation"
+        ]
+      },
+      "answer_chars": 2718,
+      "repair_applied": false,
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            1.0
+          ]
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            1.0,
+            4.0
+          ]
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            2.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "passed": false,
+      "checked_numeric_claim_count": 13,
+      "supported_numeric_claim_count": 10,
+      "unsupported_numeric_claim_rate": 0.2308,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            1.0
+          ]
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            1.0,
+            4.0
+          ]
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            2.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ],
+      "contracts": {
+        "numbers_from_project_files": false,
+        "units_and_denominators_correct": true,
+        "metric_definitions_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "causal_language_calibrated": true,
+        "threshold_limitations_present": false,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    },
+    "workflow_trace": {
+      "workflow_run_id": "projwf_448860ab3fd3",
+      "status": "ok",
+      "duration_ms": 81393.65,
+      "analysis_run_id": "projrun_71f79c81c341",
+      "warning_count": 0,
+      "task_plan_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_1\\task_plan.json",
+      "workspace_root": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_1",
+      "progress_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_1\\progress.json",
+      "harness_guard": {
+        "passed": true,
+        "action": "disabled",
+        "severity": "none",
+        "violations": [],
+        "review_only": true
+      },
+      "answer_quality": {
+        "passed": false,
+        "status": "repair_required",
+        "score": 61,
+        "pass_score": 70,
+        "dimensions": {
+          "fact_correctness": {
+            "score": 0,
+            "max_score": 30,
+            "details": [
+              "severe=4",
+              "moderate=0"
+            ]
+          },
+          "evidence_coverage": {
+            "score": 13,
+            "max_score": 20,
+            "details": [
+              "value_coverage=5/6",
+              "source_mentions=0"
+            ]
+          },
+          "unsupported_conclusion_control": {
+            "score": 12,
+            "max_score": 15,
+            "details": [
+              "unsupported_numeric_claim_rate=0.2308"
+            ]
+          },
+          "unit_accuracy": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "unit_error_count=0"
+            ]
+          },
+          "experimental_design_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "design_error_count=0"
+            ]
+          },
+          "causal_discipline": {
+            "score": 5,
+            "max_score": 5,
+            "details": [
+              "causal_overstatement_count=0"
+            ]
+          },
+          "complexity_fit": {
+            "score": 4,
+            "max_score": 5,
+            "details": [
+              "expected_complexity=comprehensive"
+            ]
+          },
+          "integration_depth": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "covered_modalities=4/6"
+            ]
+          },
+          "hypothesis_discrimination": {
+            "score": 0,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=False"
+            ]
+          },
+          "assay_specificity": {
+            "score": 2,
+            "max_score": 5,
+            "details": [
+              "assay=cuttag",
+              "target_class=histone_active_mark"
+            ]
+          },
+          "question_core_coverage": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=True",
+              "component_3=True"
+            ]
+          },
+          "matrix_reasoning_coverage": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=True"
+            ]
+          }
+        },
+        "legacy_dimensions": {
+          "directness": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "direct_value_or_finding",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 16,
+            "max_score": 25,
+            "details": [
+              "value_coverage=5/6",
+              "source_mentions=0"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 15,
+            "max_score": 20,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=False",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=9",
+              "action_terms=11"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 0,
+            "max_score": 10,
+            "details": []
+          },
+          "concision": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "chars=2718",
+              "headings=2"
+            ]
+          }
+        },
+        "fact_verification": {
+          "version": "answer-fact-verifier-v2",
+          "passed": false,
+          "checked_numeric_claim_count": 13,
+          "supported_numeric_claim_count": 10,
+          "unsupported_numeric_claim_rate": 0.2308,
+          "unit_error_count": 0,
+          "definition_error_count": 0,
+          "sample_role_conflict_count": 0,
+          "differential_precondition_error_count": 0,
+          "causal_overstatement_count": 0,
+          "threshold_limit_error_count": 1,
+          "matrix_reasoning_error_count": 0,
+          "critical_modality_omission_count": 0,
+          "issues": [
+            {
+              "rule": "numeric_claim_not_found_in_project_evidence",
+              "severity": "severe",
+              "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+              "metrics": [
+                "frip_ratio"
+              ],
+              "numbers": [
+                1.0
+              ]
+            },
+            {
+              "rule": "numeric_claim_not_found_in_project_evidence",
+              "severity": "severe",
+              "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+              "metrics": [
+                "frip_ratio"
+              ],
+              "numbers": [
+                1.0,
+                4.0
+              ]
+            },
+            {
+              "rule": "numeric_claim_not_found_in_project_evidence",
+              "severity": "severe",
+              "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+              "metrics": [
+                "frip_ratio"
+              ],
+              "numbers": [
+                2.0
+              ]
+            },
+            {
+              "rule": "missing_threshold_limitation",
+              "severity": "severe",
+              "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+            }
+          ],
+          "contracts": {
+            "numbers_from_project_files": false,
+            "units_and_denominators_correct": true,
+            "metric_definitions_correct": true,
+            "sample_roles_respected": true,
+            "differential_analysis_preconditions_respected": true,
+            "causal_language_calibrated": true,
+            "threshold_limitations_present": false,
+            "matrix_reasoning_consistent": true,
+            "critical_modalities_covered": true
+          }
+        },
+        "issues": [
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目阈值未确认，但回答没有明确证据限制。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_hypothesis_comparison",
+            "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+            "severity": "severe"
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "message": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+            "severity": "severe"
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "message": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+            "severity": "severe"
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "message": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+            "severity": "severe"
+          }
+        ],
+        "question_mode": "diagnostic",
+        "target_metrics": [
+          "correlation",
+          "frip_ratio",
+          "peak_count"
+        ],
+        "target_evidence_count": 24,
+        "scoring_evidence_count": 24,
+        "response_plan": {
+          "complexity": "comprehensive",
+          "reasoning_mode": "integrative_reasoning",
+          "required_sections": [
+            "direct_answer",
+            "fact_layer",
+            "integrated_evidence",
+            "hypothesis_comparison",
+            "limitations",
+            "verification_actions"
+          ],
+          "max_sections": 6,
+          "answer_focus": "integrated_competing_hypotheses",
+          "expected_evidence_modalities": [
+            "frip",
+            "peak_count",
+            "correlation",
+            "workflow_rule_source",
+            "experiment_design",
+            "competing_hypotheses"
+          ],
+          "token_budget_hint": 5200,
+          "claim_contract": [
+            "conclusion",
+            "metric_value",
+            "data_source",
+            "decision_basis",
+            "limitation",
+            "recommended_action"
+          ],
+          "hypothesis_contract": [
+            "hypothesis_label",
+            "supporting_evidence",
+            "contradicting_evidence",
+            "missing_critical_evidence",
+            "preference_reason",
+            "verification_action"
+          ]
+        },
+        "overview_coverage": {
+          "available_metric_count": 3,
+          "required_metric_count": 3,
+          "covered_metric_count": 2,
+          "covered_metrics": [
+            "frip_ratio",
+            "correlation"
+          ]
+        },
+        "answer_chars": 2718,
+        "repair_applied": false,
+        "repair_attempted": false,
+        "enforcement_mode": "observe_only",
+        "repair_skip_reason": "interactive_project_answers_are_observe_only",
+        "original_fact_issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0,
+              4.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              2.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ]
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 13,
+        "supported_numeric_claim_count": 10,
+        "unsupported_numeric_claim_rate": 0.2308,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**1. 交叉FRiP接近自身FRiP的原因：两个IP样本的peak集合高度重叠，且reads信号在对方的peak区域内同样集中**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "两个IP样本的交叉FRiP仅比自身FRiP低1‑4个百分点，说明：",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              1.0,
+              4.0
+            ]
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "**2. IP对IgG的FRiP极低的原因：IP样本的reads极少落在IgG峰集内，背景信号微弱**",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              2.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      }
+    },
+    "duration_s": 81.4
+  },
+  {
+    "question": "Spearman相关性矩阵显示：PH_H3K27ac与PN_H3K27ac的相关性为0.9022（高度正相关），而两个IP样本与IgG对照的相关性仅0.3165和0.3200。结合FRiP、peak数量等指标，分析这种相关性差异反映了什么生物学意义？IP间0.90的相关性对H3K27ac这个组蛋白修饰来说是高还是低？IP-IgG间0.32的相关性说明了什么？",
+    "answer": "### 直接回答\n\n**IP间0.90的相关性**：对于H3K27ac这种在特定基因组区域呈“尖峰”状富集的组蛋白修饰来说，Spearman相关性0.9022是一个**优秀且合理的高值**，表明在PH_H3K27ac和PN_H3K27ac这两个样本中，H3K27ac在全基因组尺度上的修饰分布模式高度一致。这种一致性通常指示两种可能：(a) 两个样本来自生物学重复、相同组织来源，或 (b) 两个样本虽背景不同，但该修饰的整体基因组分布特征（如主要在启动子/增强子区域富集）具有强保守性。\n\n**IP-IgG间0.32的相关性**：该值远低于IP间的0.90，但并非零相关，这说明**IP信号与背景之间存在结构性的共同偏向（如染色质开放性导致的reads覆盖不均），而非完全随机的噪音**；同时，这个差距也证明IP信号中确实包含了大量IgG无法解释、由抗体特异性富集带来的信号。\n\n**核心因果关系**：结合FRiP和其他QC指标，**0.90 vs 0.32的相关性差异主要由两方面共同解释**：一是H3K27ac的高特异性富集（FRiP约22%）产生了主导相关性的生物学信号；二是IgG样本的低质量（比对率51%、唯一比对率33.6%）和低信噪比（FRiP仅3.1%）使其接近背景噪音，因此IP和IgG的信号空间基本隔离。\n\n---\n\n### 事实层：关键指标链\n\n**从AlignmentQC直接观察到的上游特征：**\n\n- **PH_H3K27ac**：比对率92.94%，唯一比对率69.44%，重复率9.18%，NRF文库复杂度0.909\n- **PH_Igg**：比对率51.02%，唯一比对率33.58%\n\n**从FRiP矩阵（PeakCalling\\macs3\\FRiP_raw.txt）直接观察到的富集特征：**\n\n- PH_H3K27ac reads vs PH_H3K27ac peaks：**22.24%**\n- PH_H3K27ac reads vs PH_Igg peaks：**1.11%**\n- PH_H3K27ac reads vs PN_H3K27ac peaks：**20.99%**\n- PH_Igg reads vs PH_Igg peaks：**3.13%**\n\n**Spearman相关性矩阵（spearman_Corr_readCounts.tab）直接观察到的一致性：**\n\n- PH_H3K27ac vs PN_H3K27ac：**0.9022**\n- PH_H3K27ac vs PH_Igg：**0.3165**\n- PN_H3K27ac vs PH_Igg：**0.3200**\n\n---\n\n### 整合证据链与机制分析\n\n#### 1. 为什么IP间0.90的Spearman相关性是一个高值且可信的结果？\n\n**证据链**：\n\nPH_H3K27ac自身FRiP为**22.24%**（属于ChIP-seq中较好的富集水平），其NRF为**0.909**（表明文库复杂度高，reads覆盖在基因组上高度分散，非大量PCR重复导致的虚假信号）。该样本的reads在PN_H3K27ac peaks中的交叉FRiP为**20.99%**，与自身FRiP非常接近，说明**两个IP的peak集合在reads覆盖层面几乎等价**——这正是Spearman相关性高达0.90的直接底层原因。\n\n**结合H3K27ac修饰的生物学特征解释**：\n\nH3K27ac通常标记活性启动子和增强子，形成相对于全基因组而言位置固定的“尖峰”区域。如果PH和PN代表相同或相近的细胞状态（或组织类型），那么在大部分启动子/增强子区域的修饰状态被共享时，全基因组bins的read count相关性达到0.9并非罕见。这个值**高于一般ChIP-seq“良好重复”的阈值（通常≥0.85即视为高重复性）**，因此可以判定此处的相关性属于“优秀”范畴，并未因过拟合或噪音导致虚假膨胀。\n\n#### 2. IP-IgG间0.32的相关性揭示了什么？\n\n**证据链**：\n\n- PH_Igg的FRiP仅**3.13%**（远低于IP的22%），说明其在peak区域（即IP富集区域）几乎无富集。\n- PH_H3K27ac reads在PH_Igg peaks中的交叉FRiP为**1.11%**，这几乎等于随机覆盖水平，证明两个peak集相互正交——IP富集到的区域，IgG几乎无信号；IgG偶发性覆盖的区域（可能开放染色质或随机噪音），IP也不富集。\n- 上游数据揭示了IgG样本的严重固有问题：比对率仅**51.02%**，唯一比对率仅**33.58%**。比对率不足一半意味着大量reads无法定位到参考基因组，有效数据大量丢失；唯一比对率低则提示多重比对reads占比高，这类reads通常来自重复序列，会在基因组上产生虚假的均匀覆盖噪音，压低生物学信号的真实动态范围。\n\n**机制分析**：\n\nSpearman相关性为0.32，说明两样本在部分genomic bins上存在弱共变。这种共变不是由H3K27ac的富集区驱动（交叉FRiP仅1.1%），而是由**二样本共享的非特异性背景信号**造成——例如全基因组尺度的染色质可及性梯度、GC含量偏好、或由低质量IgG样本的多重比对reads造成的系统性噪声覆盖。由于这些背景噪音在基因组上具有结构性分布（而非完全随机），两样本仍可呈现0.32的弱正相关——这与纯噪音产生的零相关有本质区别。\n\n**这种相关性差异的核心意义是**：(a) 抗体富集特异性高，IP内含丰富的H3K27ac专属信号；(b) IgG样本质量过低，不适合单独作为信号空间来构建背景模型——其有效reads深度不足且多重比对噪音严重，可能导致峰检时错误估计局部背景。\n\n---\n\n### 局限性说明\n\n- 未获得**peak count表**和**基因组tracks**，因此无法评估peak的绝对数量、覆盖宽度（broad/narrow）是否合理，以及IP与IgG在富集区域的可视化差异。这限制了判断FRiP 22%是否伴随过高或过低peak数量。\n- **相关性矩阵的计算空间未确认**（全基因组bins还是共有/样本特异peak区域）。如果使用的是全基因组固定bins，那么低信号区域（非富集区）占主导，可能会放大IgG噪音的权重、压缩IP间真实相关性的表现力；若是在共有peaks中计算，0.90则是对共有修饰位点的高保守性确认。\n- PH_Igg的对齐率异常低（51%），但**未明确是样本制备/文库构建问题，还是测序产出的根本性质量问题**，因此机制解释中“IgG质量差”是直接观察，但具体原因需上游QC复核。\n- **未提供条件/分组信息**（PH与PN是生物学重复还是不同条件），因此无法断言0.90的高相关是“期望中的重复一致”还是“未发生生物学差异”。\n\n---\n\n### 可执行复核动作\n\n1. **确认PH与PN的生物学关系**：若为重复，0.90为优异；若为不同处理，应标记并在共有peaks上重算相关性确认差异是否存在。\n2. **在共有peaks（而非全基因组bins）上重算Spearman相关性**：滤除无富集区间，可更纯粹地反映H3K27ac修饰位点的一致性，消除背景噪音对IP-IgG对比的抬升效应。\n3. **用IgG bam作为背景，对PH_H3K27ac重跑peak calling（MACS3，添加-c control参数）**，比较有/无IgG对照下peak数量与FRiP的变化——验证IgG背景是否当前已被正确纳入，以及是否存在因IgG质量差导致的峰检偏差。\n4. **复核PH_Igg原控数据**：解读比对率51%的原因（接头比例、污染、rDNA残留等），判断该样本是否适合作为可靠的背景对照，或建议替换为input DNA。",
+    "answer_length": 3270,
+    "quality_score": 70,
+    "quality_passed": false,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": false,
+      "status": "repair_required",
+      "score": 70,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 6,
+          "max_score": 30,
+          "details": [
+            "severe=2",
+            "moderate=0"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 18,
+          "max_score": 20,
+          "details": [
+            "value_coverage=5/6",
+            "source_mentions=1"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 14,
+          "max_score": 15,
+          "details": [
+            "unsupported_numeric_claim_rate=0.0667"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "expected_complexity=comprehensive"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "covered_modalities=4/5"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 0,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=False"
+          ]
+        },
+        "assay_specificity": {
+          "score": 2,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag",
+            "target_class=histone_active_mark"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=True",
+            "component_3=True"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=True",
+            "component_3=True"
+          ]
+        }
+      },
+      "legacy_dimensions": {
+        "directness": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "target_metric_present",
+            "direct_value_or_finding",
+            "no_generic_opening"
+          ]
+        },
+        "evidence_grounding": {
+          "score": 23,
+          "max_score": 25,
+          "details": [
+            "value_coverage=5/6",
+            "source_mentions=1"
+          ]
+        },
+        "reasoning_depth": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "component_1=True",
+            "component_2=True",
+            "component_3=True",
+            "component_4=True"
+          ]
+        },
+        "actionability": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "action_markers=5",
+            "action_terms=9"
+          ]
+        },
+        "uncertainty_discipline": {
+          "score": 0,
+          "max_score": 10,
+          "details": []
+        },
+        "concision": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "chars=3270",
+            "headings=7"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 15,
+        "supported_numeric_claim_count": 14,
+        "unsupported_numeric_claim_rate": 0.0667,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              22.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      },
+      "issues": [
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目阈值未确认，但回答没有明确证据限制。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_hypothesis_comparison",
+          "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+          "severity": "severe"
+        },
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "message": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+          "severity": "severe"
+        }
+      ],
+      "question_mode": "analysis",
+      "target_metrics": [
+        "correlation",
+        "frip_ratio",
+        "peak_count"
+      ],
+      "target_evidence_count": 24,
+      "scoring_evidence_count": 24,
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "correlation",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "overview_coverage": {
+        "available_metric_count": 3,
+        "required_metric_count": 3,
+        "covered_metric_count": 2,
+        "covered_metrics": [
+          "frip_ratio",
+          "correlation"
+        ]
+      },
+      "answer_chars": 3270,
+      "repair_applied": false,
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            22.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "passed": false,
+      "checked_numeric_claim_count": 15,
+      "supported_numeric_claim_count": 14,
+      "unsupported_numeric_claim_rate": 0.0667,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "numeric_claim_not_found_in_project_evidence",
+          "severity": "severe",
+          "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+          "metrics": [
+            "frip_ratio"
+          ],
+          "numbers": [
+            22.0
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ],
+      "contracts": {
+        "numbers_from_project_files": false,
+        "units_and_denominators_correct": true,
+        "metric_definitions_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "causal_language_calibrated": true,
+        "threshold_limitations_present": false,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    },
+    "workflow_trace": {
+      "workflow_run_id": "projwf_d043ca8b5902",
+      "status": "ok",
+      "duration_ms": 62976.88,
+      "analysis_run_id": "projrun_44037ef77acf",
+      "warning_count": 0,
+      "task_plan_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_2\\task_plan.json",
+      "workspace_root": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_2",
+      "progress_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_2\\progress.json",
+      "harness_guard": {
+        "passed": true,
+        "action": "disabled",
+        "severity": "none",
+        "violations": [],
+        "review_only": true
+      },
+      "answer_quality": {
+        "passed": false,
+        "status": "repair_required",
+        "score": 70,
+        "pass_score": 70,
+        "dimensions": {
+          "fact_correctness": {
+            "score": 6,
+            "max_score": 30,
+            "details": [
+              "severe=2",
+              "moderate=0"
+            ]
+          },
+          "evidence_coverage": {
+            "score": 18,
+            "max_score": 20,
+            "details": [
+              "value_coverage=5/6",
+              "source_mentions=1"
+            ]
+          },
+          "unsupported_conclusion_control": {
+            "score": 14,
+            "max_score": 15,
+            "details": [
+              "unsupported_numeric_claim_rate=0.0667"
+            ]
+          },
+          "unit_accuracy": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "unit_error_count=0"
+            ]
+          },
+          "experimental_design_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "design_error_count=0"
+            ]
+          },
+          "causal_discipline": {
+            "score": 5,
+            "max_score": 5,
+            "details": [
+              "causal_overstatement_count=0"
+            ]
+          },
+          "complexity_fit": {
+            "score": 5,
+            "max_score": 5,
+            "details": [
+              "expected_complexity=comprehensive"
+            ]
+          },
+          "integration_depth": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "covered_modalities=4/5"
+            ]
+          },
+          "hypothesis_discrimination": {
+            "score": 0,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=False"
+            ]
+          },
+          "assay_specificity": {
+            "score": 2,
+            "max_score": 5,
+            "details": [
+              "assay=cuttag",
+              "target_class=histone_active_mark"
+            ]
+          },
+          "question_core_coverage": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=True",
+              "component_3=True"
+            ]
+          },
+          "matrix_reasoning_coverage": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=True",
+              "component_3=True"
+            ]
+          }
+        },
+        "legacy_dimensions": {
+          "directness": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "direct_value_or_finding",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 23,
+            "max_score": 25,
+            "details": [
+              "value_coverage=5/6",
+              "source_mentions=1"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=True",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=5",
+              "action_terms=9"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 0,
+            "max_score": 10,
+            "details": []
+          },
+          "concision": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "chars=3270",
+              "headings=7"
+            ]
+          }
+        },
+        "fact_verification": {
+          "version": "answer-fact-verifier-v2",
+          "passed": false,
+          "checked_numeric_claim_count": 15,
+          "supported_numeric_claim_count": 14,
+          "unsupported_numeric_claim_rate": 0.0667,
+          "unit_error_count": 0,
+          "definition_error_count": 0,
+          "sample_role_conflict_count": 0,
+          "differential_precondition_error_count": 0,
+          "causal_overstatement_count": 0,
+          "threshold_limit_error_count": 1,
+          "matrix_reasoning_error_count": 0,
+          "critical_modality_omission_count": 0,
+          "issues": [
+            {
+              "rule": "numeric_claim_not_found_in_project_evidence",
+              "severity": "severe",
+              "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+              "metrics": [
+                "frip_ratio"
+              ],
+              "numbers": [
+                22.0
+              ]
+            },
+            {
+              "rule": "missing_threshold_limitation",
+              "severity": "severe",
+              "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+            }
+          ],
+          "contracts": {
+            "numbers_from_project_files": false,
+            "units_and_denominators_correct": true,
+            "metric_definitions_correct": true,
+            "sample_roles_respected": true,
+            "differential_analysis_preconditions_respected": true,
+            "causal_language_calibrated": true,
+            "threshold_limitations_present": false,
+            "matrix_reasoning_consistent": true,
+            "critical_modalities_covered": true
+          }
+        },
+        "issues": [
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目阈值未确认，但回答没有明确证据限制。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_hypothesis_comparison",
+            "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+            "severity": "severe"
+          },
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "message": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+            "severity": "severe"
+          }
+        ],
+        "question_mode": "analysis",
+        "target_metrics": [
+          "correlation",
+          "frip_ratio",
+          "peak_count"
+        ],
+        "target_evidence_count": 24,
+        "scoring_evidence_count": 24,
+        "response_plan": {
+          "complexity": "comprehensive",
+          "reasoning_mode": "integrative_reasoning",
+          "required_sections": [
+            "direct_answer",
+            "fact_layer",
+            "integrated_evidence",
+            "hypothesis_comparison",
+            "limitations",
+            "verification_actions"
+          ],
+          "max_sections": 6,
+          "answer_focus": "integrated_competing_hypotheses",
+          "expected_evidence_modalities": [
+            "frip",
+            "peak_count",
+            "correlation",
+            "experiment_design",
+            "competing_hypotheses"
+          ],
+          "token_budget_hint": 5200,
+          "claim_contract": [
+            "conclusion",
+            "metric_value",
+            "data_source",
+            "decision_basis",
+            "limitation",
+            "recommended_action"
+          ],
+          "hypothesis_contract": [
+            "hypothesis_label",
+            "supporting_evidence",
+            "contradicting_evidence",
+            "missing_critical_evidence",
+            "preference_reason",
+            "verification_action"
+          ]
+        },
+        "overview_coverage": {
+          "available_metric_count": 3,
+          "required_metric_count": 3,
+          "covered_metric_count": 2,
+          "covered_metrics": [
+            "frip_ratio",
+            "correlation"
+          ]
+        },
+        "answer_chars": 3270,
+        "repair_applied": false,
+        "repair_attempted": false,
+        "enforcement_mode": "observe_only",
+        "repair_skip_reason": "interactive_project_answers_are_observe_only",
+        "original_fact_issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              22.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ]
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 15,
+        "supported_numeric_claim_count": 14,
+        "unsupported_numeric_claim_rate": 0.0667,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "numeric_claim_not_found_in_project_evidence",
+            "severity": "severe",
+            "text": "这限制了判断FRiP 22%是否伴随过高或过低peak数量",
+            "metrics": [
+              "frip_ratio"
+            ],
+            "numbers": [
+              22.0
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": false,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      }
+    },
+    "duration_s": 63.0
+  },
+  {
+    "question": "项目配置了spike-in分析（spikein_analysis=yes, spikein_align=2）。PH_H3K27ac和PN_H3K27ac的FRiP分别为22.24%和25.57%，peak数量PN更高。如果有spike-in scaling factor，两组之间的H3K27ac信号强度差异可以通过spike-in进行归一化。请解释：(1) CUT&Tag中spike-in标准化的原理（与ChIP-seq中常用的spike-in有何异同？）(2) 如果spike-in归一化后PN_H3K27ac的信号强度仍显著高于PH_H3K27ac，可能反映什么生物学差异？",
+    "answer": "好的，我们直接来看你的问题。这里将结合项目提供的事实数据，从原理和生物学意义两个层面进行拆解。\n\n---\n\n### (1) CUT&Tag 中 Spike-in 标准化的原理与 ChIP-seq 的异同\n\n**CUT&Tag Spike-in 标准化的核心原理**\n\n在 CUT&Tag 实验中，我们向等量的细胞或细胞核悬液中，掺入等量的、来自不同物种（如人源实验添加果蝇细胞）的“外源”参照细胞。这些参照细胞会与实验细胞经历完全相同的实验流程：从与抗体或融合蛋白（如 pA-Tn5）孵育、转座子激活、片段化，到最终建库和测序。\n\n归一化的逻辑在于：因为我们添加的参照细胞数量是严格一致的，理论上，最终每个样本中比对到外源基因组的 reads 总数也应该大致相同。但在实际操作中，细胞计数误差、抗体效率、Tn5 酶活性、PCR 扩增偏好等因素，都会导致不同样本最终产生的总 reads 数存在差异。这个差异是“技术性”的。\n\n通过计算一个**Spike-in 缩放因子**，我们就可以将这种技术性偏差校正掉。这个因子通常定义为：所有样本质控后外源 reads 数的中位数或平均值，除以当前样本的外源 reads 数。如果一个样本的外源 reads 数特别少，说明它在实验中各个环节的总体效率偏低，其缩放因子就会大于 1，从而在归一化时将其内源信号“放大”，使其与其他样本处于可比较的水平。\n\n**与 ChIP-seq Spike-in 的主要异同**\n\n这是一个参考知识性的对比，基于两种技术的特性：\n\n*   **相同之处：目的与逻辑**\n    *   **目的完全一致**：都是为了提供一个与生物学实验条件无关的、独立的外部参照，用于校正样本间的技术性偏差，从而实现不同样本、不同抗体之间染色质特征信号的准确定量比较。\n    *   **归一化逻辑相同**：都基于“等量外源参照产生等量信号”的假设，通过计算基于外源 reads 的缩放因子来校正内源信号。\n\n*   **不同之处：参照形式与校正的阶段**\n    *   **参照形式**：\n        *   **ChIP-seq**：通常在染色质片段化**之后**，向等量染色质中加入外源重组染色质。它主要校正后续的免疫沉淀效率、洗涤和文库制备环节的误差。\n        *   **CUT&Tag**：在实验最**起始**阶段，将外源细胞或细胞核与实验细胞混合。这使得外源参照从细胞通透、抗体结合、Tn5 转座等所有前期步骤就开始参与，校正的环节更全面。\n    *   **微环境差异**：\n        *   **ChIP-seq** 的外源染色质是裸露在溶液中，与实验样本中被提取出的染色质片段环境相似。\n        *   **CUT&Tag** 的外源细胞核保持相对完整的结构，Tn5 转座反应发生在细胞核内。其微环境（如染色质开放性、内源性酶活性）可能与实验细胞不同，但仍能为整个实验流程的效率提供一个优秀的代理变量。\n\n---\n\n### (2) Spike-in 归一化后信号差异的生物学解释\n\n基于项目事实：PH_H3K27ac 的 FRiP (Fraction of Reads in Peaks) 为 **22.24%**，PN_H3K27ac 为 **25.57%**，且 `peak 数量 PN 更高`。我们假定，在使用 Spike-in 缩放因子归一化后，PN_H3K27ac 的整体信号强度仍然显著高于 PH_H3K27ac。\n\n**前提核查：当前数据是否允许进行可靠的 Spike-in 归一化？**\n\n在进行生物学解释前，必须核查数据基础。从项目提供的已验证观测点中，我们以 `PH_H3K27ac` 为例，其关键质控指标如下：\n\n*   **唯一比对率**：69.44%\n*   **NRF (文库复杂度)**：0.9089\n*   **重复率 (Duplication Rate)**：9.18%\n*   **线粒体率**：0.59%\n\n数据源：项目 `AlignmentQC` 和四分位归一化相关表格。\n\n这些指标表明 `PH_H3K27ac` 样本的文库质量和数据复杂度是合格的，具备进行定量比较的基础。对于 `PN_H3K27ac` 和 spike-in 质控，我们也需要以同样的感官进行审核。\n\n如果上述质控均无异常，且 Spike-in 缩放因子被正确应用，那么归一化后 `PN` 仍显著高于 `PH` 的 H3K27ac 信号，可以排除文库制备和测序深度的技术偏差，指向以下**生物学可能性**：\n\n1.  **染色质整体乙酰化水平或活性状态的全局性改变**\n    *   **直接观察**：PN 样本的整体 H3K27ac 信号增强。\n    *   **可能解释**：这可能反映 `PN` 细胞处于一种**全局性染色质活化状态**。H3K27ac 是活性启动子和增强子的标志，其整体水平的升高可能意味着全基因组范围内增强子活性的普遍上调或异常激活。\n    *   **关联现象**：可能伴随某些特定致癌信号通路（如 WNT/β-catenin, NOTCH 等）的持续激活，或是组蛋白去乙酰化酶 (HDAC) 复合物功能受抑。\n    *   **验证方向**：需区分这是细胞谱系特性、细胞周期效应或病理状态。可分析差异信号是否富集在特定基因组区域（如超级增强子），并结合转录组数据看全局基因表达是否上调。\n\n2.  **细胞组成异质性导致的信号稀释或富集效应**\n    *   **直接观察**：`PH` 或 `PN` 样本群体中可能存在未被识别的亚克隆或污染细胞。\n    *   **可能解释**：如果 `PH` 样本中混合了大量 H3K27ac 信号较低的细胞类型，会“稀释”整体信号，导致归一化后水平偏低。反之，如果 `PN` 样本是更均一的、高 H3K27ac 信号细胞群，信号就会被“富集”。\n    *   **关联现象**：这并非定位于某个基因座的特异性差异，而是样本纯度问题。\n    *   **验证方向**：需结合单细胞数据或通过计算工具（如 CIBERSORTx）推断细胞组成，以排除此类混合效应。\n\n3.  **大规模的表观基因组重编程**\n    *   **直接观察**：差异不是少数几个位点，而是广泛的区域。\n    *   **可能解释**：在发育、分化或恶性转化过程中，细胞可能经历大规模的表观基因组重塑。例如，从 `PH` 到 `PN` 过程中，如果在关键转录因子结合位点或超级增强子区域发生了大范围的乙酰化修饰建立，就会表现为归一化后整体信号的显著升高和 peak 数量的增加。\n    *   **验证方向**：这不仅是信号强度差异，更应体现为 peak 差异。可以执行差异 peak 分析，观察新获得的 peak 是否富集在特定的发育或疾病相关基因附近。\n\n**后续可执行的复核与验证动作**\n\n1.  **确认 Spike-in 计算的正确性**：检查 `Spike-in 归一化表`，确认用于计算缩放因子的 reads 数量、处理流程是否正确，避免因计算口径问题引入偏差。\n2.  **检查阴性对照**：查看 `PH_Igg` 样本的比对率（51.02%）和唯一比对率（33.58%），其较低水平需要关注，但更重要的是，验证 Spike-in 归一化后，两个样品的 `IgG` 对照信号是否一致。如果归一化后 `PN_Igg` 信号仍高于 `PH_Igg`，则强烈提示存在系统性细胞/分子构成差异，而非特异的表观遗传调控。\n3.  **交叉验证**：在差异 peak 之外，挑选若干管家基因或组成型活性增强子位点，通过 `Integrative Genomics Viewer (IGV)` 直接可视化这些位点的 Spike-in 归一化 track。如果 `PN` 在这些阳性对照位点信号一致更强，则支持是整体活性改变；如果仅在部分区域更强，则支持是基因组重编程。\n4.  **分析信号分布**：观察归一化后信号在全基因组的分布密度图，看整体曲线的平移情况，这有助于量化“全局”差异的程度。",
+    "answer_length": 3390,
+    "quality_score": 54,
+    "quality_passed": false,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": false,
+      "status": "repair_required",
+      "score": 54,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 6,
+          "max_score": 30,
+          "details": [
+            "severe=2",
+            "moderate=0"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 5,
+          "max_score": 20,
+          "details": [
+            "value_coverage=1/6",
+            "source_mentions=0"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unsupported_numeric_claim_rate=0.0000"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 5,
+          "max_score": 10,
+          "details": [
+            "design_error_count=1"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 4,
+          "max_score": 5,
+          "details": [
+            "expected_complexity=comprehensive"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "covered_modalities=5/6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 0,
+          "max_score": 10,
+          "details": [
+            "component_1=False",
+            "component_2=False",
+            "component_3=False"
+          ]
+        },
+        "assay_specificity": {
+          "score": 2,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag",
+            "target_class=histone_active_mark"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 6,
+          "max_score": 10,
+          "details": [
+            "component_1=True",
+            "component_2=False",
+            "component_3=False"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 6,
+          "max_score": 10,
+          "details": [
+            "component_1=True",
+            "component_2=False",
+            "component_3=False"
+          ]
+        }
+      },
+      "legacy_dimensions": {
+        "directness": {
+          "score": 16,
+          "max_score": 20,
+          "details": [
+            "target_metric_present",
+            "no_generic_opening"
+          ]
+        },
+        "evidence_grounding": {
+          "score": 6,
+          "max_score": 25,
+          "details": [
+            "value_coverage=1/6",
+            "source_mentions=0"
+          ]
+        },
+        "reasoning_depth": {
+          "score": 15,
+          "max_score": 20,
+          "details": [
+            "component_1=True",
+            "component_2=True",
+            "component_3=False",
+            "component_4=True"
+          ]
+        },
+        "actionability": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "action_markers=7",
+            "action_terms=9"
+          ]
+        },
+        "uncertainty_discipline": {
+          "score": 0,
+          "max_score": 10,
+          "details": []
+        },
+        "concision": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "chars=3260",
+            "headings=2"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 5,
+        "supported_numeric_claim_count": 5,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 1,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "differential_analysis_without_replicates_or_groups",
+            "severity": "severe",
+            "missing": [
+              "at_least_two_replicated_groups_required",
+              "at_least_two_conditions_required"
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": true,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": false,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      },
+      "issues": [
+        {
+          "rule": "insufficient_evidence_grounding",
+          "message": "回答未充分引用项目样本值或来源字段。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目阈值未确认，但回答没有明确证据限制。",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_hypothesis_comparison",
+          "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+          "severity": "severe"
+        },
+        {
+          "rule": "differential_analysis_without_replicates_or_groups",
+          "message": "differential_analysis_without_replicates_or_groups",
+          "severity": "severe"
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+          "severity": "severe"
+        }
+      ],
+      "question_mode": "analysis",
+      "target_metrics": [
+        "frip_ratio",
+        "peak_count",
+        "spikein_scaling_factor"
+      ],
+      "target_evidence_count": 21,
+      "scoring_evidence_count": 21,
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "spikein",
+          "alignment",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "overview_coverage": {
+        "available_metric_count": 2,
+        "required_metric_count": 2,
+        "covered_metric_count": 1,
+        "covered_metrics": [
+          "frip_ratio"
+        ]
+      },
+      "answer_chars": 3260,
+      "repair_applied": false,
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "differential_analysis_without_replicates_or_groups",
+          "severity": "severe",
+          "missing": [
+            "at_least_two_replicated_groups_required",
+            "at_least_two_conditions_required"
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "passed": false,
+      "checked_numeric_claim_count": 5,
+      "supported_numeric_claim_count": 5,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 1,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "differential_analysis_without_replicates_or_groups",
+          "severity": "severe",
+          "missing": [
+            "at_least_two_replicated_groups_required",
+            "at_least_two_conditions_required"
+          ]
+        },
+        {
+          "rule": "missing_threshold_limitation",
+          "severity": "severe",
+          "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+        }
+      ],
+      "contracts": {
+        "numbers_from_project_files": true,
+        "units_and_denominators_correct": true,
+        "metric_definitions_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": false,
+        "causal_language_calibrated": true,
+        "threshold_limitations_present": false,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    },
+    "workflow_trace": {
+      "workflow_run_id": "projwf_0b8097505722",
+      "status": "ok",
+      "duration_ms": 68601.72,
+      "analysis_run_id": "projrun_0236ed071d29",
+      "warning_count": 0,
+      "task_plan_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_3\\task_plan.json",
+      "workspace_root": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_3",
+      "progress_path": "D:\\nvz\\kefu\\project_workspaces\\VZ20260508009_bde27d89b33b\\runtime_eval_user\\runtime_eval_3\\progress.json",
+      "harness_guard": {
+        "passed": true,
+        "action": "disabled",
+        "severity": "none",
+        "violations": [],
+        "review_only": true
+      },
+      "answer_quality": {
+        "passed": false,
+        "status": "repair_required",
+        "score": 54,
+        "pass_score": 70,
+        "dimensions": {
+          "fact_correctness": {
+            "score": 6,
+            "max_score": 30,
+            "details": [
+              "severe=2",
+              "moderate=0"
+            ]
+          },
+          "evidence_coverage": {
+            "score": 5,
+            "max_score": 20,
+            "details": [
+              "value_coverage=1/6",
+              "source_mentions=0"
+            ]
+          },
+          "unsupported_conclusion_control": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "unsupported_numeric_claim_rate=0.0000"
+            ]
+          },
+          "unit_accuracy": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "unit_error_count=0"
+            ]
+          },
+          "experimental_design_discipline": {
+            "score": 5,
+            "max_score": 10,
+            "details": [
+              "design_error_count=1"
+            ]
+          },
+          "causal_discipline": {
+            "score": 5,
+            "max_score": 5,
+            "details": [
+              "causal_overstatement_count=0"
+            ]
+          },
+          "complexity_fit": {
+            "score": 4,
+            "max_score": 5,
+            "details": [
+              "expected_complexity=comprehensive"
+            ]
+          },
+          "integration_depth": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "covered_modalities=5/6"
+            ]
+          },
+          "hypothesis_discrimination": {
+            "score": 0,
+            "max_score": 10,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=False"
+            ]
+          },
+          "assay_specificity": {
+            "score": 2,
+            "max_score": 5,
+            "details": [
+              "assay=cuttag",
+              "target_class=histone_active_mark"
+            ]
+          },
+          "question_core_coverage": {
+            "score": 6,
+            "max_score": 10,
+            "details": [
+              "component_1=True",
+              "component_2=False",
+              "component_3=False"
+            ]
+          },
+          "matrix_reasoning_coverage": {
+            "score": 6,
+            "max_score": 10,
+            "details": [
+              "component_1=True",
+              "component_2=False",
+              "component_3=False"
+            ]
+          }
+        },
+        "legacy_dimensions": {
+          "directness": {
+            "score": 16,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 6,
+            "max_score": 25,
+            "details": [
+              "value_coverage=1/6",
+              "source_mentions=0"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 15,
+            "max_score": 20,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=False",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=7",
+              "action_terms=9"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 0,
+            "max_score": 10,
+            "details": []
+          },
+          "concision": {
+            "score": 8,
+            "max_score": 10,
+            "details": [
+              "chars=3260",
+              "headings=2"
+            ]
+          }
+        },
+        "fact_verification": {
+          "version": "answer-fact-verifier-v2",
+          "passed": false,
+          "checked_numeric_claim_count": 5,
+          "supported_numeric_claim_count": 5,
+          "unsupported_numeric_claim_rate": 0.0,
+          "unit_error_count": 0,
+          "definition_error_count": 0,
+          "sample_role_conflict_count": 0,
+          "differential_precondition_error_count": 1,
+          "causal_overstatement_count": 0,
+          "threshold_limit_error_count": 1,
+          "matrix_reasoning_error_count": 0,
+          "critical_modality_omission_count": 0,
+          "issues": [
+            {
+              "rule": "differential_analysis_without_replicates_or_groups",
+              "severity": "severe",
+              "missing": [
+                "at_least_two_replicated_groups_required",
+                "at_least_two_conditions_required"
+              ]
+            },
+            {
+              "rule": "missing_threshold_limitation",
+              "severity": "severe",
+              "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+            }
+          ],
+          "contracts": {
+            "numbers_from_project_files": true,
+            "units_and_denominators_correct": true,
+            "metric_definitions_correct": true,
+            "sample_roles_respected": true,
+            "differential_analysis_preconditions_respected": false,
+            "causal_language_calibrated": true,
+            "threshold_limitations_present": false,
+            "matrix_reasoning_consistent": true,
+            "critical_modalities_covered": true
+          }
+        },
+        "issues": [
+          {
+            "rule": "insufficient_evidence_grounding",
+            "message": "回答未充分引用项目样本值或来源字段。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目阈值未确认，但回答没有明确证据限制。",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_hypothesis_comparison",
+            "message": "复杂问题回答缺少竞争性假设比较或取舍。",
+            "severity": "severe"
+          },
+          {
+            "rule": "differential_analysis_without_replicates_or_groups",
+            "message": "differential_analysis_without_replicates_or_groups",
+            "severity": "severe"
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。",
+            "severity": "severe"
+          }
+        ],
+        "question_mode": "analysis",
+        "target_metrics": [
+          "frip_ratio",
+          "peak_count",
+          "spikein_scaling_factor"
+        ],
+        "target_evidence_count": 21,
+        "scoring_evidence_count": 21,
+        "response_plan": {
+          "complexity": "comprehensive",
+          "reasoning_mode": "integrative_reasoning",
+          "required_sections": [
+            "direct_answer",
+            "fact_layer",
+            "integrated_evidence",
+            "hypothesis_comparison",
+            "limitations",
+            "verification_actions"
+          ],
+          "max_sections": 6,
+          "answer_focus": "integrated_competing_hypotheses",
+          "expected_evidence_modalities": [
+            "frip",
+            "peak_count",
+            "spikein",
+            "alignment",
+            "experiment_design",
+            "competing_hypotheses"
+          ],
+          "token_budget_hint": 5200,
+          "claim_contract": [
+            "conclusion",
+            "metric_value",
+            "data_source",
+            "decision_basis",
+            "limitation",
+            "recommended_action"
+          ],
+          "hypothesis_contract": [
+            "hypothesis_label",
+            "supporting_evidence",
+            "contradicting_evidence",
+            "missing_critical_evidence",
+            "preference_reason",
+            "verification_action"
+          ]
+        },
+        "overview_coverage": {
+          "available_metric_count": 2,
+          "required_metric_count": 2,
+          "covered_metric_count": 1,
+          "covered_metrics": [
+            "frip_ratio"
+          ]
+        },
+        "answer_chars": 3260,
+        "repair_applied": false,
+        "repair_attempted": false,
+        "enforcement_mode": "observe_only",
+        "repair_skip_reason": "interactive_project_answers_are_observe_only",
+        "original_fact_issues": [
+          {
+            "rule": "differential_analysis_without_replicates_or_groups",
+            "severity": "severe",
+            "missing": [
+              "at_least_two_replicated_groups_required",
+              "at_least_two_conditions_required"
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ]
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "passed": false,
+        "checked_numeric_claim_count": 5,
+        "supported_numeric_claim_count": 5,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 1,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "differential_analysis_without_replicates_or_groups",
+            "severity": "severe",
+            "missing": [
+              "at_least_two_replicated_groups_required",
+              "at_least_two_conditions_required"
+            ]
+          },
+          {
+            "rule": "missing_threshold_limitation",
+            "severity": "severe",
+            "text": "项目存在未验证阈值，但回答没有明确声明只能报告观测值。"
+          }
+        ],
+        "contracts": {
+          "numbers_from_project_files": true,
+          "units_and_denominators_correct": true,
+          "metric_definitions_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": false,
+          "causal_language_calibrated": true,
+          "threshold_limitations_present": false,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      }
+    },
+    "duration_s": 68.6
+  }
+]

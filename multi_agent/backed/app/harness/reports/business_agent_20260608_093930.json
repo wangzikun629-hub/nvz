@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:39:30",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=3858"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 72.61%, 66.87%"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 53268.22
+      },
+      "answer_excerpt": "根据当前项目 `VZ20260513002` 的证据，**无法直接回答“为什么线粒体 reads 比例高”**。原因是项目报告和证据文件中尚未读取到 `AlignmentQC` 中与 `mt_rate_percent`（线粒体 reads 比例）直接相关的结构化数据，无法确定这个“高”是相对哪种基线或阈值而言，也无法从其他联动指标中推断原因。但这并不代表项目有问题，只是本轮分析还缺少直接证据。\n\n下面基于现有项目上下文，梳理线粒体 reads 比例偏高的可能机制和需要复核的关键点。\n\n---\n\n## 项目配置中与线粒体 reads 相关的关键参数\n\n这些参数决定了线粒体 reads 在分析中被如何对待，必须纳入原因链条：\n\n- **实验类型**：`Sequencing=CUTTag`（CUT&Tag），这是一种针对染色质靶点的酶切+抗体富集方案，理论上不会直接富集线粒体 DNA，但当细胞裂解不充分、线粒体 DNA 释放或非特异吸附较强时，背景中的线粒体 reads 比例会上升\n- **物种参考基因组**：`species=hg38`（人类），因此 `organelle_chroms=MT chrM chrMT Pt chrPt` 中的 `MT`/`chrM`/`chrMT` 对应人类线粒体染色体；`Pt`/`chrPt` 虽然在列表里但人类参考中通常不存在，影响可忽略\n- **去重",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

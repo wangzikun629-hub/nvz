@@ -1,0 +1,72 @@
+{
+  "suite": "project_analysis",
+  "generated_at": "2026-06-03T17:09:30",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "project_threshold_validation_warning",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "evidence_metric",
+          "passed": true,
+          "detail": "metric=mapping_rate_percent matches=2"
+        },
+        {
+          "name": "evidence_threshold_source_contains",
+          "passed": true,
+          "detail": "expected contains='professional_default_unverified' actual=['professional_default_unverified', 'professional_default_unverified']"
+        },
+        {
+          "name": "evidence_grade_contains",
+          "passed": true,
+          "detail": "expected contains='unverified_threshold' actual=['project_formula_with_unverified_threshold', 'project_formula_with_unverified_threshold']"
+        },
+        {
+          "name": "evidence_rule_must_be_empty",
+          "passed": true,
+          "detail": "expected_empty=True actual=['', '']"
+        },
+        {
+          "name": "evidence_severity_must_not_be",
+          "passed": true,
+          "detail": "blocked=['critical', 'warning'] actual=['unverified_threshold', 'unverified_threshold']"
+        },
+        {
+          "name": "analysis_limits_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        }
+      ],
+      "run_id": "projrun_22e8c240b4b4",
+      "trace": {
+        "run_id": "projrun_22e8c240b4b4",
+        "question_type": "alignment",
+        "question_tags": [
+          "alignment",
+          "diagnostic"
+        ],
+        "duration_ms": 7601.49,
+        "evidence_attempted": 6,
+        "evidence_succeeded": 6,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_threshold_validation_warning",
+        "target": "project_analysis",
+        "duration_ms": 7602.23
+      },
+      "answer_excerpt": "# VZ20260427001 二代建库分析报告\n\n## 项目概况\n- 问题：For project VZ20260427001, is the Mapping rate abnormal and what threshold source is used?\n- 问题类型：alignment\n- 读取文件：6 个\n- 结果置信度：0.990\n\n## 核心质控指标\n- 优先排查指标顺序：alignment\n\n\n## 关键数据表\n\n### ReadsQC\n\n| 样本 | Clean Reads | Adapter(%) | Q20 | Q30 |\n| --- | --- | --- | --- | --- |\n| T2 | 199256(99.6%) | 39.19 | - | - |\n| T1 | 199116(99.6%) | 38.24 | - | - |\n\n### AlignmentQC\n\n| 样本 | Mapping(%) | Unique(%) | Duplicate(%) | chrMT/Pt(%) | Complexity |\n| --- | --- | --- | --- | --- | --- |\n| T1 | 57.54 | 12.60 | 33.66 | 72.61 | 156580 |\n| T2 | 57.71 | 15.01 | 30.03 | 66.87 ",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\threshold_validation_warning.json"
+    }
+  ]
+}

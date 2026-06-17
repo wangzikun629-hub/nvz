@@ -1,0 +1,218 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T15:06:32",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2015"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 线粒体"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        },
+        {
+          "name": "analysis.cause_graph_version",
+          "passed": true,
+          "detail": "expected='metric-evidence-graph-v2' actual='metric-evidence-graph-v2'"
+        },
+        {
+          "name": "analysis.min_ranked_causes",
+          "passed": true,
+          "detail": "expected>=3 actual=8"
+        },
+        {
+          "name": "analysis.required_ranked_cause",
+          "passed": true,
+          "detail": "cause='organelle_dna_background'"
+        },
+        {
+          "name": "analysis.ranked_cause_min_supporting_evidence",
+          "passed": true,
+          "detail": "expected>=1 actual=6"
+        },
+        {
+          "name": "analysis.ranked_cause_requires_verification_action",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 2764.66,
+        "project_root": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\.project_sftp_cache\\ba7f0610952b\\VZ20260513002"
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='project_diagnostic', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['mt_rate_percent'], question_tags=['alignment', 'diagnostic'], confidence=0.82, reason='diagnostic_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "answer_quality": {
+        "passed": false,
+        "status": "repair_required",
+        "score": 90,
+        "pass_score": 70,
+        "dimensions": {
+          "directness": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "direct_value_or_finding",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 25,
+            "max_score": 25,
+            "details": [
+              "value_coverage=4/4",
+              "source_mentions=4"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 10,
+            "max_score": 20,
+            "details": [
+              "component_1=False",
+              "component_2=False",
+              "component_3=True",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=5",
+              "action_terms=4"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "项目文件中未确认",
+              "未确认该指标阈值",
+              "不能单独判定"
+            ]
+          },
+          "concision": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "chars=2015",
+              "headings=4"
+            ]
+          }
+        },
+        "issues": [
+          {
+            "rule": "shallow_reasoning",
+            "message": "原因分析缺少上游原因、下游影响、证据边界或验证路径。",
+            "severity": "severe"
+          }
+        ],
+        "question_mode": "diagnostic",
+        "target_metrics": [
+          "frip_ratio",
+          "mt_rate_percent"
+        ],
+        "target_evidence_count": 4,
+        "answer_chars": 2015,
+        "repair_applied": true,
+        "repair_attempted": true,
+        "original_score": 83,
+        "original_issues": [
+          {
+            "rule": "shallow_reasoning",
+            "message": "原因分析缺少上游原因、下游影响、证据边界或验证路径。",
+            "severity": "severe"
+          }
+        ],
+        "repair_strategy": "structured_evidence_rebuild"
+      },
+      "target_metrics": [
+        "mt_rate_percent",
+        "chrmt_pt_rate_percent",
+        "frip"
+      ],
+      "question": "为什么线粒体 reads 比例高",
+      "target_evidence": [
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        }
+      ],
+      "answer_excerpt": "项目已读取到相关观测值：T1 Mitochondrial alignment rate=72.61%；T1 FRiP=0.1482；T2 Mitochondrial alignment rate=66.87%。项目文件中未确认这些指标的专属阈值，因此当前只能定位证据和排查方向，不能单独判定高低或异常。\n\n## 项目证据\n- T1 Mitochondrial alignment rate=72.61%；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)；项目文件中未确认该指标阈值/标准\n- T1 FRiP=0.1482；来源 VZ20260513002\\5.Peakcalling\\5.1PeakStat\\FRiP_score.xls::FRiP；项目文件中未确认该指标阈值/标准\n- T2 Mitochondrial alignment rate=66.87%；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)；项目文件中未确认该指标阈值/标准\n- T2 FRiP=0.1205；来源 VZ20260513002\\5.Peakcalling\\5.1PeakStat\\FRiP_score.",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

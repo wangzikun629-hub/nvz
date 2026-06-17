@@ -1,0 +1,264 @@
+2026-05-13 15:09:23,380 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:09:24,583 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:09:43,321 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.014s
+2026-05-13 15:10:26,132 | INFO     | ITS_App:83 | user=root1 query=请分析一下这个20260511ATAC项目
+2026-05-13 15:10:26,133 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778656183331 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 15:11:06,676 | INFO     | ITS_App:749 | request route user=root1 session=session_1778656183331 mode=agent route=agent resolved_project_id=None force_consult=True direct_business=False followup_confirmed=False
+2026-05-13 15:11:15,743 | INFO     | ITS_App:577 | process_task done user=root1 session=session_1778656183331 total_cost=49.610s
+2026-05-13 15:11:16,082 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.006s
+2026-05-13 15:13:22,464 | INFO     | ITS_App:83 | user=root1 query=请分析ATAC-bingsuan这个项目
+2026-05-13 15:13:22,465 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778656183331 cost=0.001s context_mode=follow_up context_turns=1
+2026-05-13 15:13:52,043 | INFO     | ITS_App:749 | request route user=root1 session=session_1778656183331 mode=agent route=agent resolved_project_id=None force_consult=False direct_business=False followup_confirmed=False
+2026-05-13 15:13:55,023 | INFO     | ITS_App:292 | [Route] project business agent: 请分析ATAC-bingsuan这个项目
+2026-05-13 15:13:55,023 | INFO     | ITS_App:234 | [Route] project workflow: 请分析ATAC-bingsuan这个项目
+2026-05-13 15:19:36,127 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:19:37,311 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:19:38,903 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.007s
+2026-05-13 15:20:04,940 | INFO     | ITS_App:83 | user=root1 query=请分析ATAC-bingsuan这个项目
+2026-05-13 15:20:04,941 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778656183331 cost=0.001s context_mode=follow_up context_turns=1
+2026-05-13 15:20:04,941 | INFO     | ITS_App:749 | request route user=root1 session=session_1778656183331 mode=agent route=business resolved_project_id=ATAC-bingsuan force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 15:20:04,942 | INFO     | ITS_App:292 | [Route] project business agent: 请分析ATAC-bingsuan这个项目
+2026-05-13 15:20:04,942 | INFO     | ITS_App:234 | [Route] project workflow: 请分析ATAC-bingsuan这个项目
+2026-05-13 15:34:31,765 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:34:32,962 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:34:43,837 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.005s
+2026-05-13 15:34:49,690 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.004s
+2026-05-13 15:34:57,691 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.004s
+2026-05-13 15:35:42,658 | INFO     | ITS_App:83 | user=root1 query=请分析一下CUTTAG-H3这个项目有哪些问题
+2026-05-13 15:35:42,658 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778657705119 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 15:35:42,714 | INFO     | ITS_App:749 | request route user=root1 session=session_1778657705119 mode=agent route=agent resolved_project_id=None force_consult=False direct_business=False followup_confirmed=False
+2026-05-13 15:35:45,382 | INFO     | ITS_App:292 | [Route] project business agent: 请分析一下CUTTAG-H3这个项目有哪些问题
+2026-05-13 15:35:45,382 | INFO     | ITS_App:234 | [Route] project workflow: 请分析一下CUTTAG-H3这个项目有哪些问题
+2026-05-13 15:41:40,474 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:41:41,679 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:44:06,919 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.004s
+2026-05-13 15:44:37,324 | INFO     | ITS_App:83 | user=root1 query=CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:44:37,324 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778658250796 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 15:44:37,419 | INFO     | ITS_App:781 | request route user=root1 session=session_1778658250796 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 15:44:37,420 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:44:37,420 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:49:16,429 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:49:17,644 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:49:28,771 | INFO     | ITS_App:83 | user=root1 query=CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:49:28,772 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778658565166 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 15:49:28,836 | INFO     | ITS_App:781 | request route user=root1 session=session_1778658565166 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 15:49:28,837 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:49:28,837 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:56:56,288 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 15:56:57,481 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 15:57:50,957 | INFO     | ITS_App:83 | user=root1 query=CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:57:50,958 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778659061992 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 15:57:51,022 | INFO     | ITS_App:781 | request route user=root1 session=session_1778659061992 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 15:57:51,022 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 15:57:51,022 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:17:27,473 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_50d39cc2abed project=CUTTAG-H3 question_type=overview evidence=6 warnings=0 duration_ms=10678.11
+2026-05-13 16:23:43,406 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 16:23:44,608 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 16:23:55,650 | INFO     | ITS_App:83 | user=root1 query=CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:23:55,651 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778660630890 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 16:23:55,695 | INFO     | ITS_App:781 | request route user=root1 session=session_1778660630890 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 16:23:55,697 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:23:55,697 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:24:17,885 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_24931e123488 project=CUTTAG-H3 question_type=overview evidence=6 warnings=0 duration_ms=19496.79
+2026-05-13 16:24:48,659 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_717f790b962f analysis_run_id=projrun_24931e123488 status=ok duration_ms=52963.08
+2026-05-13 16:24:48,661 | ERROR    | ITS_App:975 | AgentService.process_query error: name 'set_round_project_analysis_result' is not defined
+2026-05-13 16:24:48,666 | INFO     | ITS_App:308 | prepare_history done user=root1 session=session_1778660630890 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 16:24:48,667 | INFO     | ITS_App:781 | request route user=root1 session=session_1778660630890 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 16:24:48,667 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:24:48,667 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:25:18,223 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_700b266ba24b project=CUTTAG-H3 question_type=overview evidence=6 warnings=0 duration_ms=27666.88
+2026-05-13 16:25:59,124 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_697888e8f796 analysis_run_id=projrun_700b266ba24b status=ok duration_ms=70456.79
+2026-05-13 16:25:59,125 | ERROR    | ITS_App:975 | AgentService.process_query error: name 'set_round_project_analysis_result' is not defined
+2026-05-13 16:25:59,459 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.012s
+2026-05-13 16:28:07,866 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_57eda18a39a5 project=CUTTAG-H3 question_type=overview evidence=3 warnings=0 duration_ms=10622.09
+2026-05-13 16:28:56,254 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 16:28:57,451 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 16:29:07,944 | INFO     | ITS_App:83 | user=root1 query=CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:29:07,945 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778660944152 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 16:29:08,001 | INFO     | ITS_App:782 | request route user=root1 session=session_1778660944152 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 16:29:08,001 | INFO     | ITS_App:292 | [Route] project business agent: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:29:08,001 | INFO     | ITS_App:234 | [Route] project workflow: CUTTAG-H3这个项目数据有哪些问题
+2026-05-13 16:29:38,210 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_da290ffa6409 project=CUTTAG-H3 question_type=overview evidence=6 warnings=0 duration_ms=28131.71
+2026-05-13 16:30:27,544 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_08a60fae2bcf analysis_run_id=projrun_da290ffa6409 status=ok duration_ms=79542.42
+2026-05-13 16:30:27,546 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778660944152 total_cost=79.602s
+2026-05-13 16:30:27,890 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.005s
+2026-05-13 16:33:22,103 | INFO     | ITS_App:83 | user=root1 query=那继续分析查看
+2026-05-13 16:33:22,105 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778660944152 cost=0.001s context_mode=follow_up context_turns=1
+2026-05-13 16:33:22,106 | INFO     | ITS_App:782 | request route user=root1 session=session_1778660944152 mode=agent route=business resolved_project_id=CUTTAG-H3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 16:33:22,106 | INFO     | ITS_App:292 | [Route] project business agent: 那继续分析查看
+2026-05-13 16:33:22,106 | INFO     | ITS_App:234 | [Route] project workflow: 那继续分析查看
+2026-05-13 16:33:54,702 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_79776949e9e7 project=CUTTAG-H3 question_type=overview evidence=6 warnings=0 duration_ms=30352.92
+2026-05-13 16:34:27,647 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_a3773fefc675 analysis_run_id=projrun_79776949e9e7 status=ok duration_ms=65541.55
+2026-05-13 16:34:27,651 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778660944152 total_cost=65.548s
+2026-05-13 16:34:27,978 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.005s
+2026-05-13 16:44:57,397 | INFO     | ITS_App:1298 | project_analysis run_id=projrun_c9ce8101e649 project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=11076.47
+2026-05-13 16:45:35,270 | INFO     | ITS_App:1298 | project_analysis run_id=projrun_68487ab4d288 project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=13317.56
+2026-05-13 16:46:35,874 | INFO     | ITS_App:1298 | project_analysis run_id=projrun_3a4880802f9f project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=10503.77
+2026-05-13 16:59:04,582 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 16:59:05,781 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 16:59:17,008 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.008s
+2026-05-13 17:00:25,744 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:00:25,745 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778662763946 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:00:37,824 | INFO     | ITS_App:782 | request route user=root1 session=session_1778662763946 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:00:37,826 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:00:37,826 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:01:00,479 | INFO     | ITS_App:1298 | project_analysis run_id=projrun_c4651121864b project=ATAC26_3 question_type=overview evidence=7 warnings=0 duration_ms=20272.00
+2026-05-13 17:01:37,423 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_4e359bec7dd8 analysis_run_id=projrun_c4651121864b status=ok duration_ms=59596.77
+2026-05-13 17:01:37,426 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778662763946 total_cost=71.681s
+2026-05-13 17:01:37,761 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.006s
+2026-05-13 17:01:58,094 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.001s
+2026-05-13 17:06:13,983 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.001s
+2026-05-13 17:13:01,551 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.001s
+2026-05-13 17:15:27,443 | INFO     | ITS_App:1295 | project_analysis run_id=projrun_7e30ce275225 project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=73958.96
+2026-05-13 17:17:21,301 | INFO     | ITS_App:1295 | project_analysis run_id=projrun_11693e46be6b project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=91509.97
+2026-05-13 17:19:38,635 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_0957b2474547 project=CUTTAG-H3 question_type=overview evidence=7 warnings=0 duration_ms=9657.36
+2026-05-13 17:20:19,006 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 17:20:20,241 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 17:20:35,598 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.006s
+2026-05-13 17:20:39,001 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:20:39,002 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778664036445 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:20:39,048 | INFO     | ITS_App:782 | request route user=root1 session=session_1778664036445 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:20:39,049 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:20:39,049 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:20:51,591 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_4e6a86e9ebb8 project=ATAC26_3 question_type=overview evidence=8 warnings=0 duration_ms=1100.77
+2026-05-13 17:20:53,093 | WARNING  | ITS_App:301 | business runtime fused answer generation failed: name 'self' is not defined
+2026-05-13 17:20:53,094 | ERROR    | ITS_App:262 | project analysis workflow failed: name 'self' is not defined
+2026-05-13 17:20:53,095 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778664036445 total_cost=14.094s
+2026-05-13 17:20:53,419 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.006s
+2026-05-13 17:29:03,707 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 17:29:04,914 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 17:29:07,301 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.006s
+2026-05-13 17:29:10,996 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:29:10,998 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778664547312 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:29:11,057 | INFO     | ITS_App:782 | request route user=root1 session=session_1778664547312 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:29:11,058 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:29:11,058 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:29:22,672 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_cbaad7b9bd66 project=ATAC26_3 question_type=overview evidence=8 warnings=0 duration_ms=979.53
+2026-05-13 17:30:02,334 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_8c74bfd82890 analysis_run_id=projrun_cbaad7b9bd66 status=ok duration_ms=51275.34
+2026-05-13 17:30:02,336 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778664547312 total_cost=51.339s
+2026-05-13 17:30:02,367 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.006s
+2026-05-13 17:38:04,731 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 17:38:05,933 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 17:38:21,876 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.007s
+2026-05-13 17:38:25,754 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:38:25,755 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778665102816 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:38:25,802 | INFO     | ITS_App:782 | request route user=root1 session=session_1778665102816 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:38:25,803 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:38:25,803 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:38:38,016 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_fd52d975fb05 project=ATAC26_3 question_type=overview evidence=8 warnings=0 duration_ms=1574.92
+2026-05-13 17:39:06,668 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_9b0a50786c5d analysis_run_id=projrun_fd52d975fb05 status=ok duration_ms=40864.24
+2026-05-13 17:39:06,670 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778665102816 total_cost=40.915s
+2026-05-13 17:39:07,000 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.008s
+2026-05-13 17:39:33,851 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.008s
+2026-05-13 17:39:36,725 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.005s
+2026-05-13 17:39:41,840 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:39:41,840 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778665178828 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:39:41,885 | INFO     | ITS_App:782 | request route user=root1 session=session_1778665178828 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:39:41,887 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:39:41,887 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:39:42,808 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_380a543d7bf2 project=ATAC26_3 question_type=overview evidence=8 warnings=0 duration_ms=653.64
+2026-05-13 17:40:17,905 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_ffb5c5f52dc4 analysis_run_id=projrun_380a543d7bf2 status=ok duration_ms=36017.63
+2026-05-13 17:40:17,907 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778665178828 total_cost=36.068s
+2026-05-13 17:40:17,923 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.006s
+2026-05-13 17:47:43,874 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 17:47:45,068 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 17:48:07,012 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=17 cost=0.005s
+2026-05-13 17:48:16,503 | INFO     | ITS_App:83 | user=root1 query=分析一下这个ATAC26_3项目
+2026-05-13 17:48:16,504 | INFO     | ITS_App:309 | prepare_history done user=root1 session=session_1778665692104 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:48:28,613 | INFO     | ITS_App:782 | request route user=root1 session=session_1778665692104 mode=agent route=business resolved_project_id=ATAC26_3 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:48:28,614 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下这个ATAC26_3项目
+2026-05-13 17:48:28,614 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下这个ATAC26_3项目
+2026-05-13 17:48:42,572 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_36ba3e7c02fc project=ATAC26_3 question_type=overview evidence=8 warnings=0 duration_ms=1116.25
+2026-05-13 17:49:07,248 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_62b5149a635c analysis_run_id=projrun_36ba3e7c02fc status=ok duration_ms=38634.07
+2026-05-13 17:49:07,250 | INFO     | ITS_App:598 | process_task done user=root1 session=session_1778665692104 total_cost=50.747s
+2026-05-13 17:49:07,268 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.008s
+2026-05-13 17:55:56,448 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 17:55:57,647 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 17:58:17,963 | INFO     | ITS_App:83 | user=root1 query=分析一下ATAC_analyse_PLC这个项目
+2026-05-13 17:58:17,964 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778666282949 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 17:58:18,021 | INFO     | ITS_App:817 | request route user=root1 session=session_1778666282949 mode=agent route=business resolved_project_id=ATAC_analyse_PLC force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 17:58:18,022 | INFO     | ITS_App:292 | [Route] project business agent: 分析一下ATAC_analyse_PLC这个项目
+2026-05-13 17:58:18,022 | INFO     | ITS_App:234 | [Route] project workflow: 分析一下ATAC_analyse_PLC这个项目
+2026-05-13 17:58:21,807 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_8299c39f9205 project=ATAC_analyse_PLC question_type=overview evidence=1 warnings=0 duration_ms=89.06
+2026-05-13 17:58:44,810 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_6fccb418fe07 analysis_run_id=projrun_8299c39f9205 status=ok duration_ms=26787.98
+2026-05-13 17:58:44,813 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778666282949 total_cost=26.850s
+2026-05-13 17:58:44,826 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.006s
+2026-05-13 18:00:19,525 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.007s
+2026-05-13 18:00:59,056 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428分析一下这个项目
+2026-05-13 18:00:59,057 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778666419637 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:01:11,333 | INFO     | ITS_App:817 | request route user=root1 session=session_1778666419637 mode=agent route=agent resolved_project_id=None force_consult=True direct_business=False followup_confirmed=False
+2026-05-13 18:01:24,019 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778666419637 total_cost=24.963s
+2026-05-13 18:01:24,345 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.006s
+2026-05-13 18:04:55,340 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 18:04:56,547 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 18:05:05,107 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.007s
+2026-05-13 18:05:08,810 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=18 cost=0.007s
+2026-05-13 18:05:11,975 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428分析一下这个项目
+2026-05-13 18:05:11,976 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778666706019 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:05:22,472 | INFO     | ITS_App:817 | request route user=root1 session=session_1778666706019 mode=agent route=agent resolved_project_id=None force_consult=True direct_business=False followup_confirmed=False
+2026-05-13 18:05:32,303 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778666706019 total_cost=20.327s
+2026-05-13 18:05:32,317 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.006s
+2026-05-13 18:07:02,791 | INFO     | ITS_App:344 | prepare_history done user=root1 session=codex_live_check cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:07:02,843 | INFO     | ITS_App:697 | request route user=root1 session=codex_live_check mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:07:02,843 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428????????
+2026-05-13 18:07:02,843 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428????????
+2026-05-13 18:07:18,072 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_41d4be8ca376 project=cuttag20260428 question_type=overview evidence=1 warnings=0 duration_ms=145.47
+2026-05-13 18:07:49,593 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_8b31e034eefc analysis_run_id=projrun_41d4be8ca376 status=ok duration_ms=46749.27
+2026-05-13 18:07:49,595 | INFO     | ITS_App:633 | process_task done user=root1 session=codex_live_check total_cost=46.805s
+2026-05-13 18:08:03,771 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428????????
+2026-05-13 18:08:03,772 | INFO     | ITS_App:344 | prepare_history done user=root1 session=codex_stream_check cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:08:03,841 | INFO     | ITS_App:817 | request route user=root1 session=codex_stream_check mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:08:03,842 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428????????
+2026-05-13 18:08:03,842 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428????????
+2026-05-13 18:08:04,209 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_90b7adcb5aee project=cuttag20260428 question_type=overview evidence=1 warnings=0 duration_ms=80.95
+2026-05-13 18:08:11,595 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428????????
+2026-05-13 18:08:11,596 | INFO     | ITS_App:344 | prepare_history done user=root1 session=codex_stream_check cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:08:11,596 | INFO     | ITS_App:817 | request route user=root1 session=codex_stream_check mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:08:11,598 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428????????
+2026-05-13 18:08:11,598 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428????????
+2026-05-13 18:08:12,056 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_29e7bcc43ff2 project=cuttag20260428 question_type=overview evidence=1 warnings=0 duration_ms=105.19
+2026-05-13 18:08:34,602 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_9f84e1da1627 analysis_run_id=projrun_90b7adcb5aee status=ok duration_ms=30760.08
+2026-05-13 18:08:54,130 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_ee808900649f analysis_run_id=projrun_29e7bcc43ff2 status=ok duration_ms=42532.79
+2026-05-13 18:08:54,133 | INFO     | ITS_App:633 | process_task done user=root1 session=codex_stream_check total_cost=42.537s
+2026-05-13 18:09:10,207 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=21 cost=0.011s
+2026-05-13 18:09:55,177 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.008s
+2026-05-13 18:09:59,143 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.007s
+2026-05-13 18:10:05,641 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 18:10:06,841 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 18:10:31,605 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428分析一下这个项目
+2026-05-13 18:10:31,605 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778666999158 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:10:31,606 | INFO     | ITS_App:817 | request route user=root1 session=session_1778666999158 mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:10:31,606 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428分析一下这个项目
+2026-05-13 18:10:31,606 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428分析一下这个项目
+2026-05-13 18:10:45,694 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_35be98de39b6 project=cuttag20260428 question_type=overview evidence=8 warnings=0 duration_ms=1014.10
+2026-05-13 18:11:37,750 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_d08869ca1457 analysis_run_id=projrun_35be98de39b6 status=ok duration_ms=66143.76
+2026-05-13 18:11:37,754 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778666999158 total_cost=66.148s
+2026-05-13 18:11:38,086 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.008s
+2026-05-13 18:11:53,536 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.001s
+2026-05-13 18:15:12,903 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.001s
+2026-05-13 18:16:49,013 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-13 18:16:50,206 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-13 18:18:50,059 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428分析一下这个项目
+2026-05-13 18:18:50,059 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778667527289 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:18:50,059 | INFO     | ITS_App:817 | request route user=root1 session=session_1778667527289 mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:18:50,060 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428分析一下这个项目
+2026-05-13 18:18:50,060 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428分析一下这个项目
+2026-05-13 18:19:15,144 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_ebec7cc463e9 project=cuttag20260428 question_type=overview evidence=10 warnings=0 duration_ms=13454.71
+2026-05-13 18:20:01,831 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_3a501ba44594 analysis_run_id=projrun_ebec7cc463e9 status=ok duration_ms=71771.01
+2026-05-13 18:20:01,835 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778667527289 total_cost=71.776s
+2026-05-13 18:20:02,157 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=21 cost=0.009s
+2026-05-13 18:20:14,609 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=21 cost=0.001s
+2026-05-13 18:22:14,136 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=21 cost=0.001s
+2026-05-13 18:26:11,675 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.008s
+2026-05-13 18:26:19,919 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=19 cost=0.006s
+2026-05-13 18:26:23,182 | INFO     | ITS_App:83 | user=root1 query=cuttag20260428分析一下这个项目
+2026-05-13 18:26:23,182 | INFO     | ITS_App:344 | prepare_history done user=root1 session=session_1778667980541 cost=0.000s context_mode=standalone context_turns=0
+2026-05-13 18:26:23,182 | INFO     | ITS_App:817 | request route user=root1 session=session_1778667980541 mode=agent route=business resolved_project_id=cuttag20260428 force_consult=False direct_business=True followup_confirmed=False
+2026-05-13 18:26:23,183 | INFO     | ITS_App:292 | [Route] project business agent: cuttag20260428分析一下这个项目
+2026-05-13 18:26:23,183 | INFO     | ITS_App:234 | [Route] project workflow: cuttag20260428分析一下这个项目
+2026-05-13 18:26:24,268 | INFO     | ITS_App:1301 | project_analysis run_id=projrun_e17653ee97aa project=cuttag20260428 question_type=overview evidence=10 warnings=0 duration_ms=788.55
+2026-05-13 18:26:54,816 | INFO     | ITS_App:359 | business_runtime workflow_run_id=projwf_fccd47f17f98 analysis_run_id=projrun_e17653ee97aa status=ok duration_ms=31634.39
+2026-05-13 18:26:54,820 | INFO     | ITS_App:633 | process_task done user=root1 session=session_1778667980541 total_cost=31.639s
+2026-05-13 18:26:55,156 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.008s
+2026-05-13 18:27:06,239 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.001s
+2026-05-13 18:28:37,837 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=20 cost=0.001s

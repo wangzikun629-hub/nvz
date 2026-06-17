@@ -1,0 +1,29 @@
+{
+  "id": "business_clear_project_no_analysis",
+  "target": "business_agent",
+  "enabled": true,
+  "question": "清空项目",
+  "user_id": "harness_no_project_user",
+  "session_id": "harness_clear_project",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok"
+    ],
+    "workflow_route": "project_context",
+    "analysis_run_absent": true,
+    "output_mode": "project_context",
+    "question_type": "project_context",
+    "min_answer_chars": 20,
+    "answer_must_contain": [
+      "已清空当前项目上下文"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt."
+    ]
+  }
+}

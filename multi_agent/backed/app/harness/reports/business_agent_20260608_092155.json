@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:21:55",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2291"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 38802.69
+      },
+      "answer_excerpt": "好的，我们直接来看你提的“为什么线粒体 reads 比例高”这个问题。\n\n当前项目 VZ20260513002 是 **CUT&Tag (PE, hg38)**，样本为 **T1 和 T2**，流程配置中 `remove_duplicates=false`，且计划统计的细胞器染色体名单为 `MT chrM chrMT Pt chrPt`。但目前**缺少可直接读取的 AlignmentQC 指标结果**，所以我无法给出具体的 `MT_rate_percent` 数值，也无法直接确认是高还是低。下面基于现有流程参数和项目证据，从可能的原因角度展开分析。\n\n### 直接原因：细胞器 DNA 背景进入测序文库\n- **实验层面**：CUT&Tag 使用 Tn5 转座酶在细胞核内直接切割并加接头。如果细胞在实验操作中（洗涤、通透化）裂解不充分或过于剧烈，线粒体膜破裂，释放的线粒体 DNA（mtDNA）就可能与开放的染色质一同被 Tn5 非特异性标记。这是最常见的内源性背景来源。\n- **测算层面**：你的流程明确配置了 `organelle_chroms: \"MT chrM chrMT Pt chrPt\"`，这表明比对后会专门统计比对到这些染色体上的 reads。因此，只要比对环节正确执行，这些占比就会被捕获。hg38 参考中，线粒体染色体标准名是 `chrM`。\n- **下游影响**：偏高",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

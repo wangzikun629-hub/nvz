@@ -1,0 +1,146 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:53:45",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_adapter_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "harness_guard_action",
+          "passed": true,
+          "detail": "expected='pass' actual='pass'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=487"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "analysis.metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "analysis.formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "analysis.formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "analysis.formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "analysis.needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_adapter_e2e",
+        "target": "business_agent",
+        "duration_ms": 4989.38
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='metric_formula', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['adapter_percent'], question_tags=['qc'], confidence=0.93, reason='metric_formula_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "target_metrics": [
+        "adapter_percent",
+        "chrmt_pt_rate_percent"
+      ],
+      "question": "Adapter 指标具体是什么，是怎么计算的",
+      "target_evidence": [
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T1",
+          "display_value": "38.24%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T2",
+          "display_value": "39.19%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        }
+      ],
+      "answer_excerpt": "## 指标口径\nAdapter（原始 reads 接头检出率）是当前项目中的质控指标，表示原始 reads 中被识别为接头相关 reads 的比例；它不等于 clean reads 中的接头残留率。\n\n## 关键数据\n| 样本 | Adapter（原始 reads 接头检出率） | 原始字段值 |\n| --- | --- | --- |\n| T2 | 39.19% | 78388(39.19%) |\n| T1 | 38.24% | 76474(38.24%) |\n\n## 依据\n- 来源字段：Adapter\n- 计算口径：Adapter(%) = adapter_count / total_reads_raw × 100，其中 adapter_count 是接头相关 reads 数，total_reads_raw 是原始 reads 总数。\n- 口径状态：已从项目脚本验证计算口径\n\n## 下一步建议\n- 优先复核 ReadsQC 与原始测序质控结果。\n- 区分原始 reads 的 Adapter 检出与 clean reads 的处理后残留，并核对项目阈值来源。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\adapter_e2e.json"
+    }
+  ]
+}

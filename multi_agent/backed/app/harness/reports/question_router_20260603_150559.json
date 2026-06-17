@@ -1,0 +1,225 @@
+{
+  "suite": "question_router",
+  "generated_at": "2026-06-03T15:05:59",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "question_router_core_intents",
+      "target": "question_router",
+      "passed": true,
+      "checks": [
+        {
+          "name": "min_examples",
+          "passed": true,
+          "detail": "expected>=9 actual=9"
+        },
+        {
+          "name": "adapter_formula_en.intent",
+          "passed": true,
+          "detail": "expected='metric_formula' actual='metric_formula'"
+        },
+        {
+          "name": "adapter_formula_en.route",
+          "passed": true,
+          "detail": "expected='project_analysis' actual='project_analysis'"
+        },
+        {
+          "name": "adapter_formula_en.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "adapter_formula_en.needs_chart",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        },
+        {
+          "name": "adapter_formula_en.target_metrics_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "adapter_formula_en.question_tags_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "adapter_formula_en.min_confidence",
+          "passed": true,
+          "detail": "expected>=0.9 actual=0.93"
+        },
+        {
+          "name": "adapter_formula_cn.intent",
+          "passed": true,
+          "detail": "expected='metric_formula' actual='metric_formula'"
+        },
+        {
+          "name": "adapter_formula_cn.route",
+          "passed": true,
+          "detail": "expected='project_analysis' actual='project_analysis'"
+        },
+        {
+          "name": "adapter_formula_cn.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "adapter_formula_cn.target_metrics_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "adapter_formula_cn.question_tags_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "igg_mt_diagnostic.intent",
+          "passed": true,
+          "detail": "expected='project_diagnostic' actual='project_diagnostic'"
+        },
+        {
+          "name": "igg_mt_diagnostic.route",
+          "passed": true,
+          "detail": "expected='project_analysis' actual='project_analysis'"
+        },
+        {
+          "name": "igg_mt_diagnostic.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "igg_mt_diagnostic.target_metrics_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "igg_mt_diagnostic.question_tags_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "mapping_chart.intent",
+          "passed": true,
+          "detail": "expected='chart_request' actual='chart_request'"
+        },
+        {
+          "name": "mapping_chart.route",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "mapping_chart.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "mapping_chart.needs_chart",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "mapping_chart.target_metrics_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "report_summary.intent",
+          "passed": true,
+          "detail": "expected='report_summary' actual='report_summary'"
+        },
+        {
+          "name": "report_summary.route",
+          "passed": true,
+          "detail": "expected='ai_report_summary' actual='ai_report_summary'"
+        },
+        {
+          "name": "report_summary.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "project_followup.intent",
+          "passed": true,
+          "detail": "expected='project_diagnostic' actual='project_diagnostic'"
+        },
+        {
+          "name": "project_followup.route",
+          "passed": true,
+          "detail": "expected='project_analysis' actual='project_analysis'"
+        },
+        {
+          "name": "project_followup.requires_project",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "product_usage.intent",
+          "passed": true,
+          "detail": "expected='product_usage' actual='product_usage'"
+        },
+        {
+          "name": "product_usage.route",
+          "passed": true,
+          "detail": "expected='product_help' actual='product_help'"
+        },
+        {
+          "name": "product_usage.requires_project",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        },
+        {
+          "name": "frip_generic.intent",
+          "passed": true,
+          "detail": "expected='metric_explanation' actual='metric_explanation'"
+        },
+        {
+          "name": "frip_generic.route",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "frip_generic.requires_project",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        },
+        {
+          "name": "frip_generic.target_metrics_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "frip_generic.question_tags_contains",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "clear_project.intent",
+          "passed": true,
+          "detail": "expected='project_context_control' actual='project_context_control'"
+        },
+        {
+          "name": "clear_project.route",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "clear_project.requires_project",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "question_router_core_intents",
+        "target": "question_router",
+        "duration_ms": 0.2
+      },
+      "answer_excerpt": "",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\question_router\\core_intents.json"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "project_peak_calling_params_rule",
+  "target": "project_analysis",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "For project VZ20260427001, what peak calling parameters are configured?",
+  "max_evidence_files": 4,
+  "planning_hints": {
+    "force_include_html_body": true
+  },
+  "expect": {
+    "trace_status": "ok",
+    "required_workflow_rule": "peak_calling_params",
+    "workflow_rule_source_level": "project_verified",
+    "workflow_rule_source_type_contains": "project",
+    "workflow_rule_value_contains": [
+      "macs3_qvalue"
+    ]
+  }
+}

@@ -1,0 +1,6 @@
+2026-05-11 17:08:20,243 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:20,246 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:29,200 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:29,202 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:41,685 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:41,686 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable

@@ -1,0 +1,12 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A8F7C"/>
+      <stop offset="100%" stop-color="#0F5F57"/>
+    </linearGradient>
+  </defs>
+  <rect x="5" y="5" width="90" height="90" rx="18" fill="url(#logoGradient)" stroke="#DFF7F2" stroke-width="2"/>
+  <path d="M23 28H31L43 57V28H51V71H43L31 42V71H23V28Z" fill="#DFF7F2"/>
+  <path d="M56 28H76C82 28 86 32 86 38C86 42 84 45 80 47C84 49 86 52 86 57C86 65 80 71 70 71H56V28ZM64 35V44H73C76 44 78 42 78 39C78 36 76 35 73 35H64ZM64 51V64H70C75 64 78 62 78 57C78 53 75 51 70 51H64Z" fill="#DFF7F2"/>
+  <text x="50" y="84" font-family="Arial, sans-serif" font-size="12" font-weight="bold" text-anchor="middle" fill="white">NOVOZAN</text>
+</svg>

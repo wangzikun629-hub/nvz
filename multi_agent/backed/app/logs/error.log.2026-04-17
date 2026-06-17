@@ -1,0 +1,7 @@
+2026-04-17 11:30:20,491 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 11:36:03,151 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 11:42:46,832 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 11:46:28,996 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 13:37:04,434 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 13:42:51,813 | ERROR    | ITS_App:16 | 搜索MCP连接失败: Failed to connect to MCP server '通用联网搜索': HTTP error 500 (Internal Server Error)
+2026-04-17 13:43:22,430 | ERROR    | ITS_App:34 | technical agent failed: Server not initialized. Make sure you call `connect()` first.

@@ -1,0 +1,96 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:49:16",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=1670"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 72.61%, 66.87%"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 31338.87
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='project_diagnostic', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['mt_rate_percent'], question_tags=['alignment', 'diagnostic'], confidence=0.82, reason='diagnostic_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "target_metrics": [
+        "mt_rate_percent",
+        "chrmt_pt_rate_percent",
+        "frip"
+      ],
+      "question": "为什么线粒体 reads 比例高",
+      "target_evidence": [],
+      "answer_excerpt": "根据当前项目证据，暂时无法直接确认线粒体 reads 比例的具体数值，但依据项目配置和实验类型可以梳理出最可能的原因链和需要复核的方向。\n\n## 直接原因排查方向\n\n**为什么 CUT&Tag（hg38）中线粒体 reads（MT_Ratio）偏高，通常与这几个环节有关：**\n\n* **Tn5 转座酶对线粒体 DNA 的非特异性标签化**\n  — CUT&Tag 使用 Tn5 融合蛋白进行原位切割与加接头，若细胞膜或核膜完整性受损，Tn5 可以直接进入线粒体并标记线粒体基因组，导致大量线粒体来源 reads。这是 CUT&Tag 中线粒体背景偏高最常见的技术性原因。\n\n* **细胞器过滤在比对统计中的位置不明确**\n  — 项目配置中 `organelle_chroms=MT chrM chrMT Pt chrPt` 表明流程设计了细胞器染色体过滤规则。但 `MT_Rate` 若是在过滤前统计（即直接从原始比对结果中计算线粒体 reads 占比），那高比例只反映原始比对中的线粒体来源，**不直接等同于 clean reads 或去重后的残留**。需要确认统计脚本是在过滤前还是过滤后计算该指标。\n\n* **样本制备中的线粒体释放**\n  — 细胞裂解步骤、洗涤不充分或细胞状态不佳时，线粒体可能破裂并释放 DNA。Tn5 对裸露 DNA 同样具有标记活性，释放出的线粒体 DNA 可能被",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T15:05:34",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_clear_project_no_analysis",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=20 actual=42"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_clear_project_no_analysis",
+        "target": "business_agent",
+        "duration_ms": 15.38
+      },
+      "answer_excerpt": "已清空当前项目上下文。后续问题不会继续默认结合上一个项目，除非你重新指定或绑定项目。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\clear_project_no_analysis.json"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "dataset_version": "bio-project-analysis-v2",
+  "case_count": 6,
+  "domains": [
+    "QC processing-stage semantics",
+    "species/organelle semantics",
+    "threshold evidence boundaries",
+    "sample-role interpretation",
+    "numeric traceability",
+    "causal support labels"
+  ],
+  "automated_checks": [
+    "required scientific points",
+    "forbidden conclusions",
+    "numeric traceability to analysis_context",
+    "unverified threshold boundary",
+    "cause support labels",
+    "conciseness"
+  ],
+  "review_status": "pending_independent_human_expert_adjudication",
+  "adjudication_requirements": [
+    "Two bioinformatics reviewers independently label every case",
+    "Disagreements are resolved by a third reviewer",
+    "Reviewer identity, date, assay expertise, and rationale are recorded",
+    "Cases are versioned whenever project evidence contracts change"
+  ]
+}

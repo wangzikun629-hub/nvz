@@ -1,0 +1,90 @@
+{
+  "suite": "project_analysis",
+  "generated_at": "2026-06-03T09:33:55",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "project_adapter_formula",
+      "target": "project_analysis",
+      "passed": true,
+      "checks": [
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "trace_status",
+          "passed": true,
+          "detail": "expected='ok' actual='ok'"
+        },
+        {
+          "name": "min_evidence_files",
+          "passed": true,
+          "detail": "expected>=1 actual=5"
+        },
+        {
+          "name": "workflow_file_contains:Snakemake_Sop",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "workflow_file_contains:cutadapt_stat.py",
+          "passed": true,
+          "detail": "matched"
+        },
+        {
+          "name": "required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": "projrun_f5946f865409",
+      "trace": {
+        "run_id": "projrun_f5946f865409",
+        "question_type": "qc",
+        "question_tags": [
+          "qc"
+        ],
+        "duration_ms": 9057.45,
+        "evidence_attempted": 5,
+        "evidence_succeeded": 5,
+        "warning_count": 0,
+        "status": "ok"
+      },
+      "harness": {
+        "case_id": "project_adapter_formula",
+        "target": "project_analysis",
+        "duration_ms": 9058.22
+      },
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\adapter_formula.json"
+    }
+  ]
+}

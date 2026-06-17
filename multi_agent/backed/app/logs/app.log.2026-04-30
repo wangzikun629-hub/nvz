@@ -1,0 +1,23 @@
+2026-04-30 18:14:09,482 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-30 18:14:12,036 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-30 18:14:24,301 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-30 18:14:24,302 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-30 18:14:24,302 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-30 18:14:24,303 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-30 18:14:24,307 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.004s
+2026-04-30 18:14:24,308 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.004s
+2026-04-30 19:06:06,922 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-04-30 19:06:18,433 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-04-30 19:06:21,241 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-30 19:06:21,241 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-30 19:06:21,241 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-30 19:06:21,242 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-30 19:06:21,252 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.010s
+2026-04-30 19:06:21,252 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.010s
+2026-04-30 19:06:34,122 | INFO     | ITS_App:39 | 用户 root1 发送的待处理任务 spike-in 分析需要哪些参考文件？
+2026-04-30 19:06:34,123 | INFO     | ITS_App:271 | prepare_history done user=root1 session=session_1777442544419 cost=0.000s context_mode=ambiguous context_turns=1
+2026-04-30 19:06:34,123 | INFO     | ITS_App:411 | request route user=root1 session=session_1777442544419 mode=auto route=fast_rag
+2026-04-30 19:06:40,810 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1777442544419 total_cost=6.687s
+2026-04-30 19:06:40,815 | INFO     | ITS_App:98 | 接收到获取用户会话请求
+2026-04-30 19:06:40,816 | INFO     | ITS_App:102 | 获取用户 root1 的所有会话记忆数据
+2026-04-30 19:06:40,817 | INFO     | ITS_App:108 | get_user_sessions done user=root1 sessions=9 cost=0.002s

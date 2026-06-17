@@ -1,0 +1,264 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-11T15:03:51",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_adapter_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "harness_guard_action",
+          "passed": true,
+          "detail": "expected='pass' actual='pass'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=2455"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "analysis.metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "analysis.formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "analysis.formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='D:\\\\nvz\\\\kefu\\\\multi_agent\\\\backed\\\\app\\\\.project_sftp_cache\\\\sop\\\\ab1b2b8ad4ff\\\\Snakemake_Sop\\\\CUTTag\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "analysis.formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "analysis.needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_adapter_e2e",
+        "target": "business_agent",
+        "duration_ms": 2578.08,
+        "project_root": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\.project_sftp_cache\\401244fb8f27\\VZ20260427001"
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='metric_formula', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['adapter_percent'], question_tags=['qc'], confidence=0.93, reason='metric_formula_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "answer_quality": {
+        "passed": true,
+        "status": "pass",
+        "score": 90,
+        "pass_score": 70,
+        "dimensions": {
+          "directness": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "direct_value_or_finding",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 20,
+            "max_score": 25,
+            "details": [
+              "value_coverage=5/8",
+              "source_mentions=6"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 15,
+            "max_score": 20,
+            "details": [
+              "component_1=False",
+              "component_2=True",
+              "component_3=True",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=6",
+              "action_terms=4"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "项目文件中未确认"
+            ]
+          },
+          "concision": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "chars=2434",
+              "headings=5"
+            ]
+          }
+        },
+        "issues": [],
+        "question_mode": "definition",
+        "target_metrics": [
+          "adapter_percent"
+        ],
+        "target_evidence_count": 6,
+        "answer_chars": 2434,
+        "repair_applied": true,
+        "repair_attempted": true,
+        "original_score": 80,
+        "original_issues": [
+          {
+            "rule": "missing_threshold_limitation",
+            "message": "项目阈值未确认，但回答没有明确证据限制。",
+            "severity": "severe"
+          }
+        ],
+        "repair_strategy": "structured_evidence_rebuild",
+        "score_improved": true
+      },
+      "target_metrics": [
+        "adapter_percent",
+        "chrmt_pt_rate_percent"
+      ],
+      "question": "Adapter 指标具体是什么，是怎么计算的",
+      "target_evidence": [
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T1",
+          "display_value": "38.24%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T2",
+          "display_value": "39.19%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T1",
+          "display_value": "38.30%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T1",
+          "display_value": "38.20%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T2",
+          "display_value": "39.20%"
+        },
+        {
+          "metric_key": "adapter_percent",
+          "sample": "T2",
+          "display_value": "39.20%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        }
+      ],
+      "answer_excerpt": "## 直接结论\n- T1 的 原始 reads 接头检出率 观测值为 38.24%，分母口径为 raw reads。\n- T2 的 原始 reads 接头检出率 观测值为 39.19%，分母口径为 raw reads。\n- T1 的 原始 reads 接头检出率 观测值为 38.30%，分母为 100000 raw R1 reads。\n- T1 的 原始 reads 接头检出率 观测值为 38.20%，分母为 100000 raw R2 reads。\n- T2 的 原始 reads 接头检出率 观测值为 39.20%，分母为 100000 raw R1 reads。\n- T2 的 原始 reads 接头检出率 观测值为 39.20%，分母为 100000 raw R2 reads。\n\n## 项目证据\n- T1/原始 reads 接头检出率: 38.24%；分母口径=raw reads；来源=VZ20260427001\\1.ReadsQC\\ReadsQC.xls::Adapter\n  - 计算口径：接头检出 reads 数 ÷ 对应原始 reads 数 × 100%；R1、R2 和汇总值属于不同测量口径。\n- T2/原始 reads 接头检出率: 39.19%；分母口径=raw reads；来源=VZ20260427001\\1.ReadsQC\\ReadsQC.xls::Adapter",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\adapter_e2e.json"
+    }
+  ]
+}

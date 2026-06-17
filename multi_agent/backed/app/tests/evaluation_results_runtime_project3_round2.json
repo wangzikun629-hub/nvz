@@ -1,0 +1,4664 @@
+[
+  {
+    "question": "这个项目设置了 PH_Igg 作为 IgG 对照。PH_Igg 样本仅 60万 reads（IP样本的约1/40），mapping rate 只有 51%（IP样本 93-95%），但 NRF 高达 0.976、PBC2 高达 76.25。从实验设计角度分析：这个 IgG 对照的测序深度是否足够？NRF 和 PBC2 的极高值说明了什么？mapping rate 仅 51% 是否影响其作为对照的有效性？",
+    "answer": "好的，我们来分析这个项目中 PH_Igg 作为 IgG 对照的问题。首先，需要纠正一个关键事实：根据项目 ReadsQC 数据，PH_Igg 的 clean reads 是 **24,338,532**，而不是 60 万。用户提到的“60万”可能对应的是比对的 reads（mapped reads：310,706 或 unique mapped reads：204,510）。这个差异很重要，因为测序深度的判断基准不同。\n\n### 1. PH_Igg 对照的测序深度是否足够？\n\n- **直接观察**：PH_Igg 的 Total Clean Reads 为 24,338,532（约 2400 万），而 IP 样本 PH_H3K27ac 和 PN_H3K27ac 的 Clean Reads 分别为 32,694,836（约 3200 万）和 25,594,238（约 2500 万）。从初始测序深度看，PH_Igg 的约 2400 万 reads 并不算“仅有”IP 的 1/40。\n- **实际有效深度**：关键在于比对后的有效 reads。PH_Igg 的 mapping rate 仅 51.02%，unique mapping rate 33.58%。这意味着比对到基因组的 reads 只有约 31 万，其中唯一比对的 reads 仅约 20 万（204,510）。相比之下，IP 样本通常拥有数千万的比对 reads。\n- **结论**：对于 ChIP-seq 的 IgG 对照，**当前的有效测序深度是严重不足的**。虽然初始 reads 量尚可，但极低的比对效率导致用于评估背景信号的 reads 数量过少。在如此低的深度下，无法稳定、可靠地评估 IP 实验的信噪比和背景噪声特征。\n\n### 2. NRF 高达 0.976 和 PBC2 高达 76.25 说明了什么？\n\n- **直接观察**：NRF 为 0.9761，PBC2 为 76.25。这两个指标均代表极高的文库复杂度，远优于 PH_H3K27ac（NRF 0.9089, PBC2 13.78）和 PN_H3K27ac（NRF 0.8948, PBC2 11.91）。\n- **关联现象与解释**：这并非真正的文库复杂度高，而是**低测序深度下的数学必然结果**。NRF 是唯一比对 reads 与总比对 reads 的比值，PBC2 是唯一比对位置 reads 数与唯一比对位置数的比值。当 total reads 极低（仅 20 万左右）时，reads 之间“碰撞”产生 PCR 重复的概率大幅下降，导致几乎所有 reads 都是唯一的，从而 NRF 和 PBC2 趋向于 1 和一个很大的值。这不能反映其真实的文库多样性，而更像是一个“假阳性”信号。IP 样本的 NRF/PBC2 在 0.9/12 左右，反而是更真实反映典型 ChIP-seq 文库复杂度的水平，包含了一定比例的正常 PCR 重复。\n- **附带证据**：PH_Igg 的 duplicate rate 仅为 2.46%，远低于 IP 样本的 9-10%，也印证了这一点。\n\n### 3. Mapping rate 仅 51% 是否影响其作为对照的有效性？\n\n- **直接观察**：PH_Igg 的 mapping rate（51.02%）显著低于 IP 样本（92-95%）。这一异常需要先查明原因。\n- **可能原因与影响**：\n    - **参考基因组或版本不匹配**（推理得分最高，32%）：这是最可能的原因。如果 PH_Igg 的 reads 来源于一个与 IP 样本在遗传背景或参考索引上存在差异的细胞/文库，大量 reads 无法比对。这会使对照的“背景”定义完全偏离实验体系。\n    - **接头或低质量 reads 消耗**（推理得分 31%）：PH_Igg 的 raw reads 接头率也高达 51.33%，但 IP 样本更高（60%）。高接头率导致的 reads 截短可能影响比对，但无法解释为何差异如此巨大（IP mapping 正常）。\n    - **Spike-in 污染**：一个关键的线索是 spike-in 数据。PH_Igg 的 spike-in mapped reads 高达 6,122,554，是 IP 样本（约 15-20 万）的 **30 倍以上**。同时，其 spike-in unique mapping rate 为 24.92%，而 IP 样本仅 0.6% 左右。这强烈提示 **PH_Igg 样本中存在严重的 spike-in 序列污染**，或者其文库构建严重偏向于 spike-in。大量 reads 消耗在 spike-in 比对中，从而降低了基因组比对率。\n- **对对照有效性的影响**：**是严重影响的**。因为：\n    1.  **背景信号不具代表性**：在如此少的有效 reads（20万）下，无法建立起一个有统计意义的背景信号分布。\n    2.  **信号来源不清**：高比例且独特的 spike-in reads 说明该样本的组成成分发生了根本改变，其测得的“背景”信号不再是典型基因组背景，无法用于评估 IP 实验。\n    3.  **无法评估信噪比**：低质量和污染导致其无法作为可靠的阴性对照。\n\n### 综合分析与可执行复核动作\n\n从实验设计角度看，**PH_Igg 样本存在严重问题，不宜作为本项目的 IgG 对照使用**。其有效性被多项交叉验证的异常指标所否定：有效深度极低、mapping 率异常、spike-in 污染严重。NRF/PBC2 的极高值并非优势，而是低深度下的假象。\n\n**建议立刻执行的验证动作**：\n1.  **核实比对参数与参考基因组**：核对 PH_Igg 与其他样本是否使用了完全相同的参考基因组（mm10）和 bowtie2 索引文件。比对日志（Alignment/PH_Igg/PH_Igg.summary.txt）已确认口径一致，但仍需从项目配置层面（config.yaml）确认。\n2.  **深入分析 spike-in 污染**：查看 `Spikein/spikein_align.xls` 文件，确认 PH_Igg 对比到各种 spike-in 序列的详细 counts。检查是否是因为样本质控异常导致 spike-in 被过量添加。\n3.  **考察样本来源**：与项目负责人确认 PH_Igg 样本的细胞类型、处理方式、文库构建批次是否与 IP 样本一致。高 spike-in 比例可能暗示样本混乱或建库过程出错。\n4.  **重新比对/质控**：如果将 PH_Igg 的 reads 单独重新比对到包含了常见污染库（如 phiX）或 spike-in 序列的参考基因组，观察 mapping 率变化。同时，查看其 clean FASTQ 的 FastQC 报告，确认是否有非预期的 k-mer 富集。\n\n**结论**：**该项目的 PH_Igg 作为 IgG 对照在现有数据质量下，不具备用于下游分析（如评估 FRiP、确定 peak calling 阈值）的技术有效性。** 建议排除该样本，或尝试重新测序/构建该对照样本。",
+    "quality_score": 86,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 86,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 12,
+          "max_score": 30,
+          "details": [
+            "fact_issues=81"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=112"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=52"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=52"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 2,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_H3K27ac vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：alignment。",
+            "metric_id": "alignment"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "alignment",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_H3K27ac vs PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_Igg vs PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_Igg vs PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_H3K27ac vs PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_Igg vs PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "correlation",
+          "sample": "PH_Igg vs PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "FRiP 矩阵显示了清晰的对比：IP样本自身FRiP为22.24%（PH_H3K27ac）和25.57%（PN_H3K27ac），交叉FRiP（一个IP对另一个IP的peak计算）为20.99%和21.49%，而IP样本在IgG对照上的FRiP仅1.07-1.11%，IgG自身FRiP仅3.13%。请系统解读这个FRiP矩阵：为什么两个IP样本的交叉FRiP接近自身FRiP（~21% vs 22-26%），而IP在IgG上的FRiP仅~1%？这种FRiP模式是否足以证明实验的特异性和重复性？",
+    "answer": "好的，我们来系统地解读这个 FRiP 矩阵，并解析其背后的生物信息学意义。\n\n### 1. FRiP 矩阵的直接观察\n\n根据项目文件 `PeakCalling\\macs3\\FRiP_raw.txt` 中的数据，FRiP (Fraction of Reads in Peaks) 矩阵的核心数值如下：\n\n| 读段样本 (Reads) | 峰集 (Peak Set) | FRiP 值 | 峰值计数 (Peak Count) |\n| :--- | :--- | :--- | :--- |\n| PH_H3K27ac | PH_H3K27ac (自身) | **22.24%** | 73,940 |\n| PN_H3K27ac | PN_H3K27ac (自身) | **25.57%** | 85,693 |\n| PH_H3K27ac | PN_H3K27ac (交叉) | **20.99%** | - |\n| PN_H3K27ac | PH_H3K27ac (交叉) | **21.49%** | - |\n| PH_H3K27ac | PH_Igg (交叉) | **1.11%** | - |\n| PN_H3K27ac | PH_Igg (交叉) | **1.07%** | - |\n| PH_Igg | PH_Igg (自身) | **3.13%** | 86 |\n| PH_Igg | PH_H3K27ac (反向交叉) | **12.25%** | - |\n| PH_Igg | PN_H3K27ac (反向交叉) | **12.96%** | - |\n\n**请注意方向性语义**：读段样本是被评估的reads来源，峰集是评价标准。反向交叉FRiP（IgG reads对IP峰集）和正向交叉FRiP（IP reads对IgG峰集）具有不同的生物学含义。\n\n### 2. 关键现象的深层解释\n\n#### 现象一：为什么两个 H3K27ac IP 样本的交叉 FRiP 接近自身 FRiP（~21% vs 22-26%）？\n\n这是一个强有力的证据，表明两个实验样本（PH 和 PN）的**生物学重复性极好**。\n\n- **原因链路**：H3K27ac 是一种组蛋白修饰，倾向于在活跃的启动子和增强子区域形成明确的、可重复的富集峰。两个样本检测到的多数真实峰是相同的。当一个样本的reads（如PH_H3K27ac）在另一个样本（PN_H3K27ac）的峰集上计算FRiP时，由于共享了大部分真实的富集区域，所以会有大量reads落入这些区域，导致一个较高的FRiP值。\n- **直接支持证据**：\n    - 两个样本的 Spearman 相关性系数高达 **0.9022** (来源: `spearman_Corr_readCounts.tab`)，直接证实了全基因组信号谱的高度一致。\n    - 自身FRiP值（22.24% 和 25.57%）本身是健康的，表明IP富集成功，信号集中在峰区域内。\n- **结论解读**：交叉FRiP与自身FRiP接近，说明两个独立IP实验捕捉到的信号图谱高度相似，这是实验重复性的直接表现，而非异常。\n\n#### 现象二：为什么 IP 样本在 IgG 对照上的 FRiP 仅 ~1%？\n\n这是**抗体特异性**优秀的标志。\n\n- **原因链路**：IgG 对照是使用非特异性抗体进行的IP，其reads主要来自随机背景或非特异性结合。这些reads在基因组上的分布是相对均匀、无富集模式的。因为IgG对照本身峰极少（只有86个峰），而H3K27ac IP的reads是特异地富集在其自身峰区域的。当用H3K27ac的reads去IgG的峰区域计算FRiP时，因为IgG峰区并不对应H3K27ac的结合位点，所以几乎没有H3K27ac的reads会落进去，导致 FRiP值极低（~1%）。\n- **直接支持证据**：IgG自身的FRiP值仅为3.13%，峰值数量仅有86个，也证明了其非特异性和背景噪音的本质。这与IP样本的73,940 和 85,693个峰形成鲜明对比。\n- **结论解读**：IP对IgG的FRiP极低，排除了大量非特异性结合导致IP信号升高的可能性，有力地证明了H3K27ac抗体对其靶标修饰的高特异性。\n\n> **对比解释：反向交叉FRiP (~12%)**\n> 用户未特别问及，但“IP on IgG low，但IgG on IP high (12.25-12.96%)”是另一个关键现象。\n> - **解释**：IgG reads在H3K27ac的峰集上有12%的FRiP。这并不是IgG有特异性富集，而是因为H3K27ac的峰区域覆盖了基因组中很大、很活跃的区域。由于IgG的reads是随机分布的，它们“随机”落入这些广泛区域的概率本身就比较高。对于只有30万条唯一比对reads的IgG来说，这个比例很容易达到12%。\n> - **陷阱**：切勿将“IgG on IP”高的现象误解为IgG有特异性。这是由峰集覆盖基因组范围大小决定的统计预期，是高背景区域的必然结果。\n\n### 3. 综合诊断：这种 FRiP 模式是否足以证明实验的特异性和重复性？\n\n**直接回答：是的，这个 FRiP 矩阵模式非常理想，是支持实验特异性和重复性的强有力证据。**\n\n不过，这仅仅是“证据充分”，我们需要将结论绑定到具体的数据源和逻辑上：\n\n- **实验特异性结论**：由 `IP样本在IgG对照上的FRiP仅 ~1%` (来源: `FRiP_raw.txt`) 和 `IgG自身FRiP 3.13%`及`峰值仅86个` (来源: `FRiP_score.xls`) 共同支持。逻辑是IP信号高度富集在靶标区域，与非特异性对照（IgG）的基因组分布几乎没有重叠。\n- **实验重复性结论**：由 `IP样本自身FRiP 22-26%` (来源: `FRiP_raw.txt`) 和 `交叉FRiP 20-21%` (来源: `FRiP_raw.txt`) 共同支持，并由 `Spearman相关性 0.9022` (来源: `spearman_Corr_readCounts.tab`) 进行佐证。逻辑是两个独立IP实验各自都成功富集了信号，且这些信号在基因组上的分布高度一致。\n\n**可执行的复核与验证动作**：\n\n1.  **确认交叉FRiP/自身FRiP的比值**：计算 `交叉FRiP / 自身FRiP`。理想的比值应接近0.8或更高。\n    - `PH on PN / PH：20.99% / 22.24% = 0.94`\n    - `PN on PH / PN：21.49% / 25.57% = 0.84`\n    - 两者都>0.8，非常好。\n\n2.  **直接查看重叠峰数量（IOU）**：这是比交叉FRiP更直接的重复性指标。应查看Peak文件（如`.narrowPeak`）并计算两个样本峰集的重叠率（Jaccard Index 或 IOU），这是最推荐的下步验证动作。\n\n3.  **查看染色体分布**：检查两个IP样本的Peak在染色体上的分布是否一致，特别是在常染色体和性染色体上。可以快速确认是否存在由测序或基因组特征导致的系统性偏差。\n\n**局限性**：\n\n- 项目文件的`threshold_status`明确指出“**未确认该指标阈值/标准**”。因此，虽然FRiP值本身表现优秀，但这只是一个“信号质量良好”的观察性报告，而不是一个“项目成功”的商业验收授权。是否可以进行下游分析，将取决于项目组设定的具体**启动标准**。\n- FRiP矩阵本身不评估**比对质量**。请注意，PH_H3K27ac和PN_H3K27ac的唯一比对率分别为69.44%和71.13%，这低于理想值（通常期望>80%）。虽然这不影响重复性结论，但它提示存在一定比例的多重比对或非特异性结合事件，可能会轻微影响下游差异分析的灵敏度。\n- 重复性是基于这两个样本间的比较得出的，不涉及“条件/对照组”和“生物学重复”的统计学设计。当前还不能直接进行差异分析。\n\n**结论**：当前FRiP矩阵呈现的是一种教科书式的理想模式，强有力地证明了抗体特异性和实验操作的可重复性。在配合后续验证动作（如计算IOU）后，该数据在信号质量上是完全具备进行下一步分析（如注释、可视化、Motif分析）的条件的。请基于项目具体的业务标准来决定是否投入全面分析。",
+    "quality_score": 77,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 77,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "fact_issues=83"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=103"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=54"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=54"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 4,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_H3K27ac vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：frip。",
+            "metric_id": "frip"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：peak_count。",
+            "metric_id": "peak_count"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：alignment。",
+            "metric_id": "alignment"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "alignment",
+          "workflow_rule_source",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 1,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": false,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "Spearman相关性矩阵显示：PH_H3K27ac与PN_H3K27ac的相关性为0.9022（高度正相关），而两个IP样本与IgG对照的相关性仅0.3165和0.3200。结合FRiP、peak数量等指标，分析这种相关性差异反映了什么生物学意义？IP间0.90的相关性对H3K27ac这个组蛋白修饰来说是高还是低？IP-IgG间0.32的相关性说明了什么？",
+    "answer": "好的，我们来分析您项目中的 Spearman 相关性矩阵、FRiP 和 peak 数量等指标，解读这些数字背后的生物学和技术含义。\n\n### 直接观测：相关性矩阵呈现清晰的富集特异性信号\n\n根据项目数据（来源：`VZ20260508009\\3.Correlation\\spearman_Corr_readCounts.tab`，字段 `spearman correlation`），我们观察到以下事实：\n1.  **H3K27ac IP 样本间高度正相关**：样本 `PH_H3K27ac` 与 `PN_H3K27ac` 的 Spearman 相关性为 **0.9022**。\n2.  **IP 样本与 IgG 对照相关性低**：`PH_Igg` 与 `PH_H3K27ac` 的相关性为 **0.3165**，与 `PN_H3K27ac` 的相关性为 **0.3200**。\n\n### 整合证据链：FRiP 与 Peak 数量为富集特异性提供直接支撑\n\n这个相关性差异**直接反映了 H3K27ac 抗体富集的特异性与样本间信号谱的一致性**。下面我们结合 FRiP 和 peak 数量来详细拆解。\n\n**1. IP 样本（PH_H3K27ac vs PN_H3K27ac）相关性 0.9022：高且合理**\n\n-   **观测值**：0.9022\n-   **关联现象**：两个 H3K27ac IP 样本的基因组信号谱非常相似。\n-   **支持证据**：\n    -   **FRiP 比率高**：`PH_H3K27ac` 的 FRiP 为 **22.24%**，`PN_H3K27ac` 的 FRiP 为 **25.57%**（来源：`PeakCalling\\macs3\\FRiP_raw.txt` 字段 `percent`）。这是典型的、成功的 H3K27ac ChIP-seq 富集水平。\n    -   **Peak 数量充足**：`PH_H3K27ac` 鉴定到 73,940 个 peak，`PN_H3K27ac` 鉴定到 85,693 个 peak（来源：`VZ20260508009/5.Peakcalling/5.1PeakStat/FRiP_score.xls` 字段 `PeakCount`）。\n    -   **映射率正常**：两个样本的基因组 mapping 率分别为 92.94% 和 94.85%，unique mapping 率分别为 69.44% 和 71.13%，表明数据质量良好。\n-   **解读**：对于 H3K27ac 这种在活跃启动子和增强子区域广泛分布的组蛋白修饰，两个技术/生物学重复样本间的 Spearman 相关性达到 **0.90** 是**非常高且理想**的数值。这表明实验操作稳定，生物学信号（如细胞状态、基因表达程序）在两个样本之间高度一致。结合 20% 以上的 FRiP 和数万个 peak，这有力地证明了 H3K27ac 抗体的富集是成功的、特异的，并且信号在样本间高度可重复。\n\n**2. IP 样本与 IgG 对照（IP vs IgG）相关性约 0.32：正常且是良好质量的标志**\n\n-   **观测值**：0.3165 和 0.3200\n-   **关联现象**：IP 样本与 IgG 对照的基因组信号谱基本不相关。\n-   **支持证据**：\n    -   **IgG 的 FRiP 极低**：样本 `PH_Igg` 自身 FRiP 仅为 **3.13%**，且只鉴定到 **86 个 peak**。这说明 IgG 对照几乎没有特异性富集，其信号主要由非特异性背景噪音构成。\n    -   **跨样本 FRiP 对比**：将 `PH_H3K27ac` 的信号映射到 `PH_Igg` 的 peak 上，FRiP 低至 **1.11%**。反之，将 `PH_Igg` 的信号映射到 `PH_H3K27ac` 的 peak 上，FRiP 也仅有 **12.25%**（来源：`PeakCalling\\macs3\\FRiP_raw.txt` 字段 `percent`）。这证实了两个样本的信号来源不同。\n-   **解读**：约 **0.32 的相关系数**是正常且期望的结果。IP 样本的信号绝大部分来自特异的 H3K27ac 富集区域，而 IgG 的信号主要来自随机背景（如开放染色质、重复序列区域的噪音）。两者的信号谱几乎无重叠。这个低相关性恰恰说明 **IP 富集是特异且成功的**，而不是非特异性抗体导致的大量背景信号。如果 IP 与 IgG 的相关性也很高（比如 >0.8），那才需要警惕，可能意味着抗体验证不足、ChIP 效率低下或数据被背景噪音主导。\n\n### 综合结论：数据质量整体良好，相关性差异反映富集特异性\n\n目前数据支持以下结论：\n\n-   **相关性差异的本质**：0.90 的高相关性反映了两个 H3K27ac 样本共享一致的生物学信号谱（即活跃调控区域的修饰模式）。0.32 的低相关性证实了 H3K27ac 抗体的富集是特异的，其信号分布与非特异性背景（IgG）截然不同。\n-   **0.9022 对 H3K27ac 来说高吗？** 是的，**非常高**。这通常意味着样本间（如技术重复）的重复性极佳，或者两个样本的生物学状态（如细胞类型、处理条件）非常相似，以至于 H3K27ac 修饰的整体图谱高度一致。这是进行可靠下游分析（如差异 peak 分析）的坚实基础。\n-   **0.32 说明了什么？** 这主要**证实了富集的特异性**，而不是质量问题。它表明您的主要信号来源于特异的抗体靶标，而非非特异性的背景吸附。这是一个质量合格的指标。\n\n### 可执行复核动作\n\n虽然证据链清晰，但为了彻底排除潜在问题，建议进行以下技术复核：\n\n1.  **核实 MACS3 的 peak calling 配置**：\n    -   检查 `config.yaml` 中 peak-caller 参数，确认 `PH_H3K27ac` 和 `PN_H3K27ac` 是否都在 MACS3 调用时正确使用 `PH_Igg` 作为对照（control）。错误的对照绑定会导致 peak 数量和 FRiP 偏差。当前项目证据（`ev_997665eec639896c`）显示控制关系已绑定，但未经验证。\n\n2.  **执行跨样本 FRiP 矩阵分析**：\n    -   系统地计算每个 IP 样本在**自峰**和**他峰**中的 FRiP 比例。例如，`PH_H3K27ac` 在 `PH_Igg` peak 中的 FRiP（1.11%）应远低于在其自身 peak 中的 FRiP（22.24%）。这可以自动验证富集方向性。当前数据已经指向了这一正确方向。\n\n3.  **在全基因组 bins 上验证相关性**：\n    -   在 10kb 或 100kb 的基因组 bins 上，计算并可视化 `PH_H3K27ac` vs `PN_H3K27ac` 的信号散点图。同时，与 `PH_Igg` vs `PH_H3K27ac` 的散点图对比，以直观确认信号模式差异。\n\n**总结**：项目中的 H3K27ac ChIP-seq 数据质量良好。IP 样本间 0.90 的相关性结合 >20% 的 FRiP 及数万个 peak，是高重复性和成功富集的综合体现。IP 与 IgG 约 0.32 的低相关性则进一步确认了富集的特异性。这套数据适合进行后续的 H3K27ac 信号定量和比较分析。",
+    "quality_score": 77,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 77,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "fact_issues=83"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=103"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=53"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=53"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 4,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_H3K27ac vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：frip。",
+            "metric_id": "frip"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：peak_count。",
+            "metric_id": "peak_count"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：correlation。",
+            "metric_id": "correlation"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "correlation",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 1,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 1,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_scaling_factor",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "spikein_unique_mapping_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": false,
+        "matrix_reasoning_consistent": false,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "项目配置了spike-in分析（spikein_analysis=yes, spikein_align=2）。PH_H3K27ac和PN_H3K27ac的FRiP分别为22.24%和25.57%，peak数量PN更高。如果有spike-in scaling factor，两组之间的H3K27ac信号强度差异可以通过spike-in进行归一化。请解释：(1) CUT&Tag中spike-in标准化的原理（与ChIP-seq中常用的spike-in有何异同？）(2) 如果spike-in归一化后PN_H3K27ac的信号强度仍显著高于PH_H3K27ac，可能反映什么生物学差异？",
+    "answer": "好的，我们来详细拆解您提出的两个问题，并结合项目中的具体数据进行分析。\n\n### (1) CUT&Tag中Spike-in标准化的原理及与ChIP-seq Spike-in的异同\n\n**CUT&Tag Spike-in 标准化原理**\n\nCUT&Tag技术的一个关键优势是其极低的背景信号。它通过在抗体介导下，利用pA/G-Tn5转座酶直接在细胞核内对目标蛋白结合的DNA进行片段化并连接测序接头。\n\n其spike-in标准化的核心逻辑是：\n1.  **加入内参**：在每个样品中，在实验开始时（通常是细胞透化后）加入等量的、外源的、已知序列的DNA片段（最常用的是大肠杆菌E. coli DNA）。\n2.  **共同处理**：这些外源DNA片段与细胞内的染色质一起，经历了完整的实验流程——从Tn5转座酶的片段化和接头连接，到文库扩增和测序。\n3.  **技术偏差校准**：样品间任何导致测序文库产量或测序深度差异的技术因素（如细胞计数误差、Tn5转座酶活性差异、PCR扩增偏差等），都会同等程度地影响内源目标信号和外源spike-in信号。\n4.  **计算归一化因子 (Scaling Factor)**：通过计算每个样品比对到spike-in参考基因组（如E. coli）的 reads 数，得到一个校正系数。公式通常是：\n    `Spike-in Scaling Factor = (目标spike-in reads数) / (每个样品的spike-in reads数)`\n    *注意：这里的“目标spike-in reads数”通常指所有样品中spike-in reads数的中位数或最小值，用于将不同样品校准到同一基准。*\n5.  **应用归一化**：将这个`Spike-in Scaling Factor`乘以每个样品比对到目标基因组的 reads 数，就得到了经过spike-in归一化的信号值。这个值可以用于在不同样品间进行定量的比较。\n\n**与ChIP-seq中Spike-in的异同**\n\n| 特征 | CUT&Tag Spike-in | ChIP-seq Spike-in (经典方法) |\n| :--- | :--- | :--- |\n| **加入物** | **外源DNA**（通常是E. coli基因组DNA或无核小体包裹的DNA片段）。它与细胞内染色质完整分离，不会干扰比对。 | **外源染色质**（通常是来自不同物种的完整染色质，如人类的样品中加入果蝇的染色质）。需在免疫沉淀前加入。 |\n| **标准化目标** | **校准技术偏差**。主要校正由细胞起始量、Tn5酶活性、PCR效率等带来的**文库产出差异**。 | **校准技术偏差和部分生物学差异**。理论上可以校正染色质起始量、免疫沉淀效率、测序深度等。 |\n| **关键假设** | 每个样品的**细胞核数量应一致**（通常以细胞计数为准）。Spike-in主要校正的是**每个核内的实验效率**。 | 每个样品中加入的**外源染色质量应一致**，且抗体对目标蛋白和spike-in上的同源表位（如果存在）的捕获效率一致。 |\n| **比对过程** | 首先，reads 会分别比对到目标基因组（如人类hg38）和spike-in基因组（如E. coli）。多比对的reads通常会被过滤掉。 | 需构建嵌合基因组（如human+fly），然后将reads同时比对到这个嵌合基因组上。 |\n| **适用场景** | **低细胞起始量的CUT&Tag**非常有效，因为其背景低，spike-in信号在总reads中占比明确。 | 适用于ChIP-seq，尤其当样本间存在全局性的组蛋白修饰水平变化时。但要求spike-in染色质质量高、物种与目标物种无交叉比对。 |\n\n**总结**：两者的共同点是都利用外源已知模板来校正技术/实验偏差。核心区别在于：**CUT&Tag spike-in**主要补偿**每个细胞核内的反应效率（如Tn5酶活性）**，前提是细胞核数一致；而**ChIP-seq spike-in** 试图补偿**免疫沉淀步骤的效率和染色质总量偏差**。\n\n### (2) Spike-in归一化后PN_H3K27ac信号仍显著高于PH_H3K27ac的可能生物学解释\n\n如果经过spike-in归一化后，PN_H3K27ac的信号强度仍显著高于PH_H3K27ac，这提示我们技术性差异已被大幅消除，剩余的差异很可能反映了真实的**生物学差异**。结合H3K27ac这一组蛋白修饰（标记活跃启动子和增强子）的特性，可能的原因包括：\n\n1.  **全局染色质状态差异**：\n    *   **现象**：PN样本的细胞可能处于一个**更活跃的转录状态**。\n    *   **解释**：H3K27ac修饰的总体水平升高，意味着PN样本中更多基因的启动子和增强子被激活，整体转录活性更高。这反映了两种细胞（或处理条件）在功能状态上的根本不同。\n\n2.  **细胞群体异质性**：\n    *   **现象**：PN样本中具有高H3K27ac修饰的细胞亚群比例更高。\n    *   **解释**：如果PH样本中大部分细胞处于静止期或分化为低活性状态，而PN样本含有更多正在增殖、响应刺激或具有特殊功能的细胞亚群，那么即便单细胞水平修饰水平相近，整体信号的升高也会体现在bulk测序结果中。\n\n3.  **增强子景观的重塑**：\n    *   **现象**：PN样本中获得了新的、更活跃的增强子，或者现有的增强子活性更强。\n    *   **解释**：PN样本可能通过激活特定信号通路（如Wnt、Notch等），导致大量H3K27ac标记在远端调控区域（增强子）上。这通常会伴随着关键发育、应激或分化相关基因的表达变化。\n\n**关联项目数据与证据链**\n\n项目数据显示：\n*   **FRiP**: PN_H3K27ac (25.57%) 高于 PH_H3K27ac (22.24%)。这是一个**直接观测**，表明在PN样本自有peak上富集的reads比例更高，说明其信号在基因组上的聚集度更高。\n*   **Peak数量**: PN (85693) 显著高于 PH (73940)。这与FRiP升高的趋势一致，共同指向PN样本中H3K27ac修饰的**分布范围更广**。\n*   **Spike-in比对**: PH_H3K27ac的spike-in unique mapping rate为0.63%（mapped reads 208472），PN_H3K27ac为0.59%（mapped reads 153196）。PN的spike-in reads数略少，意味着它的scaling factor将略大于PH。如果**不进行**spike-in归一化，只看原始reads数，PN的信号可能看起来更高。经过归一化后，PN的原始读数会被放大，进一步凸显其信号强度的差异。\n\n**因此，合理的证据链是**：\n**直接观测**：PN_H3K27ac的FRiP和peak数量均高于PH_H3K27ac。\n**关联现象**：Spearman相关性为0.9022（来自`VZ20260508009\\\\3.Correlation\\\\spearman_Corr_readCounts.tab`），两者整体信号模式高度相似。\n**可能解释**：在排除技术偏差（通过spike-in归一化）和整体信号分布模式相似的前提下，剩余的信号强度差异（PN更高）最可能归因于PN样本H3K27ac修饰的**真实上调**，反映其更活跃的染色质状态或不同的细胞群体组成。\n**验证动作**：需要通过差异结合分析（如使用`DiffBind`或`edgeR`）定位具体的差异区域（差异peak），并检查这些峰附近的基因是否与已知的生物学功能相关。同时，应检查是否存在全局性的信号扩增，而不仅仅是少数区域的改变。\n\n**局限性与边界条件**：\n*   **前提假设**：我们的结论依赖于“细胞起始数一致”这一关键假设。如果PN样本的实际细胞核数多于PH样本，即使进行spike-in归一化，也可能存在残留偏差。通过**细胞计数**和**spike-in mapped reads**的总量（PN 153196, PH 208472）来进行交叉验证是必要的。目前数据表明，PH的spike-in reads更多，暗示PH细胞数可能更多或Tn5活性更高，但归一化后PN信号仍更强，这反而强化了其真实差异的可能性。\n*   **验证操作**：\n    1.  确认spike-in scaling factor的计算方式（项目文件中显示`S`pikein_scaling_factor`值为“-”，可能未计算）。\n    2.  进行差异peak分析，并可视化代表性的差异富集区域（如IGV track），确保差异是区域特异性的而非全局性的。\n    3.  将差异peak关联到基因，进行GO/KEGG通路富集分析，验证生物学合理性。",
+    "quality_score": 77,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 77,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "fact_issues=84"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=103"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=53"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=53"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 5,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_H3K27ac vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "PH_Igg vs PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_scaling_factor",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_H3K27ac against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PH_Igg against PN_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "PN_H3K27ac against PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_H3K27ac"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PH_Igg"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "spikein_unique_mapping_rate_percent",
+            "sample": "PN_H3K27ac"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：frip。",
+            "metric_id": "frip"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：peak_count。",
+            "metric_id": "peak_count"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "moderate",
+            "text": "回答遗漏了复杂问题所需的关键模态：spikein。",
+            "metric_id": "spikein"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：alignment。",
+            "metric_id": "alignment"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "spikein",
+          "alignment",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        },
+        {
+          "rule": "critical_modality_omission",
+          "severity": "severe",
+          "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+          "metric_id": "experiment_design"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 1,
+      "critical_modality_omission_count": 1,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "duplicate_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "nrf",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_H3K27ac"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PH_Igg"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "picard_duplicate_pair_rate_percent",
+          "sample": "PN_H3K27ac"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        },
+        {
+          "rule": "critical_modality_omission",
+          "severity": "severe",
+          "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+          "metric_id": "experiment_design"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": false,
+        "critical_modalities_covered": false
+      }
+    }
+  }
+]

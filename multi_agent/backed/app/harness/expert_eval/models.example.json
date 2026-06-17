@@ -1,0 +1,16 @@
+[
+  {
+    "name": "deepseek",
+    "model": "your-deepseek-model",
+    "base_url": "https://your-openai-compatible-endpoint/v1",
+    "api_key_env": "DEEPSEEK_API_KEY",
+    "temperature": 0.1
+  },
+  {
+    "name": "qwen",
+    "model": "your-qwen-model",
+    "base_url": "https://your-openai-compatible-endpoint/v1",
+    "api_key_env": "QWEN_API_KEY",
+    "temperature": 0.1
+  }
+]

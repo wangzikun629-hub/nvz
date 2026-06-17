@@ -1,0 +1,139 @@
+{
+  "suite": "project_analysis",
+  "generated_at": "2026-06-03T15:43:36",
+  "total": 10,
+  "passed": 0,
+  "failed": 10,
+  "results": [
+    {
+      "id": "project_adapter_formula",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\adapter_formula.json"
+    },
+    {
+      "id": "project_dedup_policy_rule",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\dedup_policy_rule.json"
+    },
+    {
+      "id": "project_duplicate_formula",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\duplicate_formula.json"
+    },
+    {
+      "id": "project_frip_formula",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\frip_formula.json"
+    },
+    {
+      "id": "project_mapping_formula",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\mapping_formula.json"
+    },
+    {
+      "id": "project_organelle_handling_rule",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\organelle_handling_rule.json"
+    },
+    {
+      "id": "project_peak_calling_params_rule",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\peak_calling_params_rule.json"
+    },
+    {
+      "id": "project_reference_config_rule",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\reference_config_rule.json"
+    },
+    {
+      "id": "project_threshold_validation_warning",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\threshold_validation_warning.json"
+    },
+    {
+      "id": "project_unique_mapping_formula",
+      "target": "project_analysis",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "name 'source_payload' is not defined"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\project_analysis\\unique_mapping_formula.json"
+    }
+  ]
+}

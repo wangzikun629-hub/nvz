@@ -1,0 +1,6 @@
+2026-05-12 09:09:56,610 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-12 09:09:56,612 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-12 09:10:04,853 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-12 09:10:04,854 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-12 09:14:39,314 | ERROR    | ITS_App:800 | AgentService.process_query error: type object 'ContentKind' has no attribute 'TEXT'
+2026-05-12 09:14:48,649 | ERROR    | ITS_App:800 | AgentService.process_query error: type object 'ContentKind' has no attribute 'TEXT'

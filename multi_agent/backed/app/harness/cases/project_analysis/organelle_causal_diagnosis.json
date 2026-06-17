@@ -1,0 +1,59 @@
+{
+  "id": "project_organelle_causal_diagnosis",
+  "target": "project_analysis",
+  "enabled": true,
+  "project_id": "VZ20260513002",
+  "question": "为什么这个项目的线粒体 reads 比例高，请给出根因排序、支持或反证以及验证步骤",
+  "max_evidence_files": 8,
+  "planning_hints": {
+    "analysis_plan": {
+      "intent": "anomaly_investigation",
+      "target_metrics": [
+        "mt_rate_percent"
+      ],
+      "metric_evidence_plan": {
+        "mt_rate_percent": {
+          "primary": [
+            "mt_rate_percent"
+          ],
+          "upstream": [
+            "organelle_chroms",
+            "sample_preparation",
+            "filtering_policy"
+          ],
+          "parallel": [
+            "mapping_rate_percent",
+            "unique_mapping_rate_percent",
+            "duplicate_rate_percent"
+          ],
+          "downstream": [
+            "frip_ratio",
+            "peak_count",
+            "correlation"
+          ],
+          "candidate_causes": [
+            "organelle_dna_background",
+            "organelle_filtering_not_applied_before_statistics",
+            "sample_preparation_background"
+          ]
+        }
+      }
+    }
+  },
+  "expect": {
+    "cause_graph_version": "metric-evidence-graph-v2",
+    "min_ranked_causes": 3,
+    "required_ranked_cause": "organelle_dna_background",
+    "ranked_cause_min_supporting_evidence": 1,
+    "ranked_cause_requires_verification_action": true,
+    "evidence_metric": "mt_rate_percent",
+    "min_evidence_cards": 4,
+    "required_evidence_card_metric": "mt_rate_percent",
+    "evidence_card_requires_denominator": true,
+    "required_processing_phase": "alignment_organelle_partition",
+    "agent_loop_min_rounds": 1,
+    "agent_loop_max_rounds": 3,
+    "claim_validation_passed": true,
+    "min_validated_claims": 4
+  }
+}

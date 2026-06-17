@@ -1,0 +1,2 @@
+2026-05-29 11:59:11,173 | ERROR    | ITS_App:1288 | AgentService.process_query error: Project root not found for project_id=gene
+2026-05-29 11:59:12,847 | ERROR    | ITS_App:1288 | AgentService.process_query error: Project root not found for project_id=gene

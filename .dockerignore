@@ -1,0 +1,20 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.git/
+.gitignore
+
+# 前端源码（只需 dist）
+multi_agent/front/knowlege_platform_ui/node_modules/
+multi_agent/front/knowlege_platform_ui/src/
+multi_agent/front/agent_web_ui/node_modules/
+
+# 测试 & 临时
+multi_agent/backed/app/harness/.runtime/
+tmp/
+*.log
+
+# 敏感文件
+multi_agent/backed/app/.env

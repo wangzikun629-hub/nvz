@@ -1,0 +1,59 @@
+{
+  "id": "business_overview_diverse_metrics_e2e",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260513002",
+  "question": "还有什么问题",
+  "user_id": "harness_user",
+  "session_id": "harness_business_overview_diverse_metrics",
+  "max_evidence_files": 15,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok",
+      "warning"
+    ],
+    "question_type": "overview",
+    "harness_guard_passed": true,
+    "answer_quality_passed": true,
+    "answer_quality_min_score": 90,
+    "min_answer_chars": 500,
+    "answer_must_contain": [
+      "比对率",
+      "唯一比对率",
+      "线粒体",
+      "FRiP",
+      "样本信号相关性",
+      "重复率",
+      "原始 reads 接头检出率",
+      "项目证据",
+      "证据边界"
+    ],
+    "answer_target_values_must_contain": [
+      "57.54%",
+      "12.60%",
+      "72.61%",
+      "0.1482",
+      "-0.6303",
+      "33.66%",
+      "38.24%"
+    ],
+    "answer_must_not_contain": [
+      "当前只能对 adapter",
+      "不能用无关指标替代",
+      "所有数字结论",
+      "```python",
+      "matplotlib",
+      "项目合格",
+      "项目不合格"
+    ],
+    "required_task_steps": [
+      "analyze_project_data",
+      "compose_response"
+    ],
+    "analysis_expect": {
+      "claim_validation_passed": true,
+      "min_validated_claims": 7
+    }
+  }
+}

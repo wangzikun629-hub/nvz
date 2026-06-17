@@ -1,0 +1,4 @@
+-r requirements.txt
+
+# Test runner. Keep pytest 8.x for stable Python 3.12 compatibility.
+pytest>=8,<9

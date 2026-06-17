@@ -1,0 +1,10 @@
+2026-05-26 11:51:31,537 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:51:31,544 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:51:50,136 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:51:50,140 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:52:10,711 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:52:10,715 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:52:55,119 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:52:55,123 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:57:50,337 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined
+2026-05-26 11:57:50,342 | ERROR    | ITS_App:1154 | AgentService.process_query error: name 'project_id' is not defined

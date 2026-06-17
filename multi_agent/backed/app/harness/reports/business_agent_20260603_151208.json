@@ -1,0 +1,70 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T15:12:08",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_chart_metric_missing",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": false,
+          "detail": "allowed=['clarification'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": false,
+          "detail": "expected='chart' actual=''"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": false,
+          "detail": "analysis_run_id='projrun_37fb95856740'"
+        },
+        {
+          "name": "output_mode",
+          "passed": false,
+          "detail": "expected='clarification' actual='qa'"
+        },
+        {
+          "name": "question_type",
+          "passed": false,
+          "detail": "expected='chart_clarification' actual='overview'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=3417"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 需要明确图表指标"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_chart_metric_missing",
+        "target": "business_agent",
+        "duration_ms": 55495.43
+      },
+      "answer_excerpt": "## 结论\n\n该项目 VZ20260427001 是一个 CUT&Tag hg38 双端测序分析，包含两个样本 T1 和 T2。根据已有数据，全流程在测序质控到相关性分析层面均已出现严重异常，不适合直接进入下游生物学结论。核心问题集中在：接头污染严重 → 有效 reads 损失 → 细胞器 reads 占比畸高 → 比对率和唯一比对率极低 → 样本间出现负相关，信号富集评估（FRiP）也极弱。两个样本均定位为 Experimental，但本身样本相关性已为负值，说明信号远在噪声水平之下，组间比较无从谈起。\n\n对于“画个图看看”的需求，最值得优先可视化的是样本间信号相似性的散点图（可直接展示当前 -0.6303 的 Spearman 相关有多差）以及全基因组信号指纹图（plotFingerprint）——这两张图能最直观地反映测序信号是否存在有效富集。其次是比对率、细胞器占比和 FRiP 的多指标柱状图，可以快速看清两个样本在多个维度上的同步崩坏状态。\n\n下面先用几张不需要额外生成、直接从已有报告中抽取的关键数据支撑结论，然后列出建议的图表类型和它们能说明什么问题。图表应由系统图表接口生成，我会告诉你画什么、怎么看。\n\n## 关键数据\n\n### ReadsQC 指标\n\n| 样本 | Clean Reads(raw) | Clean(%) | Adapter(raw) | Adapte",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\chart_metric_missing.json"
+    }
+  ]
+}

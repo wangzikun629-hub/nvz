@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:41:31",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2638"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": false,
+          "detail": "missing: 72.61%, 66.87%"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 37071.82
+      },
+      "answer_excerpt": "你的项目 VZ20260513002 是 CUT&Tag / hg38 且未启用去重，当前证据中**没有读到具体的 mt_rate_percent 数值与对应的结构化质控表**，无法直接确认“高”是由哪个环节在哪个计算口径下产生的。但可以先从项目配置入手，把可能原因和需要核对的关键点梳理清楚。\n\n## 线粒体 reads 比例偏高，在当前项目中最可能出在“统计口径”和“背景/过滤前状态”两个方向\n\n### 1. 项目当前证据能确认的配置事实\n- **实验类型与物种**：CUT&Tag, hg38（人类），因此这里的线粒体 reads 仅指比对到 **chrM** 等动物线粒体染色体的 reads，不存在线粒体解释。\n- **去重策略**：`remove_duplicates=false`，duplicate reads 在比对统计中会被保留，这部分若存在线粒体来源的 PCR 重复会直接拉高管线粒体 reads 的计数。\n- **细胞器染色体列表**：`organelle_chroms: MT chrM chrMT Pt chrPt`，说明比对统计有能力识别并单独报告这些染色体上的reads。\n- **trimming 与 adapter**：使用 `cutadapt`，`adapter_type=tn5`，只说明接头检出和处理策略，不能证明 clean reads 仍有接头残留。\n",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

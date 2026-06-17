@@ -1,0 +1,4 @@
+2026-06-08 14:14:20,153 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 5] 拒绝访问。: 'D:\\nvz\\project_workspaces\\proj1_257d5928ba4a'
+2026-06-08 14:14:20,184 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 5] 拒绝访问。: 'D:\\nvz\\project_workspaces\\proj1_257d5928ba4a'
+2026-06-08 14:15:55,240 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 2] 系统找不到指定的文件。: 'D:\\proj1'
+2026-06-08 14:15:55,290 | ERROR    | ITS_App:262 | project analysis workflow failed: [WinError 2] 系统找不到指定的文件。: 'D:\\proj1'

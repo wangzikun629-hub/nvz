@@ -1,0 +1,270 @@
+2026-05-08 15:09:37,538 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-08 15:09:40,035 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-08 15:09:48,356 | INFO     | ITS_App:75 | get_user_sessions done user=root1 sessions=17 cost=0.018s
+2026-05-08 15:09:48,356 | INFO     | ITS_App:75 | get_user_sessions done user=root1 sessions=17 cost=0.018s
+2026-05-08 15:11:49,985 | INFO     | ITS_App:33 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:11:49,986 | INFO     | ITS_App:275 | prepare_history done user=root1 session=session_1778224306148 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 15:11:49,986 | INFO     | ITS_App:414 | request route user=root1 session=session_1778224306148 mode=auto route=agent
+2026-05-08 15:11:53,237 | INFO     | ITS_App:212 | [Route] project business agent: 请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:11:55,935 | INFO     | ITS_App:195 | [Route] project workflow: 分析CUT_TAG_2026021项目中IgG样本线粒体比例偏高的原因，包括质控、比对、spike-in等步骤的排查
+2026-05-08 15:12:06,044 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_88302bd75e31 project=CUT_TAG_2026021 question_type=alignment evidence=2 warnings=0 duration_ms=1271.06
+2026-05-08 15:12:27,404 | INFO     | ITS_App:325 | process_task done user=root1 session=session_1778224306148 total_cost=37.420s
+2026-05-08 15:12:27,726 | INFO     | ITS_App:75 | get_user_sessions done user=root1 sessions=15 cost=0.004s
+2026-05-08 15:19:16,828 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-08 15:19:19,298 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-08 15:19:39,033 | INFO     | ITS_App:33 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:19:39,033 | INFO     | ITS_App:275 | prepare_history done user=root1 session=session_1778224774448 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 15:19:39,034 | INFO     | ITS_App:414 | request route user=root1 session=session_1778224774448 mode=auto route=agent
+2026-05-08 15:19:41,170 | INFO     | ITS_App:226 | [Route] project business agent: 请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:19:43,105 | INFO     | ITS_App:197 | [Route] project workflow: 分析CUT_TAG_2026021项目中IgG样本线粒体比例偏高的原因，包括质控、比对、spike-in等步骤排查
+2026-05-08 15:19:44,197 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_b127bf2b5c21 project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=1079.87
+2026-05-08 15:19:44,199 | INFO     | ITS_App:99 | project_workflow workflow_run_id=projwf_f173092adc57 analysis_run_id=projrun_b127bf2b5c21 status=ok duration_ms=1093.62
+2026-05-08 15:23:40,892 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-08 15:23:43,449 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-08 15:24:12,151 | INFO     | ITS_App:33 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:24:12,151 | INFO     | ITS_App:275 | prepare_history done user=root1 session=session_1778225048779 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 15:24:12,151 | INFO     | ITS_App:414 | request route user=root1 session=session_1778225048779 mode=auto route=agent
+2026-05-08 15:24:14,120 | INFO     | ITS_App:226 | [Route] project business agent: 请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 15:24:16,387 | INFO     | ITS_App:197 | [Route] project workflow: 分析CUT_TAG_2026021项目中IgG样本线粒体比例偏高的原因，包括质控、比对、spike-in等步骤排查
+2026-05-08 15:24:17,288 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_da12e914d39d project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=888.65
+2026-05-08 15:24:17,290 | INFO     | ITS_App:99 | project_workflow workflow_run_id=projwf_42cb4115ccf3 analysis_run_id=projrun_da12e914d39d status=ok duration_ms=902.56
+2026-05-08 15:24:31,181 | INFO     | ITS_App:325 | process_task done user=root1 session=session_1778225048779 total_cost=19.029s
+2026-05-08 15:24:31,190 | INFO     | ITS_App:75 | get_user_sessions done user=root1 sessions=15 cost=0.004s
+2026-05-08 15:51:53,514 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_0110d77309d2 project=proj1 question_type=correlation evidence=2 warnings=0 duration_ms=1.73
+2026-05-08 15:51:53,518 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_4f75e26dedf1 project=proj2 question_type=frip evidence=1 warnings=1 duration_ms=3.14
+2026-05-08 15:51:53,524 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_5077bd01dde9 project=proj3 question_type=diff evidence=2 warnings=0 duration_ms=2.97
+2026-05-08 15:51:53,545 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_c4004e9cf495 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.18
+2026-05-08 15:51:53,547 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_75bf82737386 analysis_run_id=projrun_c4004e9cf495 status=ok duration_ms=20.73
+2026-05-08 15:51:53,553 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_55ccc6e1000a project=proj5 question_type=diff evidence=2 warnings=0 duration_ms=3.26
+2026-05-08 15:51:53,557 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_1126d3dfafe1 project=proj6 question_type=diff evidence=2 warnings=0 duration_ms=2.19
+2026-05-08 15:51:53,576 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_8e0c0519c316 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.16
+2026-05-08 15:51:53,577 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_cea763b2402f analysis_run_id=projrun_8e0c0519c316 status=ok duration_ms=18.70
+2026-05-08 16:39:55,511 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_e0615960c208 project=proj1 question_type=correlation evidence=2 warnings=0 duration_ms=1.85
+2026-05-08 16:39:55,515 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d00eccd9567f project=proj2 question_type=frip evidence=1 warnings=1 duration_ms=2.08
+2026-05-08 16:39:55,518 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_77aeaf969935 project=proj3 question_type=diff evidence=2 warnings=0 duration_ms=1.97
+2026-05-08 16:39:55,537 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_43d697af0d33 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.06
+2026-05-08 16:39:55,538 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_44d1d2d001d1 analysis_run_id=projrun_43d697af0d33 status=ok duration_ms=18.31
+2026-05-08 16:39:55,543 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_2b6765362a9d project=proj5 question_type=diff evidence=2 warnings=0 duration_ms=2.30
+2026-05-08 16:39:55,546 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d18eac0dc81a project=proj6 question_type=diff evidence=2 warnings=0 duration_ms=1.78
+2026-05-08 16:39:55,564 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_ce940d421173 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.01
+2026-05-08 16:39:55,565 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_2f19da86a497 analysis_run_id=projrun_ce940d421173 status=ok duration_ms=17.16
+2026-05-08 16:45:44,957 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_2d847e802f46 project=proj1 question_type=correlation evidence=2 warnings=0 duration_ms=2.30
+2026-05-08 16:45:44,962 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_5af772851ae4 project=proj2 question_type=frip evidence=1 warnings=1 duration_ms=2.60
+2026-05-08 16:45:44,968 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_bab80768721d project=proj3 question_type=diff evidence=2 warnings=0 duration_ms=3.18
+2026-05-08 16:45:44,988 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_e11574da90d7 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.23
+2026-05-08 16:45:44,990 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_0eccd636fc42 analysis_run_id=projrun_e11574da90d7 status=ok duration_ms=20.03
+2026-05-08 16:45:44,994 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_42995d6040d6 project=proj5 question_type=diff evidence=2 warnings=0 duration_ms=2.32
+2026-05-08 16:45:44,997 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_fceb40a49f99 project=proj6 question_type=diff evidence=2 warnings=0 duration_ms=1.89
+2026-05-08 16:45:45,016 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d58a30b5f04d project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.15
+2026-05-08 16:45:45,019 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_ab9f6cbc06d3 analysis_run_id=projrun_d58a30b5f04d status=ok duration_ms=18.89
+2026-05-08 16:56:03,480 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_e6ea86157c0c project=proj1 question_type=correlation evidence=2 warnings=0 duration_ms=2.00
+2026-05-08 16:56:03,485 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_e6becc54616d project=proj2 question_type=frip evidence=1 warnings=1 duration_ms=2.61
+2026-05-08 16:56:03,490 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_b46dcea380b7 project=proj3 question_type=diff evidence=2 warnings=0 duration_ms=2.75
+2026-05-08 16:56:03,511 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_6f960379f7c6 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.32
+2026-05-08 16:56:03,513 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_4b191645055f analysis_run_id=projrun_6f960379f7c6 status=ok duration_ms=21.05
+2026-05-08 16:56:03,518 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_7a475261bba4 project=proj5 question_type=diff evidence=2 warnings=0 duration_ms=2.50
+2026-05-08 16:56:03,522 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_125cb6ca471f project=proj6 question_type=diff evidence=2 warnings=0 duration_ms=2.00
+2026-05-08 16:56:03,543 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_945c26fba4af project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.36
+2026-05-08 16:56:03,544 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_6d19c3714903 analysis_run_id=projrun_945c26fba4af status=ok duration_ms=20.84
+2026-05-08 17:06:32,300 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_51ebe0ff96a0 project=proj1 question_type=correlation evidence=2 warnings=0 duration_ms=1.94
+2026-05-08 17:06:32,306 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_00a8f596e6a1 project=proj2 question_type=frip evidence=1 warnings=1 duration_ms=2.69
+2026-05-08 17:06:32,310 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_6629f67effe4 project=proj3 question_type=diff evidence=2 warnings=0 duration_ms=2.79
+2026-05-08 17:06:32,331 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_76d916f4e75c project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.59
+2026-05-08 17:06:32,334 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_e1c01c6d5933 analysis_run_id=projrun_76d916f4e75c status=ok duration_ms=22.26
+2026-05-08 17:06:32,339 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d3dd4d7d5177 project=proj5 question_type=diff evidence=2 warnings=0 duration_ms=2.59
+2026-05-08 17:06:32,343 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_b6f57dcf45be project=proj6 question_type=diff evidence=2 warnings=0 duration_ms=1.90
+2026-05-08 17:06:32,365 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_204a9c48fd8b project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.27
+2026-05-08 17:06:32,367 | INFO     | ITS_App:122 | project_workflow workflow_run_id=projwf_6b9871d0b596 analysis_run_id=projrun_204a9c48fd8b status=ok duration_ms=22.32
+2026-05-08 17:27:45,210 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_e1a529be056f project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.31
+2026-05-08 17:27:45,224 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_eb748c7667b8 project=CUT_TAG_2026021 question_type=diff evidence=5 warnings=0 duration_ms=3.11
+2026-05-08 17:27:47,267 | WARNING  | ITS_App:171 | project workflow knowledge retrieval failed: All connection attempts failed
+2026-05-08 17:28:10,369 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_7aa209308da3 analysis_run_id=projrun_eb748c7667b8 status=ok duration_ms=25157.74
+2026-05-08 17:28:51,183 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_40a7387b9cc9 project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.55
+2026-05-08 17:28:51,184 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_c5de5847dc0f analysis_run_id=projrun_40a7387b9cc9 status=ok duration_ms=13.05
+2026-05-08 17:28:51,195 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d2211c2bd2c3 project=CUT_TAG_2026021 question_type=overview evidence=1 warnings=0 duration_ms=1.46
+2026-05-08 17:28:51,197 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_c3a98a04ecc6 analysis_run_id=projrun_d2211c2bd2c3 status=ok duration_ms=11.36
+2026-05-08 17:29:10,499 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_556e986ef34b project=CUT_TAG_2026021 question_type=overview evidence=1 warnings=0 duration_ms=1.61
+2026-05-08 17:29:10,501 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_144285f30c1f analysis_run_id=projrun_556e986ef34b status=ok duration_ms=13.36
+2026-05-08 17:30:03,742 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_f4691fc5344b project=CUT_TAG_2026021 question_type=frip evidence=1 warnings=0 duration_ms=1.76
+2026-05-08 17:30:03,743 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_3a3314b49e40 analysis_run_id=projrun_f4691fc5344b status=ok duration_ms=13.54
+2026-05-08 17:30:03,756 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_0858723a505a project=CUT_TAG_2026021 question_type=overview evidence=1 warnings=0 duration_ms=1.70
+2026-05-08 17:30:03,758 | INFO     | ITS_App:300 | project_workflow workflow_run_id=projwf_0e5c10b61ab2 analysis_run_id=projrun_0858723a505a status=ok duration_ms=12.30
+2026-05-08 17:31:45,642 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_5ef3e710ef42 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.09
+2026-05-08 17:31:45,646 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_264daf5e1ecf project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.02
+2026-05-08 17:31:45,847 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_63f05e5a1877 project=proj8 question_type=frip evidence=1 warnings=0 duration_ms=1.66
+2026-05-08 17:31:45,848 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_4ec93d252989 analysis_run_id=projrun_63f05e5a1877 status=ok duration_ms=2.39
+2026-05-08 17:31:45,851 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_4a7b286c6237 project=proj9 question_type=overview evidence=1 warnings=0 duration_ms=1.66
+2026-05-08 17:31:45,852 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_0da6aa44e712 analysis_run_id=projrun_4a7b286c6237 status=ok duration_ms=2.91
+2026-05-08 17:31:45,855 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_355f530b9d6c project=proj10 question_type=frip evidence=1 warnings=0 duration_ms=1.41
+2026-05-08 17:31:45,855 | WARNING  | ITS_App:171 | project workflow knowledge retrieval failed: knowledge offline
+2026-05-08 17:31:45,856 | WARNING  | ITS_App:177 | project workflow fused answer generation failed: llm offline
+2026-05-08 17:31:45,856 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_d019e0b68573 analysis_run_id=projrun_355f530b9d6c status=ok duration_ms=2.14
+2026-05-08 17:31:47,677 | WARNING  | ITS_App:171 | project workflow knowledge retrieval failed: All connection attempts failed
+2026-05-08 17:32:08,797 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_c0f6e48c4826 analysis_run_id=projrun_264daf5e1ecf status=ok duration_ms=23153.23
+2026-05-08 17:32:27,676 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_9056a4d5b4fd project=proj10 question_type=frip evidence=1 warnings=0 duration_ms=1.63
+2026-05-08 17:32:27,676 | WARNING  | ITS_App:171 | project workflow knowledge retrieval failed: knowledge offline
+2026-05-08 17:32:27,676 | WARNING  | ITS_App:177 | project workflow fused answer generation failed: llm offline
+2026-05-08 17:32:27,677 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_02ef24112245 analysis_run_id=projrun_9056a4d5b4fd status=ok duration_ms=2.71
+2026-05-08 17:33:01,106 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_314d4e15df7e project=proj8 question_type=frip evidence=1 warnings=0 duration_ms=1.67
+2026-05-08 17:33:01,107 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_75ee2294adb8 analysis_run_id=projrun_314d4e15df7e status=ok duration_ms=2.59
+2026-05-08 17:33:01,111 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_09cb6fc6e2d2 project=proj9 question_type=overview evidence=1 warnings=0 duration_ms=1.70
+2026-05-08 17:33:01,111 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_d13f7790f366 analysis_run_id=projrun_09cb6fc6e2d2 status=ok duration_ms=2.44
+2026-05-08 17:33:01,115 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_70587d5f0e4c project=proj10 question_type=frip evidence=1 warnings=0 duration_ms=1.41
+2026-05-08 17:33:01,115 | WARNING  | ITS_App:171 | project workflow knowledge retrieval failed: knowledge offline
+2026-05-08 17:33:01,115 | WARNING  | ITS_App:177 | project workflow fused answer generation failed: llm offline
+2026-05-08 17:33:01,115 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_9edb66105f6b analysis_run_id=projrun_70587d5f0e4c status=ok duration_ms=2.26
+2026-05-08 17:34:10,078 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-08 17:34:12,596 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-08 17:34:21,213 | INFO     | ITS_App:69 | get_user_sessions done user=root1 sessions=15 cost=0.009s
+2026-05-08 17:34:21,213 | INFO     | ITS_App:69 | get_user_sessions done user=root1 sessions=15 cost=0.009s
+2026-05-08 17:34:35,615 | INFO     | ITS_App:27 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 17:34:35,617 | INFO     | ITS_App:278 | prepare_history done user=root1 session=session_1778225048779 cost=0.001s context_mode=ambiguous context_turns=1
+2026-05-08 17:34:35,617 | INFO     | ITS_App:420 | request route user=root1 session=session_1778225048779 mode=auto route=agent
+2026-05-08 17:34:37,784 | INFO     | ITS_App:281 | [Route] project business agent: 请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 17:34:39,735 | INFO     | ITS_App:229 | [Route] project workflow: 分析CUT_TAG_2026021项目中IgG线粒体比例偏高的原因，包括质控数据、比对情况、样本质量评估
+2026-05-08 17:34:40,569 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_2c2aed8cc5e1 project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=821.02
+2026-05-08 17:35:09,385 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_0e0c57045a90 analysis_run_id=projrun_2c2aed8cc5e1 status=ok duration_ms=29650.80
+2026-05-08 17:35:19,242 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1778225048779 total_cost=43.627s
+2026-05-08 17:35:19,252 | INFO     | ITS_App:69 | get_user_sessions done user=root1 sessions=15 cost=0.005s
+2026-05-08 17:37:15,563 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_6db663ec9fa6 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.25
+2026-05-08 17:37:15,568 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_8130f1d24b8e project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.01
+2026-05-08 17:37:15,687 | INFO     | ITS_App:295 | prepare_history done user=u1 session=s1 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 17:37:15,687 | INFO     | ITS_App:379 | request route user=u1 session=s1 mode=agent route=agent
+2026-05-08 17:37:15,687 | INFO     | ITS_App:345 | process_task done user=u1 session=s1 total_cost=0.000s
+2026-05-08 17:37:41,220 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_0bf7ad5070d6 analysis_run_id=projrun_8130f1d24b8e status=ok duration_ms=25655.09
+2026-05-08 17:37:46,979 | INFO     | ITS_App:27 | user=root1 query=继续排查
+2026-05-08 17:37:46,980 | INFO     | ITS_App:278 | prepare_history done user=root1 session=session_1778225048779 cost=0.001s context_mode=follow_up context_turns=1
+2026-05-08 17:37:46,980 | INFO     | ITS_App:420 | request route user=root1 session=session_1778225048779 mode=auto route=agent
+2026-05-08 17:37:49,116 | INFO     | ITS_App:281 | [Route] project business agent: 继续排查 CUT_TAG_2026021 项目中 IgG 样本线粒体比例偏高（10.30%）的原因，需要深入分析 Rea
+2026-05-08 17:37:51,547 | INFO     | ITS_App:229 | [Route] project workflow: CUT_TAG_2026021 项目 IgG 样本线粒体比例偏高（10.30%）深度排查分析，包括 ReadsQC 质控
+2026-05-08 17:37:51,753 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_a7540fce7f2f project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=192.37
+2026-05-08 17:38:28,318 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_d03535952459 analysis_run_id=projrun_a7540fce7f2f status=ok duration_ms=36771.68
+2026-05-08 17:38:42,331 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1778225048779 total_cost=55.351s
+2026-05-08 17:38:42,338 | INFO     | ITS_App:69 | get_user_sessions done user=root1 sessions=15 cost=0.004s
+2026-05-08 17:39:40,319 | INFO     | ITS_App:27 | user=root1 query=生成一个项目分析报告
+2026-05-08 17:39:40,321 | INFO     | ITS_App:278 | prepare_history done user=root1 session=session_1778225048779 cost=0.001s context_mode=ambiguous context_turns=2
+2026-05-08 17:39:40,321 | INFO     | ITS_App:420 | request route user=root1 session=session_1778225048779 mode=auto route=agent
+2026-05-08 17:39:43,180 | INFO     | ITS_App:281 | [Route] project business agent: 生成 CUT_TAG_2026021 项目分析报告，包含 IgG 线粒体比例偏高的原因分析、质控数据对比、根本原因推断及
+2026-05-08 17:39:46,061 | INFO     | ITS_App:229 | [Route] project workflow: 生成 CUT_TAG_2026021 项目分析报告，包含 IgG 线粒体比例偏高的原因分析、质控数据对比、根本原因推断及
+2026-05-08 17:39:46,252 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_13d0d69ec81d project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=177.90
+2026-05-08 17:40:16,797 | INFO     | ITS_App:311 | project_workflow workflow_run_id=projwf_67c0f7af03e9 analysis_run_id=projrun_13d0d69ec81d status=ok duration_ms=30735.53
+2026-05-08 17:40:34,397 | INFO     | ITS_App:328 | process_task done user=root1 session=session_1778225048779 total_cost=54.078s
+2026-05-08 17:40:34,406 | INFO     | ITS_App:69 | get_user_sessions done user=root1 sessions=15 cost=0.004s
+2026-05-08 18:26:29,773 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_2e03e715ce18 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.19
+2026-05-08 18:26:29,778 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_5c22bc35238d project=proj question_type=diff evidence=5 warnings=0 duration_ms=2.87
+2026-05-08 18:26:29,989 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_d6a3137f2472 project=proj_arch question_type=frip evidence=1 warnings=0 duration_ms=1.36
+2026-05-08 18:26:29,993 | INFO     | ITS_App:289 | business_runtime workflow_run_id=projwf_ae5d90446a43 analysis_run_id=projrun_d6a3137f2472 status=ok duration_ms=6.74
+2026-05-08 18:26:31,794 | WARNING  | ITS_App:207 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:26:50,011 | INFO     | ITS_App:289 | business_runtime workflow_run_id=projwf_0b2110c3a6d5 analysis_run_id=projrun_5c22bc35238d status=ok duration_ms=20237.78
+2026-05-08 18:38:24,922 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_718f5b10b543 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.29
+2026-05-08 18:38:24,929 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_c99a9522ad2f project=proj question_type=diff evidence=5 warnings=0 duration_ms=2.90
+2026-05-08 18:38:25,056 | INFO     | ITS_App:1121 | project_analysis run_id=projrun_fc5e1f19692a project=proj_arch2 question_type=frip evidence=1 warnings=0 duration_ms=1.52
+2026-05-08 18:38:25,059 | INFO     | ITS_App:306 | business_runtime workflow_run_id=projwf_0bf4d485fa47 analysis_run_id=projrun_fc5e1f19692a status=ok duration_ms=8.56
+2026-05-08 18:38:26,977 | WARNING  | ITS_App:218 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:38:55,606 | INFO     | ITS_App:306 | business_runtime workflow_run_id=projwf_2f58ec24211d analysis_run_id=projrun_c99a9522ad2f status=ok duration_ms=30682.95
+2026-05-08 18:43:56,621 | INFO     | ITS_App:1146 | project_analysis run_id=projrun_2f18df0ab44e project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.54
+2026-05-08 18:43:56,630 | INFO     | ITS_App:1146 | project_analysis run_id=projrun_71fb47bc59a9 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.90
+2026-05-08 18:43:56,816 | INFO     | ITS_App:1146 | project_analysis run_id=projrun_93efe7c50406 project=proj_exp2 question_type=frip evidence=1 warnings=0 duration_ms=1.70
+2026-05-08 18:43:56,820 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_b7b832df9951 analysis_run_id=projrun_93efe7c50406 status=ok duration_ms=8.47
+2026-05-08 18:43:58,671 | WARNING  | ITS_App:226 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:44:23,270 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_06d51fcf312d analysis_run_id=projrun_71fb47bc59a9 status=ok duration_ms=26647.63
+2026-05-08 18:49:38,250 | INFO     | ITS_App:1191 | project_analysis run_id=projrun_fa4b244c2c4e project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.28
+2026-05-08 18:49:38,260 | INFO     | ITS_App:1191 | project_analysis run_id=projrun_4322662b3dbb project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.32
+2026-05-08 18:49:38,323 | INFO     | ITS_App:1191 | project_analysis run_id=projrun_3db23cf72235 project=proj_metric question_type=frip evidence=1 warnings=0 duration_ms=1.60
+2026-05-08 18:49:38,326 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_83c79b75be7e analysis_run_id=projrun_3db23cf72235 status=ok duration_ms=8.21
+2026-05-08 18:49:40,307 | WARNING  | ITS_App:226 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:49:59,138 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_9337d809d523 analysis_run_id=projrun_4322662b3dbb status=ok duration_ms=20885.87
+2026-05-08 18:50:17,793 | INFO     | ITS_App:1191 | project_analysis run_id=projrun_06a7c5557a91 project=proj_metric question_type=frip evidence=1 warnings=0 duration_ms=1.64
+2026-05-08 18:50:17,797 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_752fdba5db85 analysis_run_id=projrun_06a7c5557a91 status=ok duration_ms=8.38
+2026-05-08 18:50:37,233 | INFO     | ITS_App:1191 | project_analysis run_id=projrun_b9b464b2a701 project=proj_metric question_type=frip evidence=1 warnings=0 duration_ms=1.66
+2026-05-08 18:50:37,237 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_bbea0fc18ae3 analysis_run_id=projrun_b9b464b2a701 status=ok duration_ms=8.54
+2026-05-08 18:54:36,672 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_c4934d45943a project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.14
+2026-05-08 18:54:36,680 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_60af75d40818 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.55
+2026-05-08 18:54:36,752 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_2be2a8a6a2f6 project=proj_report_metric question_type=overview evidence=1 warnings=0 duration_ms=1.52
+2026-05-08 18:54:36,756 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_20af46d12649 analysis_run_id=projrun_2be2a8a6a2f6 status=ok duration_ms=8.44
+2026-05-08 18:54:38,712 | WARNING  | ITS_App:226 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:54:55,456 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_6c5bf5c8d40f analysis_run_id=projrun_60af75d40818 status=ok duration_ms=18782.81
+2026-05-08 18:55:16,079 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_775346e5d1b2 project=proj_report_metric question_type=overview evidence=1 warnings=0 duration_ms=1.50
+2026-05-08 18:55:16,083 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_0776f2078788 analysis_run_id=projrun_775346e5d1b2 status=ok duration_ms=8.19
+2026-05-08 18:55:49,936 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_826ad37a756c project=proj_report_metric question_type=overview evidence=1 warnings=0 duration_ms=1.50
+2026-05-08 18:55:49,939 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_95eb00ea42ed analysis_run_id=projrun_826ad37a756c status=ok duration_ms=8.26
+2026-05-08 18:58:01,454 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_cfb6c6f49d4b project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.07
+2026-05-08 18:58:01,461 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_1d08413afe16 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.40
+2026-05-08 18:58:01,533 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_15f2e593ff3d project=proj_rules question_type=frip evidence=1 warnings=0 duration_ms=1.65
+2026-05-08 18:58:01,537 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_16f4fa457c8f analysis_run_id=projrun_15f2e593ff3d status=ok duration_ms=8.66
+2026-05-08 18:58:03,503 | WARNING  | ITS_App:226 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 18:58:23,497 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_da070d979f0c analysis_run_id=projrun_1d08413afe16 status=ok duration_ms=22041.73
+2026-05-08 19:02:10,951 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_568fc58ee694 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.78
+2026-05-08 19:02:10,959 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_155b290d4e0c project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.11
+2026-05-08 19:02:11,150 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_8b48ce9da020 project=proj_struct_rules question_type=frip evidence=1 warnings=0 duration_ms=1.65
+2026-05-08 19:02:11,154 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_416b726855ba analysis_run_id=projrun_8b48ce9da020 status=ok duration_ms=8.96
+2026-05-08 19:02:13,016 | WARNING  | ITS_App:226 | business runtime knowledge retrieval failed: All connection attempts failed
+2026-05-08 19:02:37,610 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_dadc1dc1c4b8 analysis_run_id=projrun_155b290d4e0c status=ok duration_ms=26658.46
+2026-05-08 19:04:05,729 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-08 19:04:08,288 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-08 19:04:18,675 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=15 cost=0.008s
+2026-05-08 19:04:18,676 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=15 cost=0.009s
+2026-05-08 19:04:31,227 | INFO     | ITS_App:27 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 19:04:31,228 | INFO     | ITS_App:295 | prepare_history done user=root1 session=session_1778238268569 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 19:04:31,228 | INFO     | ITS_App:451 | request route user=root1 session=session_1778238268569 mode=auto route=agent
+2026-05-08 19:04:33,703 | INFO     | ITS_App:281 | [Route] project business agent: 请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-08 19:04:35,541 | INFO     | ITS_App:229 | [Route] project workflow: 分析CUT_TAG_2026021项目中IgG样本线粒体比例偏高的原因，包括质控、比对、spike-in等步骤排查
+2026-05-08 19:04:36,521 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_a3eace347cfd project=CUT_TAG_2026021 question_type=alignment evidence=6 warnings=0 duration_ms=323.82
+2026-05-08 19:05:14,405 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_70337521be98 analysis_run_id=projrun_a3eace347cfd status=ok duration_ms=38863.22
+2026-05-08 19:05:25,947 | INFO     | ITS_App:345 | process_task done user=root1 session=session_1778238268569 total_cost=54.720s
+2026-05-08 19:05:26,270 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=16 cost=0.004s
+2026-05-08 19:06:48,641 | INFO     | ITS_App:27 | user=root1 query=比对率正常吗
+2026-05-08 19:06:48,643 | INFO     | ITS_App:295 | prepare_history done user=root1 session=session_1778238268569 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 19:06:48,643 | INFO     | ITS_App:451 | request route user=root1 session=session_1778238268569 mode=auto route=fast_rag
+2026-05-08 19:07:00,658 | INFO     | ITS_App:345 | process_task done user=root1 session=session_1778238268569 total_cost=12.016s
+2026-05-08 19:07:00,666 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=16 cost=0.004s
+2026-05-08 19:08:16,904 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_0f29fbdf121d project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.16
+2026-05-08 19:08:16,912 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_00f7ea90f18b project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.55
+2026-05-08 19:08:17,045 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_06617a1bb86d project=proj_scope question_type=frip evidence=1 warnings=0 duration_ms=1.70
+2026-05-08 19:08:17,049 | INFO     | ITS_App:326 | business_runtime workflow_run_id=projwf_0d5cb11ca756 analysis_run_id=projrun_06617a1bb86d status=ok duration_ms=9.10
+2026-05-08 19:08:32,818 | INFO     | ITS_App:326 | business_runtime workflow_run_id=projwf_44fc90c18e56 analysis_run_id=projrun_00f7ea90f18b status=ok duration_ms=15912.57
+2026-05-08 19:09:49,343 | INFO     | ITS_App:27 | user=root1 query=项目中的质控指标合格吗
+2026-05-08 19:09:49,344 | INFO     | ITS_App:295 | prepare_history done user=root1 session=session_1778238268569 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 19:09:49,344 | INFO     | ITS_App:451 | request route user=root1 session=session_1778238268569 mode=auto route=agent
+2026-05-08 19:09:51,551 | INFO     | ITS_App:281 | [Route] project business agent: 项目中的质控指标合格吗
+2026-05-08 19:09:53,006 | INFO     | ITS_App:229 | [Route] project workflow: 项目中的质控指标是否合格
+2026-05-08 19:09:53,292 | INFO     | ITS_App:1196 | project_analysis run_id=projrun_c09d4c70887c project=CUT_TAG_2026021 question_type=qc evidence=6 warnings=0 duration_ms=264.92
+2026-05-08 19:10:19,532 | INFO     | ITS_App:314 | business_runtime workflow_run_id=projwf_8de91b4788d2 analysis_run_id=projrun_c09d4c70887c status=ok duration_ms=26525.72
+2026-05-08 19:10:28,961 | INFO     | ITS_App:345 | process_task done user=root1 session=session_1778238268569 total_cost=39.618s
+2026-05-08 19:10:28,969 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=16 cost=0.004s
+2026-05-08 19:13:28,904 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_49f5c1be2330 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.11
+2026-05-08 19:13:28,911 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_3ea3cbe691d2 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.46
+2026-05-08 19:13:28,937 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_058474f5a85b project=proj_rule_ref question_type=overview evidence=1 warnings=0 duration_ms=1.56
+2026-05-08 19:13:28,941 | INFO     | ITS_App:327 | business_runtime workflow_run_id=projwf_361f4a80f30b analysis_run_id=projrun_058474f5a85b status=ok duration_ms=8.81
+2026-05-08 19:13:51,582 | INFO     | ITS_App:327 | business_runtime workflow_run_id=projwf_4f521b3468c2 analysis_run_id=projrun_3ea3cbe691d2 status=ok duration_ms=22677.78
+2026-05-08 19:18:15,204 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_e9b7c974e1b5 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.25
+2026-05-08 19:18:15,211 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_98b4edbf3642 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.51
+2026-05-08 19:18:15,433 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_ad4d65a0e5bb project=proj_rulelib question_type=frip evidence=1 warnings=0 duration_ms=1.58
+2026-05-08 19:18:15,437 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_7fdc6a81a530 analysis_run_id=projrun_ad4d65a0e5bb status=ok duration_ms=9.77
+2026-05-08 19:18:36,728 | INFO     | ITS_App:27 | user=root1 query=可以的
+2026-05-08 19:18:36,729 | INFO     | ITS_App:295 | prepare_history done user=root1 session=session_1778238268569 cost=0.001s context_mode=ambiguous context_turns=1
+2026-05-08 19:18:36,729 | INFO     | ITS_App:451 | request route user=root1 session=session_1778238268569 mode=auto route=fast_rag
+2026-05-08 19:18:46,555 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_6eac4cc963bc analysis_run_id=projrun_98b4edbf3642 status=ok duration_ms=31350.76
+2026-05-08 19:19:14,452 | INFO     | ITS_App:345 | process_task done user=root1 session=session_1778238268569 total_cost=37.725s
+2026-05-08 19:19:14,461 | INFO     | ITS_App:89 | get_user_sessions done user=root1 sessions=16 cost=0.003s
+2026-05-08 19:20:05,390 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_f2888e53af3d project=proj_rulelib question_type=frip evidence=1 warnings=0 duration_ms=1.55
+2026-05-08 19:20:05,395 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_7727a8904a53 analysis_run_id=projrun_f2888e53af3d status=ok duration_ms=9.98
+2026-05-08 19:20:26,044 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_5e9f510ce1b3 project=proj_rulelib question_type=frip evidence=1 warnings=0 duration_ms=1.74
+2026-05-08 19:20:26,048 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_7620141db99b analysis_run_id=projrun_5e9f510ce1b3 status=ok duration_ms=10.08
+2026-05-08 19:21:16,797 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_4d8940b89a41 project=proj_rulelib question_type=frip evidence=1 warnings=0 duration_ms=1.57
+2026-05-08 19:21:16,802 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_969cbc319c6d analysis_run_id=projrun_4d8940b89a41 status=ok duration_ms=9.60
+2026-05-08 19:21:58,427 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_5d8aac937c86 project=proj_rulelib question_type=frip evidence=1 warnings=0 duration_ms=1.50
+2026-05-08 19:21:58,431 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_56487f181fb1 analysis_run_id=projrun_5d8aac937c86 status=ok duration_ms=10.06
+2026-05-08 19:26:06,021 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_892272261905 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.98
+2026-05-08 19:26:06,023 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_c568578fb7bc project=proj_conf_rule question_type=frip evidence=1 warnings=0 duration_ms=1.69
+2026-05-08 19:26:06,028 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_8f9460bdc8c6 analysis_run_id=projrun_c568578fb7bc status=ok duration_ms=10.41
+2026-05-08 19:26:06,029 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_8e765dae1d2d project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.00
+2026-05-08 19:26:35,108 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_3d1be8c099b0 analysis_run_id=projrun_8e765dae1d2d status=ok duration_ms=29087.16
+2026-05-08 19:27:13,184 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_11ce58e03529 project=proj_conf_rule question_type=frip evidence=1 warnings=0 duration_ms=1.54
+2026-05-08 19:27:13,188 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_ce36a2bfc4cb analysis_run_id=projrun_11ce58e03529 status=ok duration_ms=9.30
+2026-05-08 19:40:55,212 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_f7d1b1cd5fa9 project=proj question_type=diff evidence=5 warnings=0 duration_ms=4.36
+2026-05-08 19:40:55,220 | INFO     | ITS_App:1206 | project_analysis run_id=projrun_ce3be47b42c8 project=proj question_type=diff evidence=5 warnings=0 duration_ms=3.53
+2026-05-08 19:40:55,238 | INFO     | ITS_App:296 | prepare_history done user=u1 session=s1 cost=0.000s context_mode=standalone context_turns=0
+2026-05-08 19:40:55,239 | INFO     | ITS_App:402 | request route user=u1 session=s1 mode=auto route=agent resolved_project_id=proj1
+2026-05-08 19:40:55,239 | INFO     | ITS_App:366 | process_task done user=u1 session=s1 total_cost=0.000s
+2026-05-08 19:41:21,255 | INFO     | ITS_App:333 | business_runtime workflow_run_id=projwf_6a809f764940 analysis_run_id=projrun_ce3be47b42c8 status=ok duration_ms=26042.14

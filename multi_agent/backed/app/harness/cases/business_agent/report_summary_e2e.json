@@ -1,0 +1,45 @@
+{
+  "id": "business_report_summary_e2e",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "生成 AI报告总结",
+  "user_id": "harness_user",
+  "session_id": "harness_business_report",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok"
+    ],
+    "workflow_route": "ai_report_summary",
+    "output_mode": "report",
+    "agent_role": "html_report_summary",
+    "harness_guard_action_in": [
+      "pass",
+      "semantic_repaired"
+    ],
+    "generation_mode_in": [
+      "llm_html_report_summary",
+      "extractive_html_report_summary_fallback",
+      "cached_ai_report_summary"
+    ],
+    "min_answer_chars": 200,
+    "answer_must_contain": [
+      "需复核指标"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt.",
+      "经验阈值",
+      "阈值/标准",
+      "项目合格",
+      "项目不合格",
+      "适合继续下游分析",
+      "不适合继续下游分析",
+      "通过/失败"
+    ]
+  }
+}

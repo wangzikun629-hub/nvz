@@ -1,0 +1,68 @@
+{
+  "id": "business_adapter_e2e",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "Adapter 指标具体是什么，是怎么计算的",
+  "user_id": "harness_user",
+  "session_id": "harness_business_adapter",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok",
+      "warning"
+    ],
+    "question_type": "qc",
+    "harness_guard_passed": true,
+    "harness_guard_action": "pass",
+    "answer_quality_passed": true,
+    "answer_quality_min_score": 80,
+    "min_answer_chars": 80,
+    "answer_must_contain": [
+      "Adapter",
+      "raw reads",
+      "R1",
+      "R2",
+      "分母"
+    ],
+    "answer_target_values_must_contain": [
+      "38.24%",
+      "39.19%",
+      "38.30%",
+      "38.20%",
+      "39.20%"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt.",
+      "接头污染偏高",
+      "项目合格",
+      "项目不合格",
+      "适合继续下游分析",
+      "不适合继续下游分析",
+      "通过/失败"
+    ],
+    "required_task_steps": [
+      "analyze_project_data",
+      "compose_response"
+    ],
+    "analysis_expect": {
+      "required_metric": "adapter_percent",
+      "metric_source_level": "project_verified",
+      "formula_source_contains": "project_code",
+      "formula_file_contains": "cutadapt_stat.py",
+      "formula_contains": [
+        "adapter_count",
+        "total_reads_raw"
+      ],
+      "needs_verification": false,
+      "claim_validation_passed": true,
+      "min_validated_claims": 1,
+      "required_evidence_card_metric": "adapter_percent",
+      "required_processing_phase": "raw_reads_pre_trim"
+    }
+  }
+}

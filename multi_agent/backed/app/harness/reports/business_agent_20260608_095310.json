@@ -1,0 +1,116 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:53:10",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=686"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 53402.1
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "scientific_evidence_repaired",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='project_diagnostic', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['mt_rate_percent'], question_tags=['alignment', 'diagnostic'], confidence=0.82, reason='diagnostic_term')",
+        "original_violations": [
+          {
+            "rule": "no_unverified_threshold_judgement",
+            "message": "unique_mapping_rate_percent 的项目专属阈值未确认，只能报告观测值和证据限制，不能直接写成偏高、偏低、异常或超标。",
+            "matched": "- **Unique(%)** 明显偏低,T1 仅 12.60%,T2 仅 15.01%",
+            "severity": "severe"
+          }
+        ],
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        },
+        "repair_passed": true
+      },
+      "target_metrics": [
+        "mt_rate_percent",
+        "chrmt_pt_rate_percent",
+        "frip"
+      ],
+      "question": "为什么线粒体 reads 比例高",
+      "target_evidence": [
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        }
+      ],
+      "answer_excerpt": "当前项目已经读取到线粒体 reads 比例的结构化结果：T1=72.61%、T2=66.87%。\n项目文件中未确认该指标的专属判断阈值，因此这些数值只能作为观测结果，不能单独判定偏高、偏低或异常。\n\n## 关键证据\n- T1=72.61%；分母口径为 mapped reads；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)。\n- T2=66.87%；分母口径为 mapped reads；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)。\n\n## 解释边界\n- 在 species/reference=hg38 的项目中，该指标按线粒体 reads 解释；需结合 mapping、unique mapping 和细胞器染色体过滤口径共同判断。\n- 可联动核对：比对率 T1=57.54%、唯一比对率 T1=12.60%、比对率 T2=57.71%、唯一比对率 T2=15.01%。\n\n## 下一步建议\n- 核对 species/reference genome 与项目配置是否一致；当前解析物种为 -。\n- 查看 bowtie2/samtools 口径：mapping、unique、mu",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

@@ -1,0 +1,211 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T15:09:52",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=1734"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        },
+        {
+          "name": "analysis.cause_graph_version",
+          "passed": true,
+          "detail": "expected='metric-evidence-graph-v2' actual='metric-evidence-graph-v2'"
+        },
+        {
+          "name": "analysis.min_ranked_causes",
+          "passed": true,
+          "detail": "expected>=3 actual=8"
+        },
+        {
+          "name": "analysis.required_ranked_cause",
+          "passed": true,
+          "detail": "cause='organelle_dna_background'"
+        },
+        {
+          "name": "analysis.ranked_cause_min_supporting_evidence",
+          "passed": true,
+          "detail": "expected>=1 actual=6"
+        },
+        {
+          "name": "analysis.ranked_cause_requires_verification_action",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 1855.42,
+        "project_root": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\.project_sftp_cache\\ba7f0610952b\\VZ20260513002"
+      },
+      "harness_guard": {
+        "passed": true,
+        "action": "pass",
+        "severity": "none",
+        "violations": [],
+        "question_route": "QuestionRoute(intent='project_diagnostic', route='project_analysis', requires_project=True, needs_chart=False, target_metrics=['mt_rate_percent'], question_tags=['alignment', 'diagnostic'], confidence=0.82, reason='diagnostic_term')",
+        "semantic_guard": {
+          "passed": true,
+          "action": "pass",
+          "severity": "none",
+          "violations": [],
+          "semantic_checked": false
+        }
+      },
+      "answer_quality": {
+        "passed": true,
+        "status": "pass",
+        "score": 100,
+        "pass_score": 70,
+        "dimensions": {
+          "directness": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "target_metric_present",
+              "direct_value_or_finding",
+              "no_generic_opening"
+            ]
+          },
+          "evidence_grounding": {
+            "score": 25,
+            "max_score": 25,
+            "details": [
+              "value_coverage=2/2",
+              "source_mentions=2"
+            ]
+          },
+          "reasoning_depth": {
+            "score": 20,
+            "max_score": 20,
+            "details": [
+              "component_1=True",
+              "component_2=True",
+              "component_3=True",
+              "component_4=True"
+            ]
+          },
+          "actionability": {
+            "score": 15,
+            "max_score": 15,
+            "details": [
+              "action_markers=5",
+              "action_terms=4"
+            ]
+          },
+          "uncertainty_discipline": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "项目文件中未确认",
+              "未确认该指标阈值",
+              "不能单独判定"
+            ]
+          },
+          "concision": {
+            "score": 10,
+            "max_score": 10,
+            "details": [
+              "chars=1734",
+              "headings=4"
+            ]
+          }
+        },
+        "issues": [],
+        "question_mode": "diagnostic",
+        "target_metrics": [
+          "mt_rate_percent"
+        ],
+        "target_evidence_count": 2,
+        "answer_chars": 1734,
+        "repair_applied": true,
+        "repair_attempted": true,
+        "original_score": 90,
+        "original_issues": [
+          {
+            "rule": "shallow_reasoning",
+            "message": "原因分析缺少上游原因、下游影响、证据边界或验证路径。",
+            "severity": "severe"
+          }
+        ],
+        "repair_strategy": "structured_evidence_rebuild"
+      },
+      "target_metrics": [
+        "mt_rate_percent",
+        "chrmt_pt_rate_percent",
+        "frip"
+      ],
+      "question": "为什么线粒体 reads 比例高",
+      "target_evidence": [
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T1",
+          "display_value": "72.61%"
+        },
+        {
+          "metric_key": "mt_rate_percent",
+          "sample": "T2",
+          "display_value": "66.87%"
+        }
+      ],
+      "answer_excerpt": "项目已读取到相关观测值：T1 线粒体 reads 比例=72.61%；T2 线粒体 reads 比例=66.87%。项目文件中未确认这些指标的专属阈值，因此当前只能定位证据和排查方向，不能单独判定高低或异常。\n\n## 项目证据\n- T1 线粒体 reads 比例=72.61%；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)；项目文件中未确认该指标阈值/标准\n- T2 线粒体 reads 比例=66.87%；来源 VZ20260513002\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls::chrMT/Pt(%)；项目文件中未确认该指标阈值/标准\n\n## 根因排序\n- 候选原因 #1 样本中细胞器 DNA 背景较高：样本中细胞器 DNA 背景较高与当前关联观测一致，但相关阈值或方向尚未验证。\n- 支持证据：T1 mapping_rate_percent=57.54%；存在同项目关联观测，但阈值或方向尚未验证，只能作为弱支持。\n- 反证：当前未发现可独立排除该假设的项目证据。\n- 可能下游影响：可能压缩核基因组有效 reads，并传导到 unique mapping、FRiP、peak 和相关性。\n- 验证动作：分别统计 raw、tri",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

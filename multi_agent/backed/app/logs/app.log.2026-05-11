@@ -1,0 +1,28 @@
+2026-05-11 17:07:28,850 | INFO     | ITS_App:19 | 应用启动，建立MCP连接...
+2026-05-11 17:07:30,051 | INFO     | ITS_App:22 | MCP连接建立完成
+2026-05-11 17:07:46,086 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.010s
+2026-05-11 17:07:46,086 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.010s
+2026-05-11 17:08:20,241 | INFO     | ITS_App:83 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-11 17:08:20,242 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490496877 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:20,242 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:20,243 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:20,245 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490496877 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:20,246 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:20,246 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:20,258 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.001s
+2026-05-11 17:08:29,199 | INFO     | ITS_App:83 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-11 17:08:29,200 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490506517 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:29,200 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:29,200 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:29,200 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490506517 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:29,202 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:29,202 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:29,516 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.001s
+2026-05-11 17:08:41,684 | INFO     | ITS_App:83 | user=root1 query=请分析 CUT_TAG_2026021 项目为什么 IgG 线粒体比例偏高
+2026-05-11 17:08:41,684 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490506517 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:41,684 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:41,685 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:41,685 | INFO     | ITS_App:301 | prepare_history done user=root1 session=session_1778490506517 cost=0.000s context_mode=standalone context_turns=0
+2026-05-11 17:08:41,686 | INFO     | ITS_App:656 | request route user=root1 session=正在查询知识库，请稍候。 mode=auto route=agent resolved_project_id=None force_consult=True followup_confirmed=False
+2026-05-11 17:08:41,686 | ERROR    | ITS_App:769 | AgentService.process_query error: 'FunctionTool' object is not callable
+2026-05-11 17:08:41,998 | INFO     | ITS_App:154 | get_user_sessions done user=root1 sessions=16 cost=0.001s

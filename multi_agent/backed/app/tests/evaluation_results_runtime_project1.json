@@ -1,0 +1,4603 @@
+[
+  {
+    "question": "为什么 HUH6_GNE_140_YD 样本的 duplication rate 达到 73%，远高于其他样本？",
+    "answer": "## 直接观察\n\n- **HUH6_GNE_140_YD** 的 **duplicate_rate_percent** 为 **73.09%**（来源：AlignmentQC 中的 Picard_Duplication_Rate，文件 `2.AlignmentQC/2.1AlignmentStat/AlignmentQC.xls`）。\n- 对照样本的重复率：HUH6_GNE_140 为 25.58%、HUH6_NC 为 21.15%、HUH6_Rescue 为 21.53%。该样本的重复率是其他样本的 **3 倍以上**。\n\n## 关联现象（同一数据源中的其他指标）\n\n| 指标 | HUH6_GNE_140_YD | 其他样本均值（约） | 含义 |\n|------|------------------|-------------------|------|\n| **Sequencing depth (Total Clean Reads)** | 4,067,118 | ~44,000,000 | 深度仅为其他样本的 **1/10** |\n| **Unique_Mapped_Rate** | 58.25% | 68.3% | 唯一比对比例偏低 |\n| **MT_Ratio** | 8.73% | 3.5% | 线粒体比对比例偏高（2.5倍） |\n| **NRF** | 0.2721 | 0.77 | 文库复杂度极差（理想 >0.8） |\n| **PBC1** | 0.2857 | 0.80 | 文库复杂度极差（理想 >0.9） |\n| **PBC2** | 1.85 | 5.2 | 文库多样性严重不足 |\n| **Spearman correlation vs 其他样本** | ~0.38 | 0.94 | 信号模式与其他样本几乎不相关 |\n\n**核心关联**：  \n该样本不仅重复率高，其所有 **library complexity 指标（NRF、PBC1、PBC2）** 均处于极低水平，且 **深度极低**、**mt DNA 污染升高**、**唯一比对率下降**。这些指标共同指向同一个根本问题：**文库构建环节严重失败，导致用于后续分析的唯一有效分子数量极度匮乏**。\n\n## 可能的原因与证据链\n\n### 1️⃣ 文库复杂度不足（最可能原因，支持分数 32）\n- **直接观测**：NRF=0.27、PBC1=0.29 远低于 ENCODE 推荐标准（NRF>0.8, PBC1>0.9），表明样本中 **大部分 reads 来自极少数原始分子片段**。\n- **驱动机制**：起始模板量过低或 PCR 过度扩增，使得建库过程中少量片段被指数级扩增，产生海量光学/PCR 重复。\n- **为什么深度低**：重复率高并不必然导致深度低，但这里深度也低（4M vs 40M），说明 **建库失败后的有效分子数本身极少**，即使过度扩增也只能获得有限 reads。\n- **为什么 unique mapping 低**：重复 reads 中部分来自多比对区（如重复序列或线粒体），无法唯一比对。\n- **为什么 mt_rate 高**：低丰度背景下，少量 mtDNA 污染被 PCR 放大后占比显著上升。\n\n### 2️⃣ 细胞器/重复序列污染（辅助因素，支持分数 32）\n- mt_rate 8.73% 是其他样本的 2.5 倍，确认有线粒体污染。\n- 此类污染在正常文库中也会产生重复，但在文库复杂度低时影响被不成比例放大。\n- 但即使去除 mt reads，剩余核基因组部分重复率仍然极高（可通过 NRF 推算），因此不是主要原因。\n\n### 3️⃣ PCR 扩增偏倚（支持分数 29）\n- 高重复率伴随着文库复杂度崩溃，符合 PCR 偏倚特征。\n- 但由于深度极低，更可能是起始量不足而非单纯 PCR cycle 过多。\n\n## 综合判断\n\n> **HUH6_GNE_140_YD 极高的重复率是由文库复杂度严重不足（NRF=0.27, PBC1=0.29）导致的，根本原因是起始模板量太低或建库失败，使得少量分子经 PCR 扩增后产生大量重复 reads。线粒体污染和 PCR 偏倚是伴随现象而非主因。**\n\n## 可执行的复核动作\n\n1. **检查 lab 记录**：核实该样本的 DNA 起始量、PCR 循环数是否与其他样本一致；是否有建库或纯化失败记录。\n2. **查看 Picard 详细 metrics**：确认 `ESTIMATED_LIBRARY_SIZE` 是否极低（应 <1e5），以及 `PERCENT_DUPLICATION` 在 pair-level 是否也为 73%。\n3. **按染色体/重复区域拆分**：使用 `samtools view -F 1024` 过滤重复 reads 后，再计算 mt_rate 和 NRF，确认去重后指标是否与其他样本接近（若接近则说明少量有效分子正常）。\n4. **查看 config.yaml**：确认 `remove_duplicates: false` 配置，以及 peak calling 是否使用去重前 BAM（当前配置表明未去重，因此 extreme duplication 会直接影响后续分析）。\n5. **评估下游影响**：即使去重后，有效唯一分子数可能只有约 1M（4M × (1-0.73) ≈ 1.1M），远低于 CUT&Tag 推荐最小值（5M）。**该样本可能不适合用于差异分析或 peak 定量，且与其它样本的相关性极低（0.38）**。\n\n## 局限性与边界\n\n- 项目文件中未提供该样本的 PCR cycle 数、起始量、泳道等信息，无法直接验证 PCR 偏倚假设。\n- 阈值（NRF、PBC1 的 ENCODE 标准）在项目 context 中标记为 `unverified`，上述判断基于通用标准，需用户确认项目内部阈值。\n- 若后续确认该样本的 unique 分子数足够（例如 ESTIMATED_LIBRARY_SIZE > 5M），则需重新评估可能性。",
+    "quality_score": 94,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 94,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 24,
+          "max_score": 30,
+          "details": [
+            "fact_issues=89"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=112"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=52"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=focused_diagnostic"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=4",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=52"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 0,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_NC vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": true
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "focused_diagnostic",
+        "required_sections": [
+          "analysis_plan",
+          "direct_observations",
+          "evidence_chain",
+          "associated_phenomena",
+          "possible_explanations",
+          "limitations",
+          "actions"
+        ],
+        "max_sections": 7,
+        "answer_focus": "multi_metric_structured_analysis",
+        "expected_evidence_modalities": [
+          "alignment",
+          "workflow_rule_source"
+        ],
+        "token_budget_hint": 3200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": []
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_GNE_140"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 1,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 1,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_NC against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_GNE_140 against HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "frip_ratio",
+          "sample": "HUH6_Rescue against HUH6_GNE_140"
+        },
+        {
+          "rule": "causal_overstatement_without_verified_cause",
+          "severity": "severe"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": false,
+        "matrix_reasoning_consistent": false,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "HUH6_GNE_140_YD 样本的 mapping rate、unique mapping、duplication、FRiP 和相关性都与其他三个样本差异很大，请帮我系统分析原因",
+    "answer": "## 系统分析：HUH6_GNE_140_YD 与其他样本的差异原因\n\n### 核心事实链\n\n从项目数据直接提取的关键差异指标对比（来源：AlignmentQC、ReadsQC、Correlation）：\n\n| 指标 | HUH6_GNE_140_YD | 其他三个样本（均值） | 差异方向 |\n|------|----------------|---------------------|----------|\n| **Total Clean Reads** | 4,067,118 | ~44,700,000 | 仅为 1/10 |\n| **Unique_Mapped_Rate** | 58.25% | 68.28% | 显著偏低 |\n| **Picard_Duplication_Rate** | 73.09% | 22.75% | 极高（3.2 倍） |\n| **MT_Ratio** | 8.73% | 3.47% | 2.5 倍 |\n| **NRF** | 0.2721 | 0.7734 | 极低 |\n| **PBC1** | 0.2857 | 0.7984 | 极低 |\n| **PBC2** | 1.85 | 5.19 | 极低 |\n| **Median Fragment Size** | 204 bp | 177 bp | 偏大 |\n| **Spearman correlation** (vs others) | 0.374–0.385 | 0.935–0.944 | 极低（无一致性） |\n\n**直接观测**：HUH6_GNE_140_YD 的 **library complexity** 指标（NRF、PBC1/2、Duplication Rate）全面异常，且测序深度仅为其他样本的 1/10，导致 unique reads 相对减少、FRiP 不可比（该样本未单独设置 FRiP 自对比，但其相关性和 cross-FRiP 均极低），胞器污染（MT 8.73%）加剧了有效核基因组 reads 的不足。\n\n### 关联现象\n\n1. **文库复杂度崩溃**：NRF 0.27（理想 >0.8）、PBC1 0.29（理想 >0.9）、Duplication 73% → 说明绝大多数 mapped reads 是 PCR duplicate，文库中独立片段数极少。\n2. **Unique mapping 偏低**：仅 58.25%，比正常低约 10 个百分点。结合高重复率和 MT 比例，推测大量 reads 集中扩增了线粒体基因组和/或重复区域。\n3. **片段大小偏大**：中位数 204 bp vs 177 bp，可能提示 DNA 片段化不充分或有较长片段被选择性扩增。\n4. **相关性与 FRiP 全面脱节**：与其他样本 Spearman r 仅 ~0.38，表明该样本的 read 分布与其他样本的 peak 区域几乎没有重叠，进一步验证了文库质量失败。\n\n### 可能解释（按置信度排序）\n\n| 候选原因 | 支持证据 | 缺失证据 | 需验证动作 |\n|---------|---------|---------|-----------|\n| **① 文库复杂度不足（最可能）** | Duplication 73%、NRF 0.27、PBC1 0.29 均一致指向 PCR 过度扩增；测序深度低可能由起始 DNA 量不足或 PCR 循环数过高导致；片段偏大也符合过度扩增的常见特征。 | 缺少 PCR 循环数记录、扩增曲线、input DNA 质量报告。 | 检查实验记录：起始 DNA 量、PCR 循环数、文库定量 qPCR 结果；查看 Picard metrics 中 ESTIMATED_LIBRARY_SIZE。 |\n| **② 线粒体 DNA 污染或基因组 DNA 降解** | MT_Ratio 8.73%（正常 3-4%）；降解样本中 mtDNA 相对比例增高。但若仅此原因，MT reads 会被计数到 mapped 中，不会直接导致 duplication 70%+。 | 缺少 RNA 或 DNase 处理质控；无染色体分布统计。 | 按染色体拆分 duplicates，确认高重复是否集中在 MT 或特定重复区域（如 rDNA）。 |\n| **③ 样本混淆或标签错误** | 相关性极低，与其他样本完全不在同一分布空间；测序深度也异常。 | 需要原始 BAM 文件复核是否标注为 YD 但实际序列来源不同。 | 用序列比对方差或多态性位点（SNP）验证样本身份是否匹配。 |\n| **④ 建库过程中 PCR 偏倚（如接头连接效率低）** | 接头比例（Adapter%）39.74% 与其他样本（42-44%）接近，但 clean 保留率 99.7% 一致，说明接头污染不是主因。 | 无接头连接效率的独立指标。 | 复查文库制备试剂批次、扩增酶类型。 |\n\n### 排除的可能性\n\n- **参考基因组不匹配**：所有样本均使用 hg38（项目配置已验证），且 mapping rate 97.82% 与对照组一致，排除版本错误。\n- **低质量 reads 消耗**：Q30 在 ReadsQC 表中显示为“-”，但所有样本均缺失，并非差异化因素；Adapter% 和 clean retention 一致，说明预处理正常。\n- **多重比对单独致因**：unique mapping 低（58% vs 68%）部分可由高重复率解释——大量被标记为 duplicates 的 reads 也是在 unique mapping 后识别的，不能独立作为根因。\n\n### 结论与建议\n\n**结论**：HUH6_GNE_140_YD 样本的异常表现主要源自**文库构建失败导致的极端文库复杂性不足**（过度扩增 + 低 input DNA），叠加线粒体 DNA 比例偏高进一步稀释了核基因组有效 reads。该样本与其他三组样本**不存在可比的实验处理关系**，应视为实验失败样本，不建议纳入任何下游联合分析。\n\n**可执行复核动作**：\n1. 从 `Metrics/Picard` 文件提取 `ESTIMATED_LIBRARY_SIZE`，确认是否 < 1e6（通常预期 > 1e7）。\n2. 用 `samtools idxstats` 检查 BAM 中 reads 的染色体分布，确认高重复是否集中在 chrM 及已知重复区域。\n3. 重新检查该样本的 library prep 记录：input amount、PCR cycles、final library yield。\n4. 如有保留原始 DNA，建议重新建库；若无，可将该样本排除出项目。",
+    "quality_score": 77,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 77,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "fact_issues=94"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=124"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=55"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=55"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 5,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_NC vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：frip。",
+            "metric_id": "frip"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：peak_count。",
+            "metric_id": "peak_count"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：correlation。",
+            "metric_id": "correlation"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：alignment。",
+            "metric_id": "alignment"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "correlation",
+          "alignment",
+          "workflow_rule_source",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "HUH6_GNE_140_YD 与其他三个样本的 spearman 相关性只有 0.37-0.39，而其他三个样本之间相关性都很高（>0.93），这说明什么？",
+    "answer": "## 直接回答：HUH6_GNE_140_YD 低相关性指向明确的技术异常，不是生物学差异\n\nHUH6_GNE_140_YD 与其他三个样本的 Spearman 相关性仅 0.37–0.39，而其他三个样本之间 >0.93，**这本身不是生物学信号的真实反映，而是一个明确的技术异常信号**。后续需要先排除该样本的质量问题，才能判断能否纳入下游分析。\n\n---\n\n### 证据链：从相关性到根本原因\n\n| 观测层级 | 指标与数值 | 数据来源 | 解读 |\n|----------|------------|----------|------|\n| **相关性直接观测** | HUH6_GNE_140_YD vs HUH6_GNE_140 = 0.374；vs HUH6_NC = 0.3829；vs HUH6_Rescue = 0.3851 | `3.Correlation/spearman_Corr_readCounts.tab` | 与所有其他样本相关性一致低，排除单一配对特殊问题 |\n| **测序深度剧烈不足** | Clean reads = **4,067,118**（其他三个样本：39M–48M） | `ReadsQC.xls` → Total Clean Reads | 深度仅为其他样本的 **1/10** 左右 |\n| **文库复杂度极差** | 重复率 73.09%（其他：21–25%）；NRF=0.2721（其他：0.75–0.79）；PBC1=0.2857（其他：0.77–0.81） | `AlignmentQC.xls` → Picard_Duplication_Rate / NRF / PBC1 | 绝大多数 reads 为重复，有效独特片段极少 |\n| **比对质量下降** | 唯一比对率 58.25%（其他：68–69%）；线粒体比例 8.73%（其他：3.3–3.6%） | 同上 → Unique_Mapped_Rate / MT_Ratio | 建库中污染或降解导致线粒体 reads 增多，增加噪音 |\n| **峰值富集缺失** | FRiP 矩阵中未出现 HUH6_GNE_140_YD 自身的 peak calling 结果（只有 cross-FRiP），且 peak count 未知 | `FRiP_score.xls` 仅含三个样本 | 深度太低或信噪比不足，无法有效 call peak → 信号高度稀疏 |\n\n**因果链**：极低测序深度 → 高重复率 → 有效文库复杂度极低 → 信号由少数高丰度噪音片段主导 → 在全基因组 bins 或 readCounts 层面的相关性被噪音淹没，导致与正常深度的样本相关性急剧下降（0.37–0.39）。同时唯一比对率偏低、线粒体比例偏高进一步恶化信噪比。\n\n---\n\n### 为什么不是生物学差异？\n\n- 如果 HUH6_GNE_140_YD 是生物学处理组，它与其他三个样本（包括其称谓上的母本 HUH6_GNE_140）相关性极低，但三个正常样本之间相关性 >0.93，说明**处理组与其他样本之间存在技术鸿沟而非连续的生物学梯度**。\n- 生物学差异通常会导致相关性下降，但不会伴随重复率从21%飙升至73%、NRF从0.78降到0.27、线粒体比例翻倍等多项质控同步恶化。\n- 技术上，当深度降低80%以上时，Spearman 相关性对稀疏信号非常敏感，即使真实生物学信号一致，也会因采样不足而噪音化。\n\n---\n\n### 必须执行的复核动作（按优先级）\n\n1. **确认该样本是否有可用的生物学重复**：如果 HUH6_GNE_140_YD 是唯一的处理样本，则完全无法评估其生物学变异性，当前数据**不应用于差异分析**。\n2. **核实测序深度来源**：检查该项目是否对该样本进行了低通量测序或存在建库/标记失误。若可能，**应重测或补测**至与其它样本相似的深度（≥30M clean reads）。\n3. **在共识 peak 区域重算相关性**：使用其他三个样本共有的 peak 区域，并过滤掉低信号区域后，重新计算 HUH6_GNE_140_YD 与其他样本的相关性——如果仍然<0.5，则可确认该样本无法使用。\n4. **检查该样本的 PCR 扩增循环数**：过高重复率表明可能 PCR 过度扩增，需要排除技术批次效应。\n\n---\n\n### 对下游分析的约束\n\n- **目前不应将 HUH6_GNE_140_YD 与其他样本直接比较**，包括差异peak、结合强度比较等。\n- 如果该样本代表重要的处理条件，必须在**重测或补测**之后才能判定其是否可合并分析。\n- 在排除该样本后，剩余三个样本（HUH6_GNE_140、HUH6_NC、HUH6_Rescue）之间相关性良好（>0.93），且 FRiP、NRF、PBC1 等指标一致，可以作为一组高置信度的样本进行后续分析。",
+    "quality_score": 86,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 86,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 12,
+          "max_score": 30,
+          "details": [
+            "fact_issues=91"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=112"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=51"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=4",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=51"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 2,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_NC vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：correlation。",
+            "metric_id": "correlation"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "correlation",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "这个项目的整体数据质量如何？有哪些样本或指标需要重点关注？",
+    "answer": "好的，我们直接对项目 VZ20260531009 的整体数据质量进行分析。\n\n### 项目整体数据质量评估\n\n该项目包含 4 个样本：HUH6_GNE_140、HUH6_NC、HUH6_Rescue 和 HUH6_GNE_140_YD。从数据来看，**前三个样本的文库质量和测序表现属于中等偏上水平，基本满足常规的 CUT&Tag 分析要求。然而，样本 HUH6_GNE_140_YD 的数据质量极其异常，是整个项目中最需要关注的风险点，不适合直接用于后续的定量或差异分析。**\n\n---\n\n### 需要重点关注的样本和指标\n\n#### 1. 核心问题样本：`HUH6_GNE_140_YD`\n\n这个样本的多个关键指标均处于异常范围，构成了一个清晰的“证据链”，指向严重的文库构建或测序问题。\n\n*   **直接观测异常指标**：\n    1.  **极低的测序深度与极高的重复率**：\n        *   测序深度（`sequencing_depth`）仅为 4,067,118 reads，远低于其他三个样本（约 40M - 47M），直接导致数据量严重不足。\n        *   重复率（`duplicate_rate_percent`）高达 **73.09%**，而其他样本均不超过 26%。这说明了文库复杂度极低，绝大部分测序数据是无效的PCR或光学重复。\n        *   这种低深度与高重复率的组合，直接导致反映文库复杂度的 `NRF` (0.2721) 和 `PBC1` (0.2857) 值极低。这是该样本问题的核心证据。\n\n    2.  **异常的片段分布与比对特征**：\n        *   中位片段大小（`fragment_size`）为 **204 bp**，高于其他样本的 ~177 bp，且未表现出典型核小体富集的规律分布。\n        *   线粒体比例（`mt_rate_percent`）高达 **8.73%**，是其他样本（~3.5%）的两倍多，暗示样品起始质量或IP过程可能存在问题。\n        *   唯一比对率（`unique_mapping_rate_percent`）为 **58.25%**，也显著低于其他样本的 ~68%。结合高重复率，说明大多数有效比对数据也被重复read吞噬，导致可用于分析的独特比对信号极少。\n\n    3.  **与其它样本的极低相关性**：\n        *   该样本与所有其它样本之间的 Spearman 相关系数（`correlation`）均小于 **0.39**。这是一个关键现象，明确指示其信号谱与整个项目中的其他样本完全不一致，说明其生物学信号不具备可比性。\n\n*   **关联现象分析与可能原因**：\n    *   上述所有异常指标共同指向一个核心问题：**文库复杂度极低**。高重复率是直接的观测现象，而线粒体比例偏高是关联的异常信号。\n    *   根据项目数据和通用知识，最可能的解释是：\n        *   **起始DNA量严重不足或过度扩增**，导致PCR大量复制相同模板。\n        *   **转座酶切（Tagmentation）效率不佳**，未能有效片段化并连接接头，导致后续扩增出的有效文库分子数量很少。\n\n*   **下一步验证动作建议**：\n    1.  对 HUH6_GNE_140_YD 样本的原始 FASTQ 文件运行 FastQC，重新评估 read 质量和 adapter 含量，确认是否是测序本身的问题。\n    2.  查看该样本的 `Align file`，手动检查比对的reads在基因组上的分布，确认是否存在区域偏好。\n    3.  确认该样本的建库记录，核查起始DNA投入量和PCR循环数是否与其它样本一致。\n    4.  如果资源允许，可以对该样本剔除重复（deduplication）后，对比unique reads与总体mapped reads的信号密度，判断信号是否被过度稀释。\n\n**结论：样本 HUH6_GNE_140_YD 的数据不符合下游分析质量标准，建议在正式分析中将其排除，并追溯其建库/测序过程。**\n\n#### 2. 需要集体关注的指标：高接头比例\n\n*   **直接观测指标**：\n    *   所有样本的原始数据中，**adapter_percent** 普遍非常高，范围在 **39.74% - 43.76%**。这表示平均有超过40%的原始reads携带接头序列，这是一个异常高的水平。\n\n*   **关联现象分析**：\n    *   尽管接头比例极高，但所有样本的清洗后reads保留率（`clean_read_retention_percent`）均超过 **99.69%**，且比对率（`mapping_rate_percent`）均超过 **97.8%**。\n    *   这是一个矛盾的表面现象。高接头比例通常意味着测序片段很短，大量read覆盖到了接头序列。若真如此，清洗后应该丢弃大量短read，保留率和比对率都会显著降低。\n    *   这说明，当前项目使用的 `ReadsQC` 表的“Adapter”统计口径，很可能**不是**我们通常理解的“测序穿过了整个插入片段读到了接头”，而是 **CUT&Tag 建库过程中，转座酶在片段化时自带的接头被检测器读成了“adapter”**。这在 CUT&Tag 项目中是常见现象。\n    *   此指标在其他项目中可能是严重警告，但在当前的 CUT&Tag（Tn5 transposase）背景下，**该指标可能为一个技术噪音，而非反映文库质量的真实问题**。需要结合完整的 `trim.log` 和 `FastQC` 报告才能最终确认。\n\n*   **下一步验证动作建议**：\n    1.  检查每个样本 `Filter` 目录下的 `trim.log` 文件，对比 cutadapt 实际检测到的带有 adapter 的reads对数（`Read 1 with adapter`）与清洗后丢弃的reads对数。数据显示，虽然检测到约40%的reads有adapter，但清洗丢弃的 reads（“Pairs written (passing filters)”）比例不到1%。这印证了上述猜测：adapter 在清洗时可能被容忍或参数进行了特殊处理。\n    2.  对原始 FASTQ 文件运行 FastQC 查看 “Overrepresented sequences” 和 “Adapter Content”，确认接头序列的类型和覆盖范围，与项目配置文件 `config.yaml` 中的 `adapter_type=tn5` 进行核对。\n\n**结论：所有样本的 adapter_percent 指标很高，但这在 CUT&Tag 项目中很可能是技术性噪声，而非真正的数据质量问题。这是一个需要关注的指标，但不应仅凭此判定数据不合格。优先通过 `trim.log` 和 FastQC 进行复核验证。**\n\n#### 3. 需要关注的成对比较：样本富集效率不均\n\n*   **直接观测指标**：\n    *   FRiP（Fraction of Reads in Peaks）值在不同样本间差异明显：\n        *   HUH6_GNE_140: **16.40%**\n        *   HUH6_NC: **12.18%**\n        *   HUH6_Rescue: **7.90%**\n    *   另外，当使用其它样本的Peak来评估自己时（例如 \"HUH6_GNE_140 against HUH6_NC\"），FRiP值会降低（如 12.54%），这表明不同样本间的富集区域存在差异。\n\n*   **关联现象分析**：\n    *   不同样本的 FRiP 值从 7.9% 到 16.4%，这是一个相当宽的范围。HUH6_Rescue 的 7.9% 处于较低水平，说明其信号在全基因组背景中相对较弱，Peak calling 能力下降。\n    *   尽管 HUH6_GNE_140 自身 FRiP 最高，但 HUH6_NC 和 HUH6_Rescue 在其 Peak 上的 FRiP 值较低，这解释了为何样本间的 Spearman 相关性（`correlation`）约为 0.94，而不是更高（低于 0.9 应视为不一致）。这表明它们之间不仅有定量差异，也存在空间分布差异。\n\n*   **可能原因**：\n    *   HUH6_Rescue 可能由于表型或处理原因，目标蛋白的结合信号本身就较弱。\n    *   也可能是抗体质量、IP效率或细胞状态差异导致。FRiP 的差异作为直接观测，背后原因需结合生物学背景判断。\n\n*   **下一步验证动作建议**：\n    1.  使用 deeptools 绘制信号热图（heatmap），直观比较关键区域的信号强度一致性，验证相关性差异的来源。\n    2.  将三个样本的Peak进行交集和特异集分析，查看 HUH6_Rescue 是缺少信号，还是信号偏移到了新的区域。\n    3.  在进行任何差异分析之前，必须解决归一化问题。当前数据缺失 `Spike-in normalization` 的相关指标，如果项目使用了外源dna（如E. coli或Drosophila），必须找到对应的 `Spike-in` 比对数据，计算归一化因子（`spike-in scaling factor`），再进行信号比较。\n\n**结论：不同样本间的FRiP值差异较大，且 HUH6_Rescue 偏低是需关注的现象。但这是生物学现象还是技术问题，不能单凭FRiP下结论。必须在完成Spike-in归一化，确认信号可比性后，才能评估其影响。**\n\n### 总结与数据适用性建议\n\n基于当前证据，该项目数据的整体情况判断如下：\n\n1.  **样本 HUH6_GNE_140_YD**：**完全不能用于下游分析**。其数据质量问题（极低数据量、极高重复率、低相关性）是决定性的，应被排除。\n2.  **样本 HUH6_GNE_140、HUH6_NC、HUH6_Rescue**：**基本可用，但需严谨对待**。它们的数据主要指标（测序深度、比对率、NRF等）符合一般质量要求。但以下三点需要在分析前解决：\n    *   **接头比例复核**：尽快通过 `trim.log` 和 FastQC 排除 `adapter_percent` 的技术性假象，避免误导。\n    *   **信号归一化**：立即查找 `Spike-in` 比对结果，计算归一化因子。**这是进行任何跨样本比较（包括相关性、Peak calling、差异分析）的绝对前提**。当前报告的所有跨样本FRiP和相关性都基于原始read count，在未归一化前，这些比较的结果应谨慎看待。\n    *   **富集效率差异**：明确 HUH6_Rescue 和 HUH6_NC 的FRiP差异是生物学真实差异还是技术批次效应，这需要结合归一化后的结果和生物背景知识判断。\n\n**当前阶段，不建议直接基于这三个样本进行差异分析。必须先完成归一化，并明确其作为项目分析的“设计准备”步骤。** 所有观察到的异常指标都需要通过上述验证动作来区分是技术伪影还是真实信号，从而决定是否需要重做或仅需在后续分析中谨慎对待。",
+    "quality_score": 86,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 86,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 12,
+          "max_score": 30,
+          "details": [
+            "fact_issues=91"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=124"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=54"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=54"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 2,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_NC vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：alignment。",
+            "metric_id": "alignment"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "alignment",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 1,
+      "critical_modality_omission_count": 0,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "matrix_reasoning_missing_cross_frip_context",
+          "severity": "moderate",
+          "text": "当前问题需要联合解释 correlation 与 cross-FRiP，但回答缺少 cross-FRiP 语境。"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": false,
+        "critical_modalities_covered": true
+      }
+    }
+  },
+  {
+    "question": "FRiP_raw.txt 提供了 3×3 的跨样本 FRiP 矩阵——以每个样本的 peaks 分别去计算所有样本的 FRiP。例如以 HUH6_GNE_140 的 peaks 为参考时：HUH6_GNE_140 自身 FRiP=16.40%、HUH6_NC=12.54%、HUH6_Rescue=9.57%；以 HUH6_Rescue 的 peaks 为参考时：HUH6_GNE_140=12.19%、HUH6_NC=10.08%、HUH6_Rescue=7.90%。结合 Spearman 相关性矩阵（IP 间 >0.93），请分析这个跨样本 FRiP 模式揭示了什么关于三个 IP 样本之间生物学相似性和差异性的信息？这种'交叉 FRiP'分析与简单的相关性分析相比有什么额外的生物学洞察力？",
+    "answer": "## 交叉 FRiP 矩阵揭示的三样本关系\n\n根据 `FRiP_raw.txt` 提供的 3×3 跨样本矩阵（以每一样本的 peak 集为参考，评估所有样本 reads 落在其中的比例），并结合 Spearman 全局相关性（三对 IP 间均 >0.93），可以得出以下关于 HUH6_GNE_140、HUH6_NC 和 HUH6_Rescue 之间生物学信号结构的直接观察和深层含义。\n\n### 1. 直接观察：自身 FRiP 排序与交叉不对称性\n\n| 评估对象 → 参考集 ↓ | HUH6_GNE_140 | HUH6_NC | HUH6_Rescue |\n|----------------------|--------------|---------|-------------|\n| **GNE_140 peaks**   | **16.40%**   | 12.54%  | 9.57%       |\n| **NC peaks**        | 13.28%       | **12.18%**| 8.32%       |\n| **Rescue peaks**    | 12.19%       | 10.08%  | **7.90%**   |\n\n- **自身 FRiP 梯度**：GNE_140 (16.40%) > NC (12.18%) > Rescue (7.90%)，说明三个样本在各自 calling 的 peak 区域中 reads 富集效率依次递减。\n- **交叉不对称性**：以 **GNE_140 peaks** 为参考时，NC 的 FRiP（12.54%）高于 NC 自身 FRiP（12.18%），Rescue 的 FRiP（9.57%）高于 Rescue 自身 FRiP（7.90%）。反过来，以 **Rescue peaks** 为参考时，GNE_140 的 FRiP（12.19%）和 NC 的 FRiP（10.08%）均显著高于 Rescue 自身 FRiP（7.90%）。这说明 GNE_140 的 peak 集能够捕获 NC 和 Rescue 中更多的信号 reads，而 Rescue 的自身 peak 集则相对“不完整”。\n\n### 2. 生物学相似性与差异性的推论\n\n**相似性**：Spearman 相关系数均在 0.93–0.94 之间（数据来源：`spearman_Corr_readCounts.tab`），表明三个样本在全基因组 bin 级别的 reads 分布模式高度一致。这支持它们来源于相同的细胞系（HUH6）且受类似染色质状态影响，整体信号谱没有强烈的结构性差异。\n\n**差异性（由交叉 FRiP 揭示）**：\n- **富集效率差异**：GNE_140 自身 FRiP 最高（16.40%），表明其免疫沉淀效率最好，信号对噪比最高。Rescue 自身 FRiP 仅 7.90%，在相同 peak calling 参数下（MACS3 qvalue=0.05）获得的 peak 区域信号占比最低，提示其富集程度或靶标丰度较弱。\n- **peak 集包含关系**：\n  - GNE_140 的 peak 集几乎完全覆盖了 NC 和 Rescue 的主要富集区域（因为交叉 FRiP 均接近或超过后两者的自身 FRiP）。NC 的 peak 集在 GNE_140 中也有较高覆盖（13.28%），但低于 GNE_140 自身（16.40%），暗示 GNE_140 拥有额外的独特富集区域。\n  - Rescue 的 peak 集在其他样本中 FRiP 反而更高（GNE_140=12.19%, NC=10.08%），说明其自身 peak calling 可能因信号弱而遗漏了大量真正的富集区域，而 GNE_140 或 NC 的峰集能更好地代表这些共同靶点。\n- **样本代表性排序**：从交叉 FRiP 的“吞吐能力”看，GNE_140 的峰集最能捕捉其他样本的信号 → NC 次之 → Rescue 最差，因此 GNE_140 可被视为三个样本中最具代表性的参考样本。\n\n### 3. 交叉 FRiP 分析相比简单相关性分析提供的额外洞察力\n\n| 维度 | 简单 Spearman 相关性 | 交叉 FRiP 分析 |\n|------|---------------------|----------------|\n| **度量本质** | 基因组 bin/peak 信号强度的秩相关系数，反映全局模式一致性 | 特定 peak 集对 reads 信号的捕获比例，反映峰集特异性和交集情况 |\n| **能够揭示** | 整体信号谱是否相似（高值表明无重大差异） | ① 每样本 peak 集的信号富集强度（自身 FRiP）；② 峰集间的包含/重叠关系（交叉 FRiP）；③ 哪个样本的峰集更具代表性和完整性 |\n| **不能揭示** | 无法区分自身峰集强度差异，也无法判断峰集之间的不对称性 | 需结合 peak count 和 peak caller 参数，受峰集质量影响 |\n| **联合应用价值** | 高相关性为交叉 FRiP 比较提供了前提条件——若整体信号分布不同，则峰集比较失去意义 | 交叉 FRiP 在全局相似背景下揭示局部富集质量的差异，帮助选择最优参考或判断样本间富集一致性 |\n\n**具体案例**：三样本 Spearman >0.93 表明无系统偏差，但自身 FRiP 范围从 7.90% 到 16.40%，且 Rescue 的峰集明显被其他样本的峰集包含——这一“峰集强弱差异”在相关性中完全不可见，只有交叉 FRiP 矩阵能显示这种不对称的包含关系。\n\n### 4. 具体数据支撑（项目来源）\n\n| 结论 | 直接证据 | 数据源 |\n|------|---------|--------|\n| 自身 FRiP 梯度 | GNE_140=16.40%, NC=12.18%, Rescue=7.90% | `FRiP_raw.txt` (PeakCalling/macs3) |\n| GNE_140 peaks 在其他样本中 FRiP > 自身 | NC=12.54% vs 12.18%, Rescue=9.57% vs 7.90% | 同上 |\n| NC peaks 在 GNE_140 中 FRiP=13.28% | `HUH6_NC against HUH6_GNE_140` | 同上 |\n| Rescue peaks 在 GNE_140 中 FRiP=12.19% | `HUH6_Rescue against HUH6_GNE_140` | 同上 |\n| 全局 Spearman >0.93 | 三对 IP 间 0.935–0.944 | `spearman_Corr_readCounts.tab` |\n| Peak count 差异 | GNE_140=26263, NC=21371, Rescue=13002 | `FRiP_score.xls` |\n\n### 5. 注意事项与验证动作\n\n- **阈值未验证**：项目内未预设 FRiP 或相关性的可信阈值，以上分析仅基于相对比较。实际数据适用性需结合实验预期。\n- **验证峰集包含关系**：建议对三样本做 **Venn 图重叠分析**（基于 consensus peak），并计算重叠率与 Jaccard 系数，以量化峰集大小和共享程度。\n- **复核 peak calling 参数**：确认 MACS3 使用相同的 qvalue=0.05 和 lambda 背景模型，且是否使用了 input control。若 Rescue 的 control 不匹配，可能导致其峰集偏小。\n- **检查 Rescue 样本的 upstream QC**：自身 FRiP 最低同时peak count最少（13002），需确认其 unique mapping rate（67.56%）、duplicate rate（21.53%）、NRF（0.7856）是否处于正常范围，以排除文库复杂性或富集失败的影响。\n- **若需选择代表性峰集进行下游分析**（如 motif 分析或差异 peak 鉴定），建议优先使用 GNE_140 的峰集作为参考，或构建三样本的 consensus peak 后再评估 FRiP。\n\n**总结**：交叉 FRiP 模式揭示了三个样本在 **peak 信号富集效率**和 **峰集覆盖范围**上的显著不对称——GNE_140 的信号富集最佳且峰集最具代表性，NC 中等，Rescue 最弱且其峰集几乎被其他样本的峰集所包含。这种结构信息是全局相关性分析无法提供的，对于样本质量评估和后续分析参考选择具有直接指导意义。",
+    "quality_score": 77,
+    "quality_passed": true,
+    "fact_passed": false,
+    "answer_quality": {
+      "passed": true,
+      "status": "pass",
+      "score": 77,
+      "pass_score": 70,
+      "dimensions": {
+        "fact_correctness": {
+          "score": 0,
+          "max_score": 30,
+          "details": [
+            "fact_issues=93"
+          ]
+        },
+        "evidence_coverage": {
+          "score": 20,
+          "max_score": 20,
+          "details": [
+            "project_evidence=112"
+          ]
+        },
+        "unsupported_conclusion_control": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "direct_conclusions=55"
+          ]
+        },
+        "unit_accuracy": {
+          "score": 15,
+          "max_score": 15,
+          "details": [
+            "unit_error_count=0"
+          ]
+        },
+        "experimental_design_discipline": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "design_error_count=0"
+          ]
+        },
+        "causal_discipline": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "causal_overstatement_count=0"
+          ]
+        },
+        "complexity_fit": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "reasoning_mode=integrative_reasoning"
+          ]
+        },
+        "integration_depth": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "possible_causes=5",
+            "verification_plan=6"
+          ]
+        },
+        "hypothesis_discrimination": {
+          "score": 9,
+          "max_score": 10,
+          "details": [
+            "hypothesis_comparison=3"
+          ]
+        },
+        "assay_specificity": {
+          "score": 5,
+          "max_score": 5,
+          "details": [
+            "assay=cuttag"
+          ]
+        },
+        "question_core_coverage": {
+          "score": 8,
+          "max_score": 10,
+          "details": [
+            "direct_conclusions=55"
+          ]
+        },
+        "matrix_reasoning_coverage": {
+          "score": 10,
+          "max_score": 10,
+          "details": [
+            "has_reasoning=True"
+          ]
+        }
+      },
+      "fact_verification": {
+        "version": "answer-fact-verifier-v2",
+        "mode": "packet_first",
+        "passed": false,
+        "checked_numeric_claim_count": 0,
+        "supported_numeric_claim_count": 0,
+        "unsupported_numeric_claim_rate": 0.0,
+        "unit_error_count": 0,
+        "definition_error_count": 0,
+        "sample_role_conflict_count": 0,
+        "differential_precondition_error_count": 0,
+        "causal_overstatement_count": 0,
+        "threshold_limit_error_count": 1,
+        "matrix_reasoning_error_count": 0,
+        "critical_modality_omission_count": 4,
+        "issues": [
+          {
+            "rule": "render_missing_threshold_limitation",
+            "severity": "severe",
+            "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140 vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_GNE_140_YD vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "correlation",
+            "sample": "HUH6_NC vs HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "unique_mapping_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "duplicate_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "nrf",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc1",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "pbc2",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "mt_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_GNE_140_YD"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "picard_duplicate_pair_rate_percent",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_GNE_140"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_NC against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_GNE_140 against HUH6_Rescue"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_NC"
+          },
+          {
+            "rule": "render_missing_key_evidence",
+            "severity": "moderate",
+            "metric_id": "frip_ratio",
+            "sample": "HUH6_Rescue against HUH6_GNE_140"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：frip。",
+            "metric_id": "frip"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：peak_count。",
+            "metric_id": "peak_count"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：correlation。",
+            "metric_id": "correlation"
+          },
+          {
+            "rule": "critical_modality_omission",
+            "severity": "severe",
+            "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+            "metric_id": "experiment_design"
+          }
+        ],
+        "contracts": {
+          "evidence_traceable": true,
+          "threshold_status_present": true,
+          "units_and_denominators_correct": true,
+          "sample_roles_respected": true,
+          "differential_analysis_preconditions_respected": true,
+          "threshold_limitations_present": false,
+          "critical_evidence_mentioned": true,
+          "causal_language_calibrated": true,
+          "matrix_reasoning_consistent": true,
+          "critical_modalities_covered": false
+        }
+      },
+      "issues": [],
+      "response_plan": {
+        "complexity": "comprehensive",
+        "reasoning_mode": "integrative_reasoning",
+        "required_sections": [
+          "direct_answer",
+          "fact_layer",
+          "integrated_evidence",
+          "hypothesis_comparison",
+          "limitations",
+          "verification_actions"
+        ],
+        "max_sections": 6,
+        "answer_focus": "integrated_competing_hypotheses",
+        "expected_evidence_modalities": [
+          "frip",
+          "peak_count",
+          "correlation",
+          "experiment_design",
+          "competing_hypotheses"
+        ],
+        "token_budget_hint": 5200,
+        "claim_contract": [
+          "conclusion",
+          "metric_value",
+          "data_source",
+          "decision_basis",
+          "limitation",
+          "recommended_action"
+        ],
+        "hypothesis_contract": [
+          "hypothesis_label",
+          "supporting_evidence",
+          "contradicting_evidence",
+          "missing_critical_evidence",
+          "preference_reason",
+          "verification_action"
+        ]
+      },
+      "answer_chars": 0,
+      "repair_applied": false,
+      "evaluation_mode": "packet_first",
+      "repair_attempted": false,
+      "enforcement_mode": "observe_only",
+      "repair_skip_reason": "interactive_project_answers_are_observe_only",
+      "original_fact_issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "critical_modality_omission",
+          "severity": "severe",
+          "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+          "metric_id": "experiment_design"
+        }
+      ]
+    },
+    "fact_verification": {
+      "version": "answer-fact-verifier-v2",
+      "mode": "packet_first",
+      "passed": false,
+      "checked_numeric_claim_count": 0,
+      "supported_numeric_claim_count": 0,
+      "unsupported_numeric_claim_rate": 0.0,
+      "unit_error_count": 0,
+      "definition_error_count": 0,
+      "sample_role_conflict_count": 0,
+      "differential_precondition_error_count": 0,
+      "causal_overstatement_count": 0,
+      "threshold_limit_error_count": 1,
+      "matrix_reasoning_error_count": 0,
+      "critical_modality_omission_count": 1,
+      "issues": [
+        {
+          "rule": "render_missing_threshold_limitation",
+          "severity": "severe",
+          "text": "fact_packet 有未验证阈值，但最终回答未声明 '只能报告观测值'。"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc1",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "pbc2",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_GNE_140_YD"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_NC"
+        },
+        {
+          "rule": "render_missing_key_evidence",
+          "severity": "moderate",
+          "metric_id": "mt_rate_percent",
+          "sample": "HUH6_Rescue"
+        },
+        {
+          "rule": "critical_modality_omission",
+          "severity": "severe",
+          "text": "回答遗漏了复杂问题所需的关键模态：experiment_design。",
+          "metric_id": "experiment_design"
+        }
+      ],
+      "contracts": {
+        "evidence_traceable": true,
+        "threshold_status_present": true,
+        "units_and_denominators_correct": true,
+        "sample_roles_respected": true,
+        "differential_analysis_preconditions_respected": true,
+        "threshold_limitations_present": false,
+        "critical_evidence_mentioned": true,
+        "causal_language_calibrated": true,
+        "matrix_reasoning_consistent": true,
+        "critical_modalities_covered": false
+      }
+    }
+  }
+]

@@ -1,0 +1,35 @@
+{
+  "id": "project_threshold_validation_warning",
+  "target": "project_analysis",
+  "enabled": true,
+  "project_id": "VZ20260427001",
+  "question": "For project VZ20260427001, is the Mapping rate abnormal and what threshold source is used?",
+  "max_evidence_files": 6,
+  "planning_hints": {
+    "force_include_html_body": true
+  },
+  "expect": {
+    "trace_status": "ok",
+    "evidence_metric": "mapping_rate_percent",
+    "evidence_threshold_source_contains": "professional_default_unverified",
+    "evidence_grade_contains": "unverified_threshold",
+    "evidence_rule_must_be_empty": true,
+    "evidence_severity_must_not_be": [
+      "critical",
+      "warning"
+    ],
+    "analysis_limits_must_contain": [
+      "Threshold not verified in project scripts/README/SOP/report notes",
+      "Mapping rate"
+    ],
+    "diagnosis_must_not_contain": [
+      "项目合格",
+      "项目不合格",
+      "适合继续下游分析",
+      "不适合继续下游分析",
+      "通过/失败",
+      "未发现明显异常",
+      "未发现明确异常"
+    ]
+  }
+}

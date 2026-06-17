@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# IDE and editor files
+.idea/
+.vscode/
+
+# Local tool caches
+.claude/
+.codegraph/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Project-local temporary data
+tmp/
+project_workspaces/
+
+# Frontend dependencies and build output
+multi_agent/front/agent_web_ui/node_modules/
+multi_agent/front/agent_web_ui/dist/
+multi_agent/front/agent_web_ui/.vite/
+
+# Environment and secrets
+.env
+*.env
+multi_agent/backed/app/.env
+multi_agent/backed/knowledge/.env
+
+# Logs
+*.log
+
+# Local databases and generated artifacts
+*.db
+multi_agent/backed/app/generated/
+multi_agent/backed/knowledge/data/tmp/
+

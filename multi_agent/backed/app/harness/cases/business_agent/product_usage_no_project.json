@@ -1,0 +1,31 @@
+{
+  "id": "business_product_usage_no_project",
+  "target": "business_agent",
+  "enabled": true,
+  "question": "这个产品怎么用",
+  "user_id": "harness_no_project_user",
+  "session_id": "harness_product_no_project",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok"
+    ],
+    "workflow_route": "product_help",
+    "analysis_run_absent": true,
+    "output_mode": "product_help",
+    "question_type": "product_help",
+    "min_answer_chars": 80,
+    "answer_must_contain": [
+      "产品使用",
+      "项目分析",
+      "图表生成"
+    ],
+    "answer_must_not_contain": [
+      "```python",
+      "matplotlib",
+      "notebook",
+      "plt."
+    ]
+  }
+}

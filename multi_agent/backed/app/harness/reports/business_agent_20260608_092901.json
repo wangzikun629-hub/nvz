@@ -1,0 +1,75 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:29:01",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_organelle_hg38_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "harness_guard_passed",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='alignment' actual='alignment'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=120 actual=2313"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=mt_rate_percent"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_organelle_hg38_e2e",
+        "target": "business_agent",
+        "duration_ms": 49604.01
+      },
+      "answer_excerpt": "根据当前项目配置和实验类型（CUT&Tag, hg38），线粒体 reads 比例偏高通常反映**样本中残留的线粒体 DNA 在 Tn5 转座过程中被大量捕获**，而非单纯由湿实验或分析流程错误导致。由于本次分析证据中尚未读取到 AlignmentQC 中具体的 MT_Ratio 数值，下面从已有流程参数和 CUT&Tag 常见机制出发，梳理最可能的原因链路和复核方向。\n\n### 1. 当前证据限制\n- 项目文件 `VZ20260513002\\2.AlignmentQC\\README.txt` 存在，但系统未提取出结构化的 `mt_rate_percent` 值，无法引用 T1/T2 的实际百分比。\n- 缺少 `Picard` 重复率、FRiP、peak 数量等联动指标的实际数值，因此只能基于流程参数和实验类型给出定性原因，不能直接判定样本是否异常。\n- 项目专属阈值尚未在配置或 SOP 中找到，所有判断均为经验性排查方向，不构成合格/不合格标准。\n\n### 2. 线粒体 reads 比例高的主要可能原因（由实验到分析）\n1. **细胞前处理不足或裂解条件过度**  \n   CUT&Tag 依靠 ConA 磁珠结合细胞，轻柔去垢剂打孔，Tn5 进入核内切割暴露的染色质。若洗涤不充分、离心后残留细胞碎片，或去垢剂浓度/时间偏高，会导致线粒体膜破裂，大量 mtDNA 释放到反应体系中，",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\organelle_hg38_e2e.json"
+    }
+  ]
+}

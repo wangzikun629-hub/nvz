@@ -1,0 +1,22 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-08T09:14:04",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "results": [
+    {
+      "id": "business_adapter_e2e",
+      "target": "business_agent",
+      "passed": false,
+      "checks": [
+        {
+          "name": "case_execution",
+          "passed": false,
+          "detail": "[WinError 123] 文件名、目录名或卷标语法不正确。: '\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Result\\\\CUTTag\\\\VZ20260427001'"
+        }
+      ],
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\adapter_e2e.json"
+    }
+  ]
+}

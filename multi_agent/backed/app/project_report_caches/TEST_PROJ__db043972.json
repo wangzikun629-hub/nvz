@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "project_id": "TEST_PROJ",
+  "project_root": "/data/test",
+  "generation_version": "project-review-v3",
+  "analysis": null,
+  "updated_at": "2026-06-16T06:20:04",
+  "error": "some error"
+}

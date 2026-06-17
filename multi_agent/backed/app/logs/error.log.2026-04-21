@@ -1,0 +1,10 @@
+2026-04-21 11:20:42,703 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 11:24:22,106 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 11:26:51,312 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 11:35:44,741 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 11:39:15,826 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 11:46:41,739 | ERROR    | ITS_App:60 | AgentService.process_query执行出错: Tool example_function_name not found in agent 主调度智能体
+2026-04-21 11:47:50,921 | ERROR    | ITS_App:27 | 发送请求获取知识库数据失败: 
+2026-04-21 14:50:18,395 | ERROR    | ITS_App:70 | AgentService.process_query执行出错: Tool  not found in agent 主调度智能体
+2026-04-21 14:52:31,641 | ERROR    | ITS_App:70 | AgentService.process_query执行出错: Tool  not found in agent 主调度智能体
+2026-04-21 15:40:53,512 | ERROR    | ITS_App:88 | AgentService.process_query执行出错: Tool  not found in agent 主调度智能体

@@ -1,0 +1,70 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T14:53:12",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_report_summary_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='ai_report_summary' actual='ai_report_summary'"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='report' actual='report'"
+        },
+        {
+          "name": "generation_mode_in",
+          "passed": true,
+          "detail": "allowed=['llm_html_report_summary', 'extractive_html_report_summary_fallback', 'cached_ai_report_summary'] actual='llm_html_report_summary'"
+        },
+        {
+          "name": "agent_role",
+          "passed": true,
+          "detail": "expected='html_report_summary' actual='html_report_summary'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=200 actual=3101"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_report_summary_e2e",
+        "target": "business_agent",
+        "duration_ms": 27097.3
+      },
+      "answer_excerpt": "## 结论先行\n\n本项目**不适合继续下游分析**。两个样本T1与T2均存在多重严重质量缺陷，且样本间重复一致性完全丧失（相关性为负值），基于当前数据得出的Peak calling、功能富集及Motif分析结果均不具备生物学解释可靠性。\n\n## 核心异常\n\n1.  **T1与T2样本间重复一致性严重失效**：Spearman相关系数为-0.6303，为负值，直接表明两个重复样本在全基因组信号分布上呈现相反模式，无法进行任何基于重复一致性的下游分析。\n2.  **线粒体/叶绿体reads污染导致有效reads严重不足**：T1与T2的chrMT/Pt ratio分别高达72.61%与66.87%，超过阈值30.0%，极大压缩了核基因组有效reads。\n3.  **唯一比对率过低**：T1 (12.60%) 与 T2 (15.01%) 均低于20.0%阈值，严重削弱了Peak calling和信号定量分析的基础。\n4.  **比对率偏低**：T1 (57.54%) 与 T2 (57.71%) 均低于60.0%阈值，提示数据存在系统性问题。\n5.  **接头污染与重复率偏高**：T1 (38.24%) 与 T2 (39.19%) 接头污染比例超过20.0%，T1 (33.66%) 与 T2 (30.03%) 重复率超过30.0%，进一步降低了有效数据量。\n\n## 关键证据\n\n-   **",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\report_summary_e2e.json"
+    }
+  ]
+}

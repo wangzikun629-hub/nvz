@@ -1,0 +1,405 @@
+{
+  "suite": "business_agent",
+  "generated_at": "2026-06-03T15:06:08",
+  "total": 6,
+  "passed": 6,
+  "failed": 0,
+  "results": [
+    {
+      "id": "business_adapter_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok', 'warning'] actual='ok'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='qc' actual='qc'"
+        },
+        {
+          "name": "task_step_completed:analyze_project_data",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "task_step_completed:compose_response",
+          "passed": true,
+          "detail": "actual='completed'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=410"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        },
+        {
+          "name": "analysis.required_metric",
+          "passed": true,
+          "detail": "metric=adapter_percent"
+        },
+        {
+          "name": "analysis.metric_source_level",
+          "passed": true,
+          "detail": "expected='project_verified' actual='project_verified'"
+        },
+        {
+          "name": "analysis.formula_source_contains",
+          "passed": true,
+          "detail": "expected contains='project_code' actual='project_code'"
+        },
+        {
+          "name": "analysis.formula_file_contains",
+          "passed": true,
+          "detail": "expected contains='cutadapt_stat.py' actual='\\\\\\\\RaiDrive-ASUS\\\\SFTP\\\\Snakemake_Sop\\\\CUTTag\\\\snakemake_image\\\\pipline\\\\Filter\\\\cutadapt_stat.py'"
+        },
+        {
+          "name": "analysis.formula_contains",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "analysis.needs_verification",
+          "passed": true,
+          "detail": "expected=False actual=False"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_adapter_e2e",
+        "target": "business_agent",
+        "duration_ms": 4423.44
+      },
+      "answer_excerpt": "## 结论\nAdapter（接头比例）是当前项目中的质控指标，表示原始 reads 中被识别为接头相关 reads 的比例。\n\n## 关键数据\n| 样本 | Adapter（接头比例） | 原始字段值 |\n| --- | --- | --- |\n| T2 | 39.19% | 78388(39.19%) |\n| T1 | 38.24% | 76474(38.24%) |\n\n## 依据\n- 来源字段：Adapter\n- 计算口径：Adapter(%) = adapter_count / total_reads_raw × 100，其中 adapter_count 是接头相关 reads 数，total_reads_raw 是原始 reads 总数。\n- 口径状态：已从项目脚本验证计算口径\n\n## 下一步建议\n- 优先复核 ReadsQC 与原始测序质控结果。\n- 确认接头污染和 Q30 下降是否集中在单一样本。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\adapter_e2e.json"
+    },
+    {
+      "id": "business_clear_project_no_analysis",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='project_context' actual='project_context'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=20 actual=42"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_clear_project_no_analysis",
+        "target": "business_agent",
+        "duration_ms": 2.03
+      },
+      "answer_excerpt": "已清空当前项目上下文。后续问题不会继续默认结合上一个项目，除非你重新指定或绑定项目。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\clear_project_no_analysis.json"
+    },
+    {
+      "id": "business_frip_explanation_no_project",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='knowledge' actual='knowledge'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=202"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_frip_explanation_no_project",
+        "target": "business_agent",
+        "duration_ms": 0.96
+      },
+      "answer_excerpt": "## 指标解释\nFRiP（Fraction of Reads in Peaks）表示落入 peak 区域的 reads 占比，常用于评估 CUT&Tag/ChIP-seq 信号富集质量。项目内解释时还需要结合 peak 数量、mapping、duplicate 和样本角色判断。\n\n## 说明\n这是通用概念解释，未读取具体项目文件。若你想知道当前项目里的计算公式或样本数值，需要先绑定项目或指定项目编号。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\frip_explanation_no_project.json"
+    },
+    {
+      "id": "business_mapping_chart_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='chart' actual='chart'"
+        },
+        {
+          "name": "chart_metric",
+          "passed": true,
+          "detail": "expected='mapping' actual='mapping'"
+        },
+        {
+          "name": "chart_type",
+          "passed": true,
+          "detail": "expected='bar' actual='bar'"
+        },
+        {
+          "name": "chart_image_required",
+          "passed": true,
+          "detail": "image_url='/generated/charts/VZ20260427001_mapping_bar_1780470367_915f3f.png'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=241"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_mapping_chart_e2e",
+        "target": "business_agent",
+        "duration_ms": 1972.91
+      },
+      "answer_excerpt": "## 图表已生成\n\n项目：`VZ20260427001`\n指标：`mapping`\n\n![mapping bar](/generated/charts/VZ20260427001_mapping_bar_1780470367_915f3f.png)\n\n## 数据来源\n- 图类型：bar\n- 来源文件：VZ20260427001\\2.AlignmentQC\\2.1AlignmentStat\\AlignmentQC.xls\n- 使用字段：Sample_ID、Mapping_Rate",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\mapping_chart_e2e.json"
+    },
+    {
+      "id": "business_product_usage_no_project",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='product_help' actual='product_help'"
+        },
+        {
+          "name": "analysis_run_absent",
+          "passed": true,
+          "detail": "analysis_run_id=None"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='product_help' actual='product_help'"
+        },
+        {
+          "name": "question_type",
+          "passed": true,
+          "detail": "expected='product_help' actual='product_help'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=80 actual=192"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_product_usage_no_project",
+        "target": "business_agent",
+        "duration_ms": 0.93
+      },
+      "answer_excerpt": "## 产品使用\n你可以先绑定或指定项目，然后使用项目分析、问题排查、图表生成和 AI报告总结。\n\n常用问法：\n- `分析一下 VZ20260427001 项目`\n- `为什么这个项目 Mapping 偏低`\n- `帮我画 T1 和 T2 的 Mapping 对比图`\n- `生成 AI报告总结`\n\n如果只是问生信概念，不需要绑定项目；如果要判断某个项目是否异常，需要先提供或绑定项目。",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\product_usage_no_project.json"
+    },
+    {
+      "id": "business_report_summary_e2e",
+      "target": "business_agent",
+      "passed": true,
+      "checks": [
+        {
+          "name": "success",
+          "passed": true,
+          "detail": "expected=True actual=True"
+        },
+        {
+          "name": "workflow_status_in",
+          "passed": true,
+          "detail": "allowed=['ok'] actual='ok'"
+        },
+        {
+          "name": "workflow_route",
+          "passed": true,
+          "detail": "expected='ai_report_summary' actual='ai_report_summary'"
+        },
+        {
+          "name": "output_mode",
+          "passed": true,
+          "detail": "expected='report' actual='report'"
+        },
+        {
+          "name": "generation_mode_in",
+          "passed": true,
+          "detail": "allowed=['llm_html_report_summary', 'extractive_html_report_summary_fallback', 'cached_ai_report_summary'] actual='llm_html_report_summary'"
+        },
+        {
+          "name": "agent_role",
+          "passed": true,
+          "detail": "expected='html_report_summary' actual='html_report_summary'"
+        },
+        {
+          "name": "min_answer_chars",
+          "passed": true,
+          "detail": "expected>=200 actual=3101"
+        },
+        {
+          "name": "answer_must_contain",
+          "passed": true,
+          "detail": "matched all"
+        },
+        {
+          "name": "answer_must_not_contain",
+          "passed": true,
+          "detail": "matched none"
+        }
+      ],
+      "run_id": null,
+      "trace": null,
+      "harness": {
+        "case_id": "business_report_summary_e2e",
+        "target": "business_agent",
+        "duration_ms": 31.72
+      },
+      "answer_excerpt": "## 结论先行\n\n本项目**不适合继续下游分析**。两个样本T1与T2均存在多重严重质量缺陷，且样本间重复一致性完全丧失（相关性为负值），基于当前数据得出的Peak calling、功能富集及Motif分析结果均不具备生物学解释可靠性。\n\n## 核心异常\n\n1.  **T1与T2样本间重复一致性严重失效**：Spearman相关系数为-0.6303，为负值，直接表明两个重复样本在全基因组信号分布上呈现相反模式，无法进行任何基于重复一致性的下游分析。\n2.  **线粒体/叶绿体reads污染导致有效reads严重不足**：T1与T2的chrMT/Pt ratio分别高达72.61%与66.87%，超过阈值30.0%，极大压缩了核基因组有效reads。\n3.  **唯一比对率过低**：T1 (12.60%) 与 T2 (15.01%) 均低于20.0%阈值，严重削弱了Peak calling和信号定量分析的基础。\n4.  **比对率偏低**：T1 (57.54%) 与 T2 (57.71%) 均低于60.0%阈值，提示数据存在系统性问题。\n5.  **接头污染与重复率偏高**：T1 (38.24%) 与 T2 (39.19%) 接头污染比例超过20.0%，T1 (33.66%) 与 T2 (30.03%) 重复率超过30.0%，进一步降低了有效数据量。\n\n## 关键证据\n\n-   **",
+      "case_file": "D:\\nvz\\kefu\\multi_agent\\backed\\app\\harness\\cases\\business_agent\\report_summary_e2e.json"
+    }
+  ]
+}

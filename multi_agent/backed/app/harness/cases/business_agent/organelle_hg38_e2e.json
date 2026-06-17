@@ -1,0 +1,49 @@
+{
+  "id": "business_organelle_hg38_e2e",
+  "target": "business_agent",
+  "enabled": true,
+  "project_id": "VZ20260513002",
+  "question": "为什么线粒体 reads 比例高",
+  "user_id": "harness_user",
+  "session_id": "harness_business_organelle_hg38",
+  "max_evidence_files": 8,
+  "expect": {
+    "success": true,
+    "workflow_status_in": [
+      "ok",
+      "warning"
+    ],
+    "question_type": "alignment",
+    "harness_guard_passed": true,
+    "min_answer_chars": 120,
+    "answer_must_contain": [
+      "线粒体",
+      "72.61%",
+      "66.87%"
+    ],
+    "answer_must_not_contain": [
+      "叶绿体",
+      "质体",
+      "植物样本",
+      "缺少可直接读取",
+      "未读取到 AlignmentQC",
+      "无法引用 T1/T2",
+      "项目合格",
+      "项目不合格",
+      "适合继续下游分析",
+      "不适合继续下游分析"
+    ],
+    "required_task_steps": [
+      "analyze_project_data",
+      "compose_response"
+    ],
+    "analysis_expect": {
+      "required_metric": "mt_rate_percent",
+      "cause_graph_version": "metric-evidence-graph-v2",
+      "min_ranked_causes": 3,
+      "required_ranked_cause": "organelle_dna_background",
+      "ranked_cause_min_supporting_evidence": 1,
+      "ranked_cause_requires_verification_action": true
+    }
+  }
+}
