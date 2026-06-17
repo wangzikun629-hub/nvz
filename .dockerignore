@@ -10,6 +10,7 @@ __pycache__/
 multi_agent/front/knowlege_platform_ui/node_modules/
 multi_agent/front/knowlege_platform_ui/src/
 multi_agent/front/agent_web_ui/node_modules/
+multi_agent/front/agent_web_ui/src/
 
 # 测试 & 临时
 multi_agent/backed/app/harness/.runtime/
