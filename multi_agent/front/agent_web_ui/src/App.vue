@@ -1273,6 +1273,14 @@ export default {
       }
     }
 
+    const completeStreamingUiState = (sessionId) => {
+      abortController.value = null
+      isProcessing.value = false
+      if (streamingSessionId.value === sessionId) {
+        streamingSessionId.value = ''
+      }
+    }
+
     const applyQuickAction = (prompt) => {
       workspaceView.value = 'chat'
       userInput.value = prompt
@@ -1586,6 +1594,7 @@ export default {
 
       try {
         await sendChatStream(query, sessionId)
+        completeStreamingUiState(sessionId)
         await fetchUserSessions()
         const persistedOnServer = sessions.value.some((item) => item.session_id === sessionId && hasUsableServerSession(item))
         if (selectedSessionId.value === sessionId) {
@@ -1605,11 +1614,7 @@ export default {
         }
       } finally {
         finalizeAssistantMessage(sessionId)
-        abortController.value = null
-        isProcessing.value = false
-        if (streamingSessionId.value === sessionId) {
-          streamingSessionId.value = ''
-        }
+        completeStreamingUiState(sessionId)
       }
     }
 
