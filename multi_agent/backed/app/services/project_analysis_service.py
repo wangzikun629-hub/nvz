@@ -1434,9 +1434,14 @@ class ProjectAnalysisService:
             import yaml  # PyYAML — available as a transitive dependency
             raw = yaml.safe_load(text)
             if isinstance(raw, dict):
-                return cls._extract_yaml_config_fields(raw)
-        except Exception:
-            pass
+                result = cls._extract_yaml_config_fields(raw)
+                logger.info("config_parse path=%s parser=yaml keys=%d", path, len(result))
+                return result
+            logger.warning("config_parse path=%s parser=yaml result_not_dict type=%s", path, type(raw))
+        except ImportError:
+            logger.warning("config_parse path=%s parser=yaml_unavailable fallback=line_by_line", path)
+        except Exception as exc:
+            logger.warning("config_parse path=%s parser=yaml_failed error=%s fallback=line_by_line", path, exc)
 
         # Fallback: line-by-line flat parser for non-standard YAML files
         summary: dict[str, str] = {}
@@ -2127,6 +2132,11 @@ class ProjectAnalysisService:
         for path in find_files(root, ["config.yaml", "config.yml"], limit=3):
             if path not in config_files:
                 config_files.append(path)
+        logger.info(
+            "build_project_context root=%s config_files=%s",
+            root,
+            [str(p) for p in config_files],
+        )
 
         samples: list[dict[str, Any]] = []
         samplelist_path = ""

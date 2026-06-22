@@ -379,12 +379,20 @@ class BusinessResponseService:
         if context.get("config_file"):
             lines.append(f"config: {context.get('config_file')}")
         if config:
-            config_items = [
+            # Put QC-critical params first, noisy thread/path entries last.
+            _LOW_PRIORITY_PREFIXES = ("threads.", "deeptools_params.", "adapter_sets.", "scripts", "output", "samplist", "samplelist", "db_root")
+            qc_items = [
                 f"{key}={value}"
                 for key, value in config.items()
-                if value not in (None, "")
+                if value not in (None, "") and not any(key.startswith(p) for p in _LOW_PRIORITY_PREFIXES)
             ]
-            lines.append("pipeline_config: " + "; ".join(config_items[:20]))
+            low_items = [
+                f"{key}={value}"
+                for key, value in config.items()
+                if value not in (None, "") and any(key.startswith(p) for p in _LOW_PRIORITY_PREFIXES)
+            ]
+            config_items = qc_items + low_items
+            lines.append("pipeline_config: " + "; ".join(config_items))
         if workflow_summary:
             workflow_files = [
                 f"{item.get('file', '')}({item.get('matched_topics', '')})"
