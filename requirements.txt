@@ -34,4 +34,6 @@ DBUtils
 httpx
 pystun3
 
+pyyaml>=6.0          # explicit dep for config.yaml parsing in project_analysis_service
+
 pytest==8.4.2

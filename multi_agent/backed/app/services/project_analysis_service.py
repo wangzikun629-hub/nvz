@@ -114,6 +114,12 @@ class ProjectAnalysisService:
         "参数",
         "命令",
         "配置",
+        "阈值",       # e.g. "q-value 阈值是多少"
+        "qvalue",
+        "q-value",
+        "q值",
+        "callpeak",
+        "call peak",
         "snakefile",
         "snakemake",
         "workflow",
@@ -121,6 +127,9 @@ class ProjectAnalysisService:
         "shell",
         "config",
         "script",
+        "trimming",
+        "macs",
+        "bowtie",
     )
     TABLE_PRIORITY = [
         "samplelist",
@@ -1352,35 +1361,65 @@ class ProjectAnalysisService:
             rows.append(row)
         return rows
 
-    # Nested YAML sections to flatten with "section.key" notation
+    # Nested YAML sections to flatten one level deep as "section.subkey"
     _CONFIG_NESTED_SECTIONS = {"deeptools_params", "threads"}
+    # Top-level sections / keys to skip entirely (binary paths or annotation DB
+    # paths that are irrelevant to QC analysis and only add noise).
+    _CONFIG_SKIP_SECTIONS = {"software"}
+    _CONFIG_SKIP_KEYS = {
+        "genome_size_file",           # internal genome sizes file path
+        "peak_go_term2gene_relpath",  # GO annotation DB relative path
+        "go_name",                    # GO term name DB path
+        "kegg_name",                  # KEGG pathway name DB path
+    }
 
     @classmethod
     def _extract_yaml_config_fields(cls, raw: dict) -> dict[str, str]:
-        """Walk a parsed YAML dict and extract fields matching PREFLIGHT_CONFIG_KEYS.
+        """Walk a parsed YAML dict and extract ALL pipeline parameters.
 
-        Top-level scalar values are extracted directly.  Sections listed in
-        _CONFIG_NESTED_SECTIONS are flattened one level deep using
-        "section.subkey" keys so callers can inspect e.g. deeptools_params.body_len.
+        Strategy (blocklist instead of whitelist):
+        - Skip _CONFIG_SKIP_SECTIONS (e.g. "software" — just tool binary paths).
+        - Flatten _CONFIG_NESTED_SECTIONS one level deep: deeptools_params.body_len, etc.
+        - Flatten adapter_sets two levels deep: adapter_sets.tn5.PE, adapter_sets.illumina.SE, etc.
+        - For any other nested dict, emit a compact "k=v; k=v" summary string.
+        - All scalars and lists are included unconditionally.
         """
         result: dict[str, str] = {}
         for key, value in raw.items():
             if not isinstance(key, str):
                 continue
+            if key in cls._CONFIG_SKIP_SECTIONS or key in cls._CONFIG_SKIP_KEYS:
+                continue
             if isinstance(value, dict):
                 if key in cls._CONFIG_NESTED_SECTIONS:
+                    # Flatten one level: deeptools_params.body_len = "3000"
                     for sub_key, sub_val in value.items():
                         if isinstance(sub_val, (str, int, float, bool)):
                             result[f"{key}.{sub_key}"] = str(sub_val)
-                elif key in cls.PREFLIGHT_CONFIG_KEYS:
-                    result[key] = str(value)[:200]
+                elif key == "adapter_sets":
+                    # Flatten two levels: adapter_sets.tn5.PE = "-a CTGTCTCT..."
+                    for adapter_type, tool_dict in value.items():
+                        if not isinstance(tool_dict, dict):
+                            continue
+                        for tool, mode_dict in tool_dict.items():
+                            if not isinstance(mode_dict, dict):
+                                continue
+                            for mode, cmd in mode_dict.items():
+                                result[f"adapter_sets.{adapter_type}.{mode}"] = str(cmd)[:240]
+                else:
+                    # Generic nested dict → compact summary
+                    pairs = "; ".join(
+                        f"{k}={v}"
+                        for k, v in value.items()
+                        if isinstance(v, (str, int, float, bool))
+                    )
+                    if pairs:
+                        result[key] = pairs[:300]
             elif isinstance(value, list):
-                if key in cls.PREFLIGHT_CONFIG_KEYS:
-                    result[key] = ", ".join(str(item) for item in value)[:200]
+                result[key] = ", ".join(str(item) for item in value)[:200]
             else:
                 str_val = "" if value is None else str(value)
-                if key in cls.PREFLIGHT_CONFIG_KEYS:
-                    result[key] = str_val
+                result[key] = str_val
                 # Normalise "samplist" typo → "samplelist"
                 if key == "samplist" and "samplelist" not in result:
                     result["samplelist"] = str_val

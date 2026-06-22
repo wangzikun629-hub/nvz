@@ -35,6 +35,11 @@ class QuestionRouterService:
         "peak_count": ("peak", "峰", "峰数量"),
     }
     FORMULA_TERMS = ("怎么计算", "如何计算", "计算方式", "怎么算", "公式", "怎么来的", "口径")
+    PIPELINE_PARAM_TERMS = (
+        "阈值", "qvalue", "q-value", "q值", "callpeak", "call peak",
+        "去重设置", "spikein设置", "spike-in设置", "参考基因组", "接头类型",
+        "trimming", "macs", "bowtie", "比对参数", "峰值参数",
+    )
     EXPLAIN_TERMS = ("是什么", "代表什么", "什么意思", "解释", "定义")
     CHART_TERMS = (
         "画图",
@@ -206,6 +211,21 @@ class QuestionRouterService:
                 question_tags,
                 0.76,
                 "project_reference",
+            )
+
+        # Pipeline parameter questions (e.g. "callpeak q-value 阈值是多少") are
+        # project-specific even when no project keyword appears in the text.
+        # Route to project_analysis so config/workflow context is available.
+        if any(token in normalized for token in self.PIPELINE_PARAM_TERMS):
+            return QuestionRoute(
+                "project_pipeline_config",
+                "project_analysis",
+                True,
+                False,
+                target_metrics,
+                question_tags,
+                0.78,
+                "pipeline_param_term",
             )
 
         return QuestionRoute(
