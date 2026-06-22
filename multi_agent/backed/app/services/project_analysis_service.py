@@ -16,8 +16,10 @@ from multi_agent.backed.app.multi_agent.project_progress import publish_project_
 from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
     find_internal_workflow_files,
     find_files,
+    find_log_files,
     list_project_files,
     list_report_roots,
+    read_log_snippet,
     read_table_rows,
     read_text_snippet,
     resolve_project_root,
@@ -321,6 +323,7 @@ class ProjectAnalysisService:
         "motif": ["knownResults.txt", "homerMotifs.all.motifs", "_meme.txt", "Motify.readme.txt", "Motifyhtml", "MotifyAnalysis", "Motif", "meme"],
         "igv": ["ForIGV", "bigwig", "bw", "bedgraph"],
         "overview": ["CUTTag_report.html", "README.txt", "report.html", "ReadsQC.xls", "AlignmentQC.xls"],
+        "log": [".log", "error", "stderr", "stdout", "pipeline", "snakemake", "workflow"],
     }
     TARGET_METRIC_FILE_HINTS = {
         "adapter_percent": ("ReadsQC.xls",),
@@ -365,11 +368,18 @@ class ProjectAnalysisService:
         "fail",
         "failed",
         "why",
+        "报错",
+        "错误",
+        "日志",
+        "错误日志",
+        "log",
+        "error",
     )
     SECONDARY_TEXT_HINTS = {
         "diff": ["diff", "deg", "differential"],
         "motif": ["motif", "homer", "meme"],
         "igv": ["igv", "bigwig", "bedgraph", ".bw"],
+        "log": [".log", "error", "stderr", "stdout"],
     }
 
     @classmethod
@@ -424,6 +434,23 @@ class ProjectAnalysisService:
             add("igv")
         if any(token in normalized for token in ("q30", "q20", "adapter", "质控", "接头", "测序质量", "clean reads")):
             add("qc")
+        if any(
+            token in normalized
+            for token in (
+                "报错",
+                "错误日志",
+                "日志文件",
+                "log文件",
+                "error log",
+                "stderr",
+                "stdout",
+                "查看日志",
+                "看日志",
+                "查看log",
+                "看log",
+            )
+        ):
+            add("log")
         if cls._has_diagnostic_signal(normalized):
             add("diagnostic")
         return tags or ["overview"]
@@ -516,6 +543,8 @@ class ProjectAnalysisService:
         for question_type, hints in cls.SECONDARY_TEXT_HINTS.items():
             if question_type in question_types:
                 ordered.extend(find_files(project_root, hints, limit=2))
+        if "log" in question_types or "diagnostic" in question_types:
+            ordered.extend(find_log_files(project_root, limit=5))
         for name in cls.TABLE_PRIORITY:
             ordered.extend(find_files(project_root, [name], limit=1))
 
@@ -2387,7 +2416,12 @@ class ProjectAnalysisService:
             cache_kind = "text_summary"
             cached = cls._get_cached_parse(file_path, cache_kind)
             if cached is None:
-                preview = read_text_snippet(file_path) if cls._looks_like_text_file(file_path) else ""
+                if file_path.suffix.lower() == ".log":
+                    preview = read_log_snippet(file_path)
+                elif cls._looks_like_text_file(file_path):
+                    preview = read_text_snippet(file_path)
+                else:
+                    preview = ""
                 summary = cls._summarize_text_evidence(file_path, preview)
                 cached = cls._set_cached_parse(
                     file_path,
@@ -4069,6 +4103,37 @@ class ProjectAnalysisService:
         lines = [line.strip() for line in preview.splitlines() if line.strip()]
         summary: dict[str, Any] = {"preview": preview[:1500], "findings": []}
 
+        if file_path.suffix.lower() == ".log":
+            error_lines: list[str] = []
+            warning_lines: list[str] = []
+            for line in lines:
+                ll = line.lower()
+                if any(tok in ll for tok in ("error", "exception", "traceback", "critical", "fatal", "abort", "报错", "错误")):
+                    error_lines.append(line)
+                elif any(tok in ll for tok in ("warning", "warn", "警告")):
+                    warning_lines.append(line)
+            summary.update(
+                {
+                    "kind": "log",
+                    "total_lines_in_preview": len(lines),
+                    "error_line_count": len(error_lines),
+                    "warning_line_count": len(warning_lines),
+                    "error_lines": error_lines[:20],
+                    "warning_lines": warning_lines[:10],
+                }
+            )
+            if error_lines:
+                summary["findings"].append(
+                    f"日志中发现 {len(error_lines)} 行错误信息，首条：{error_lines[0][:200]}"
+                )
+            elif warning_lines:
+                summary["findings"].append(
+                    f"日志中发现 {len(warning_lines)} 行警告信息，首条：{warning_lines[0][:200]}"
+                )
+            else:
+                summary["findings"].append("日志末尾未检测到明显错误或警告行")
+            return summary
+
         if lower_name.endswith("_meme.txt"):
             motifs: list[dict[str, Any]] = []
             for line in lines:
@@ -5357,20 +5422,54 @@ class ProjectAnalysisService:
             question=question,
             project_id=project_id,
         )
-        # Overlay: if validated_claims produced no direct_conclusions, fall back
-        # to diagnosis_summary string conclusions so rendering is not empty.
-        if not fact_packet.get("direct_conclusions") and diagnosis_summary.get("conclusions"):
-            fact_packet["direct_conclusions"] = [
-                {"claim": c, "evidence_ids": [], "causal_level": "observation", "confidence": ""}
-                for c in diagnosis_summary.get("conclusions", [])[:4]
-            ]
-        reasoning_packet = {
-            "possible_causes": diagnosis_summary.get("possible_causes", [])[:5],
-            "ranked_causes": diagnosis_summary.get("ranked_causes", [])[:5],
-            "hypothesis_comparison": diagnosis_summary.get("hypothesis_comparison", [])[:4],
-            "verification_plan": diagnosis_summary.get("verification_plan", [])[:6],
-            "evidence_against": diagnosis_summary.get("evidence_against", [])[:6],
-        }
+        # Overlay priority 1: when QC evidence is absent but pipeline log files
+        # contain explicit error lines, use those as direct_conclusions and
+        # suppress hypothesis generation entirely.  Log errors are ground-truth
+        # facts (the pipeline actually printed them) and must take precedence
+        # over speculative reasoning_packet hypotheses.
+        _log_error_conclusions: list[dict[str, Any]] = []
+        if not fact_packet.get("project_evidence"):
+            for _fs in file_summaries:
+                _summary = _fs.get("summary") or {}
+                if _summary.get("kind") != "log":
+                    continue
+                _error_lines = _summary.get("error_lines") or []
+                if not _error_lines:
+                    continue
+                _fname = str(_fs.get("file", "")).replace("\\", "/").split("/")[-1]
+                for _err in _error_lines[:5]:
+                    _log_error_conclusions.append({
+                        "claim": f"[{_fname}] {_err[:400]}",
+                        "evidence_ids": [],
+                        "causal_level": "pipeline_error",
+                        "confidence": "direct_log_evidence",
+                    })
+        if _log_error_conclusions:
+            fact_packet["direct_conclusions"] = _log_error_conclusions
+            fact_packet["pipeline_errors_found"] = True
+            # Suppress hypothesis generation — log errors ARE the answer.
+            reasoning_packet: dict[str, Any] = {
+                "possible_causes": [],
+                "ranked_causes": [],
+                "hypothesis_comparison": [],
+                "verification_plan": [],
+                "evidence_against": [],
+            }
+        else:
+            # Overlay priority 2: if validated_claims produced no direct_conclusions,
+            # fall back to diagnosis_summary string conclusions so rendering is not empty.
+            if not fact_packet.get("direct_conclusions") and diagnosis_summary.get("conclusions"):
+                fact_packet["direct_conclusions"] = [
+                    {"claim": c, "evidence_ids": [], "causal_level": "observation", "confidence": ""}
+                    for c in diagnosis_summary.get("conclusions", [])[:4]
+                ]
+            reasoning_packet = {
+                "possible_causes": diagnosis_summary.get("possible_causes", [])[:5],
+                "ranked_causes": diagnosis_summary.get("ranked_causes", [])[:5],
+                "hypothesis_comparison": diagnosis_summary.get("hypothesis_comparison", [])[:4],
+                "verification_plan": diagnosis_summary.get("verification_plan", [])[:6],
+                "evidence_against": diagnosis_summary.get("evidence_against", [])[:6],
+            }
         analysis_result_layers = {
             "fact_packet": fact_packet,
             "reasoning_packet": reasoning_packet,

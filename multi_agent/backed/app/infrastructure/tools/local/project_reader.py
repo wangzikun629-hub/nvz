@@ -542,7 +542,13 @@ def _iter_remote_project_paths(location: SftpLocation, project_id: str) -> list[
                 continue
             for child in children:
                 remote_child = posixpath.join(current, child.filename)
-                if not stat.S_ISDIR(child.st_mode):
+                # Follow symlinks: listdir_attr returns lstat() so symlinks to
+                # directories appear as S_ISLNK, not S_ISDIR. Use sftp.stat()
+                # (which resolves symlinks) to confirm the entry is a directory.
+                is_dir = stat.S_ISDIR(child.st_mode) or (
+                    stat.S_ISLNK(child.st_mode) and _remote_is_dir(sftp, remote_child)
+                )
+                if not is_dir:
                     continue
                 if _should_skip_remote_dir(remote_child):
                     continue
@@ -728,6 +734,12 @@ def _mirror_sftp_project(
         if not _remote_is_dir(sftp, remote_project_root):
             return None
 
+        # Remote directory confirmed to exist — create local cache root now so
+        # we always return a valid path even when no downloadable files are found
+        # (e.g. brand-new project with no result files yet, or unsupported assay
+        # type whose file extensions aren't in _REMOTE_CACHE_SUFFIXES).
+        local_project_root.mkdir(parents=True, exist_ok=True)
+
         downloaded = 0
         seen_dirs: set[str] = set()
         pending: list[tuple[str, int]] = []
@@ -754,11 +766,17 @@ def _mirror_sftp_project(
                 continue
             for child in children:
                 remote_child = posixpath.join(current, child.filename)
-                if stat.S_ISDIR(child.st_mode):
+                # Follow symlinks: listdir_attr returns lstat() so symlinks to
+                # directories appear as S_ISLNK, not S_ISDIR.
+                child_is_dir = stat.S_ISDIR(child.st_mode) or (
+                    stat.S_ISLNK(child.st_mode) and _remote_is_dir(sftp, remote_child)
+                )
+                if child_is_dir:
                     if depth < 3 and not _should_skip_remote_dir(remote_child):
                         pending.append((remote_child, depth + 1))
                     continue
-                if stat.S_ISREG(child.st_mode) and (
+                # Also download symlinks to regular files (S_ISLNK that is not a dir).
+                if (stat.S_ISREG(child.st_mode) or stat.S_ISLNK(child.st_mode)) and (
                     Path(child.filename).suffix.lower() in _REMOTE_CACHE_SUFFIXES
                     or child.filename.lower() in _INTERNAL_WORKFLOW_NAMES
                 ):
@@ -1046,6 +1064,11 @@ def resolve_project_root(project_id: str, project_root: str | None = None) -> Pa
             try:
                 remote_project_paths = _iter_remote_project_paths(base_location, project_id)
             except Exception:
+                remote_project_paths = []
+            # If SFTP search returned nothing (e.g. listdir failed for a Chinese-named
+            # intermediate directory), fall back to the direct path and let
+            # _mirror_sftp_project do a deeper scan from the project root itself.
+            if not remote_project_paths:
                 remote_project_paths = [posixpath.join(base_location.remote_path, project_id)]
 
         for remote_path in remote_project_paths:
@@ -1086,6 +1109,50 @@ def read_text_snippet(path: Path, max_lines: int = 500, max_chars: int = 50000) 
     lines = text.splitlines()
     snippet = "\n".join(lines[:max_lines])
     return snippet[:max_chars]
+
+
+def read_log_snippet(path: Path, max_tail_lines: int = 300, max_chars: int = 30000) -> str:
+    """Read a log file returning the tail where errors most likely appear.
+
+    For log files the most relevant content (errors, tracebacks, exit codes) is
+    almost always at the END of the file, so we return the last *max_tail_lines*
+    lines rather than the first ones that read_text_snippet would give.
+    """
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    lines = text.splitlines()
+    if len(lines) > max_tail_lines:
+        snippet = "\n".join(lines[-max_tail_lines:])
+    else:
+        snippet = text
+    return snippet[:max_chars]
+
+
+def find_log_files(project_root: Path, limit: int = 10) -> list[Path]:
+    """Find log files scattered under the project directory."""
+    index = _get_project_file_index(project_root)
+    log_name_tokens = ("error", "stderr", "stdout", "pipeline", "snakemake", "workflow", "run")
+    results: list[Path] = []
+    for item in index.files:
+        name_lower = item.path.name.lower()
+        if item.path.suffix.lower() == ".log":
+            results.append(item.path)
+        elif any(token in name_lower for token in log_name_tokens) and item.path.suffix.lower() in {
+            ".txt",
+            ".log",
+            "",
+        }:
+            results.append(item.path)
+        if len(results) >= limit * 3:
+            break
+    seen: set[Path] = set()
+    unique: list[Path] = []
+    for path in results:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(path)
+    unique.sort(key=lambda p: (len(p.parts), len(str(p)), str(p)))
+    return unique[:limit]
 
 
 def find_internal_workflow_files(
