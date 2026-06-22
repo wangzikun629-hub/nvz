@@ -466,19 +466,15 @@ class BusinessResponseService:
                 "adapter_type",
                 "trimming_tool",
                 "remove_duplicates",
-                "spikein_analysis",   # relevant for any metric that touches normalization
+                "spikein_analysis",
+                # Peak-calling params: always include — frequently asked, small overhead
+                "macs3_qvalue",
+                "macs2_qvalue",
+                "blacklist_bed",
+                "tss_region",
+                "TOP_PEAKS_NUM",
+                "KNOWN_MOTIF_TOP_N",
             ]
-            # Peak / FRiP metrics → include peak-calling params
-            _PEAK_METRICS = {"peak_count", "frip_ratio"}
-            if target_metrics & _PEAK_METRICS or not target_metrics:
-                preferred_keys += [
-                    "macs3_qvalue",
-                    "macs2_qvalue",
-                    "blacklist_bed",
-                    "tss_region",        # ATAC TSS enrichment window
-                    "TOP_PEAKS_NUM",     # top-N peaks for motif
-                    "KNOWN_MOTIF_TOP_N", # known motif retention count
-                ]
             config_items = [
                 f"{key}={config[key]}"
                 for key in preferred_keys
@@ -1716,6 +1712,18 @@ class BusinessResponseService:
 
     @staticmethod
     def build_fact_and_reasoning_context(analysis_result: dict[str, Any]) -> str:
+        project_context = analysis_result.get("project_context") or {}
+        raw_config = project_context.get("config") or {}
+        # Compact pipeline config: always-relevant keys + peak-calling params
+        _CONFIG_KEYS = (
+            "species", "genome", "reference", "Sequencing", "sequencing_mode",
+            "seq_length", "organelle_chroms", "adapter_type", "trimming_tool",
+            "remove_duplicates", "spikein_analysis",
+            "macs3_qvalue", "macs2_qvalue", "blacklist_bed",
+            "tss_region", "TOP_PEAKS_NUM", "KNOWN_MOTIF_TOP_N",
+        )
+        pipeline_config = {k: raw_config[k] for k in _CONFIG_KEYS if raw_config.get(k) not in (None, "")}
+        workflow_rule_sources = project_context.get("workflow_rule_sources") or {}
         payload = {
             "context_schema_version": "fact-reasoning-context-v1",
             "question": analysis_result.get("question", ""),
@@ -1725,6 +1733,8 @@ class BusinessResponseService:
             "project_context_summary": {
                 "project_id": analysis_result.get("project_id", ""),
                 "analysis_plan": ((analysis_result.get("analysis_plan") or {}).get("response_plan") or {}),
+                "pipeline_config": pipeline_config,
+                "workflow_rule_sources": workflow_rule_sources,
             },
         }
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"), default=str)
