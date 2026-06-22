@@ -351,7 +351,6 @@ class ProjectAnalysisService:
         "太多",
         "怎么回事",
         "为什么",
-        "原因",
         "失败",
         "不理想",
         "有问题",
@@ -5422,13 +5421,16 @@ class ProjectAnalysisService:
             question=question,
             project_id=project_id,
         )
-        # Overlay priority 1: when QC evidence is absent but pipeline log files
+        # Overlay priority 1: when the question is diagnostic and pipeline log files
         # contain explicit error lines, use those as direct_conclusions and
         # suppress hypothesis generation entirely.  Log errors are ground-truth
         # facts (the pipeline actually printed them) and must take precedence
         # over speculative reasoning_packet hypotheses.
+        # NOTE: we do NOT gate this on fact_packet["project_evidence"] being empty —
+        # a project can have partial QC data AND a pipeline failure at the same time.
         _log_error_conclusions: list[dict[str, Any]] = []
-        if not fact_packet.get("project_evidence"):
+        _is_diagnostic_question = "diagnostic" in question_types or "log" in question_types
+        if _is_diagnostic_question:
             for _fs in file_summaries:
                 _summary = _fs.get("summary") or {}
                 if _summary.get("kind") != "log":

@@ -22,9 +22,9 @@
           <el-icon><Files /></el-icon>
           <span>知识库</span>
         </el-menu-item>
-        <el-menu-item index="/chat">
-          <el-icon><ChatDotRound /></el-icon>
-          <span>项目问答</span>
+        <el-menu-item index="/kb-chat">
+          <el-icon><ChatLineRound /></el-icon>
+          <span>知识库问答</span>
         </el-menu-item>
       </el-menu>
 
@@ -102,7 +102,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatDotRound, Files, Monitor, SwitchButton } from '@element-plus/icons-vue'
+import { ChatLineRound, Files, Monitor, SwitchButton } from '@element-plus/icons-vue'
 import { listSessions, logout, revokeSession } from '@/api/auth'
 
 const route = useRoute()

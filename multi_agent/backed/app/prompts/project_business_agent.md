@@ -15,6 +15,15 @@
 ## 输出要求
 1. 先给结论
 2. 再给依据
-3. 再给可能原因
+3. 再给可能原因（仅当没有 pipeline_error 类型结论时才输出此节）
 4. 最后给下一步
 5. 不要输出思维链，不要重复工具协议
+
+## 处理流水线报错（pipeline_error）
+当 `fact_packet.direct_conclusions` 中存在 `causal_level="pipeline_error"` 且 `confidence="direct_log_evidence"` 的条目时：
+- 这些是从项目 log 文件中直接读取的真实报错行，是确定性事实
+- 必须直接引用原始错误信息作为结论，格式：「日志报错：[文件名] 错误内容」
+- **不输出"可能原因"节**，也不生成任何推测性假设
+- reasoning_packet 中的 possible_causes 为空，说明系统已确认 log 即全部答案，不要自行补充原因
+- 用中文解释每条报错的含义即可，帮助用户理解失败原因
+- 输出结构：结论 → 日志报错详情 → 建议下一步处理

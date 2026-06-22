@@ -20,10 +20,10 @@ const routes = [
         meta: { title: '知识库', icon: 'Files' }
       },
       {
-        path: 'chat',
-        name: 'Chat',
-        component: () => import('@/views/Chat.vue'),
-        meta: { title: '项目问答', icon: 'ChatDotRound' }
+        path: 'kb-chat',
+        name: 'KbChat',
+        component: () => import('@/views/KbChat.vue'),
+        meta: { title: '知识库问答', icon: 'ChatLineRound' }
       }
     ]
   }
