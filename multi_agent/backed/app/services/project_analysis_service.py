@@ -338,6 +338,37 @@ class ProjectAnalysisService:
         "correlation": ("spearman_Corr_readCounts.tab",),
         "peak_count": ("Samples_peak_number_stat.xls",),
     }
+    # Terms that indicate the pipeline itself failed — only log files should be read.
+    PIPELINE_FAILURE_TERMS = (
+        "为什么失败",
+        "为什么报错",
+        "失败原因",
+        "报错原因",
+        "分析失败",
+        "跑失败",
+        "没跑完",
+        "没有跑完",
+        "没分析完",
+        "没有分析完",
+        "任务失败",
+        "流程报错",
+        "流程失败",
+        "pipeline失败",
+        "pipeline报错",
+        "pipeline error",
+        "pipeline failed",
+        "why failed",
+        "why error",
+        "job failed",
+        "task failed",
+        "run failed",
+        "什么错误",
+        "什么报错",
+        "查看报错",
+        "看报错",
+        "看错误",
+        "查看错误",
+    )
     DIAGNOSTIC_TERMS = (
         "低",
         "偏低",
@@ -388,6 +419,10 @@ class ProjectAnalysisService:
     @classmethod
     def _infer_question_types(cls, question: str) -> list[str]:
         normalized = (question or "").lower()
+        # Pipeline failure questions are a special early-exit path:
+        # ONLY read log files, skip all QC metric analysis entirely.
+        if any(token in normalized for token in cls.PIPELINE_FAILURE_TERMS):
+            return ["pipeline_failure"]
         tags: list[str] = []
 
         def add(tag: str) -> None:
@@ -467,6 +502,9 @@ class ProjectAnalysisService:
         planning_hints: dict[str, Any] | None = None,
         evidence_catalog: dict[str, Any] | None = None,
     ) -> list[Path]:
+        # Pipeline failure questions: ONLY read log files, skip all QC evidence.
+        if "pipeline_failure" in question_types:
+            return find_log_files(project_root, limit=max_evidence_files)
         ordered: list[Path] = []
         analysis_plan = (planning_hints or {}).get("analysis_plan") or {}
         target_metrics = [
@@ -5429,7 +5467,11 @@ class ProjectAnalysisService:
         # NOTE: we do NOT gate this on fact_packet["project_evidence"] being empty —
         # a project can have partial QC data AND a pipeline failure at the same time.
         _log_error_conclusions: list[dict[str, Any]] = []
-        _is_diagnostic_question = "diagnostic" in question_types or "log" in question_types
+        _is_diagnostic_question = (
+            "pipeline_failure" in question_types
+            or "diagnostic" in question_types
+            or "log" in question_types
+        )
         if _is_diagnostic_question:
             for _fs in file_summaries:
                 _summary = _fs.get("summary") or {}
