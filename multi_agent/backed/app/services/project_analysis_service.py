@@ -155,22 +155,30 @@ class ProjectAnalysisService:
         "species",
         "sample",
         "samplelist",
+        "samplist",               # typo variant used in some pipeline configs
         "output",
         "output_dir",
         "raw_fastq_dir",
         "sequencing_mode",
+        "seq_length",             # read length, e.g. "150"
         "adapter_type",
         "trimming_tool",
         "remove_duplicates",
         "spikein_analysis",
         "macs3_qvalue",
+        "macs2_qvalue",           # macs2 variant
         "TOP_PEAKS_NUM",
+        "KNOWN_MOTIF_TOP_N",      # motif analysis top-N parameter
         "organelle_chroms",
         "genome",
         "reference",
+        "db_root",                # database root path
         "effective_genome_size",
         "peak_caller",
         "peak_calling",
+        "tss_region",             # TSS window, e.g. "-3000,3000"
+        "blacklist_bed",          # blacklist filter setting ("", "none", or path)
+        "report_lang",            # report language, e.g. "zh" / "en"
     }
     PROFESSIONAL_RULES = {
         "adapter_percent": {
@@ -1344,27 +1352,74 @@ class ProjectAnalysisService:
             rows.append(row)
         return rows
 
+    # Nested YAML sections to flatten with "section.key" notation
+    _CONFIG_NESTED_SECTIONS = {"deeptools_params", "threads"}
+
+    @classmethod
+    def _extract_yaml_config_fields(cls, raw: dict) -> dict[str, str]:
+        """Walk a parsed YAML dict and extract fields matching PREFLIGHT_CONFIG_KEYS.
+
+        Top-level scalar values are extracted directly.  Sections listed in
+        _CONFIG_NESTED_SECTIONS are flattened one level deep using
+        "section.subkey" keys so callers can inspect e.g. deeptools_params.body_len.
+        """
+        result: dict[str, str] = {}
+        for key, value in raw.items():
+            if not isinstance(key, str):
+                continue
+            if isinstance(value, dict):
+                if key in cls._CONFIG_NESTED_SECTIONS:
+                    for sub_key, sub_val in value.items():
+                        if isinstance(sub_val, (str, int, float, bool)):
+                            result[f"{key}.{sub_key}"] = str(sub_val)
+                elif key in cls.PREFLIGHT_CONFIG_KEYS:
+                    result[key] = str(value)[:200]
+            elif isinstance(value, list):
+                if key in cls.PREFLIGHT_CONFIG_KEYS:
+                    result[key] = ", ".join(str(item) for item in value)[:200]
+            else:
+                str_val = "" if value is None else str(value)
+                if key in cls.PREFLIGHT_CONFIG_KEYS:
+                    result[key] = str_val
+                # Normalise "samplist" typo → "samplelist"
+                if key == "samplist" and "samplelist" not in result:
+                    result["samplelist"] = str_val
+        return result
+
     @classmethod
     def _parse_config_summary(cls, path: Path) -> dict[str, str]:
-        summary: dict[str, str] = {}
         text = path.read_text(encoding="utf-8", errors="ignore")
+
+        # Primary: proper YAML parsing handles nested structures and quoted values
+        try:
+            import yaml  # PyYAML — available as a transitive dependency
+            raw = yaml.safe_load(text)
+            if isinstance(raw, dict):
+                return cls._extract_yaml_config_fields(raw)
+        except Exception:
+            pass
+
+        # Fallback: line-by-line flat parser for non-standard YAML files
+        summary: dict[str, str] = {}
         for raw_line in text.splitlines():
             line = raw_line.strip()
             if not line or line.startswith("#") or ":" not in line:
                 continue
             key, value = line.split(":", 1)
             key = key.strip().strip("'\"")
-            if key not in cls.PREFLIGHT_CONFIG_KEYS:
+            if key not in cls.PREFLIGHT_CONFIG_KEYS and key != "samplist":
                 continue
             cleaned_value = value.strip()
             if cleaned_value.startswith(("'", '"')):
-                quote = cleaned_value[0]
-                end_index = cleaned_value.find(quote, 1)
+                quote_char = cleaned_value[0]
+                end_index = cleaned_value.find(quote_char, 1)
                 if end_index > 0:
                     cleaned_value = cleaned_value[: end_index + 1]
             elif "#" in cleaned_value:
                 cleaned_value = cleaned_value.split("#", 1)[0].strip()
-            summary[key] = cleaned_value.strip().strip("'\"")
+            cleaned_value = cleaned_value.strip().strip("'\"")
+            norm_key = "samplelist" if key == "samplist" else key
+            summary[norm_key] = cleaned_value
         return summary
 
     @staticmethod

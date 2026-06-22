@@ -76,6 +76,8 @@ _INDEXED_SUFFIXES = {
     ".tsv",
     ".txt",
     ".xls",
+    ".yaml",
+    ".yml",
 }
 _INTERNAL_WORKFLOW_SUFFIXES = {
     ".py",
