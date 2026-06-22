@@ -1093,6 +1093,46 @@ def resolve_project_root(project_id: str, project_root: str | None = None) -> Pa
     raise FileNotFoundError(f"Project root not found for project_id={project_id}")
 
 
+def refresh_project_sftp_logs(project_id: str, local_root: Path) -> None:
+    """Re-mirror an SFTP project to ensure log files are present in the local cache.
+
+    Called for pipeline_failure questions when find_log_files() returns nothing —
+    the original mirror may have been done before the project produced any log files,
+    or the log directory was skipped.  _mirror_sftp_project only downloads files that
+    are new or whose size changed, so this call is safe to repeat.
+    """
+    if _sftp_offline():
+        return
+    project_id = _validate_project_id(project_id)
+    for base_dir in _get_project_base_dirs():
+        if not _is_sftp_url(base_dir):
+            continue
+        try:
+            base_location = _parse_sftp_url(base_dir)
+        except ValueError:
+            continue
+        try:
+            remote_project_paths = _iter_remote_project_paths(base_location, project_id)
+        except Exception:
+            remote_project_paths = []
+        if not remote_project_paths:
+            remote_project_paths = [posixpath.join(base_location.remote_path, project_id)]
+        for remote_path in remote_project_paths:
+            location = SftpLocation(
+                host=base_location.host,
+                port=base_location.port,
+                username=base_location.username,
+                password=base_location.password,
+                remote_path=remote_path,
+                url=_build_sftp_url(base_location, remote_path),
+            )
+            try:
+                _mirror_sftp_project(location, project_id, local_project_root=local_root)
+                return  # Done after first successful mirror
+            except Exception:
+                continue
+
+
 def list_project_files(project_root: Path, limit: int = 200) -> list[ProjectFile]:
     files = [
         ProjectFile(path=path, kind=_detect_kind(path))

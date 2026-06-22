@@ -22,6 +22,7 @@ from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
     read_log_snippet,
     read_table_rows,
     read_text_snippet,
+    refresh_project_sftp_logs,
     resolve_project_root,
 )
 from multi_agent.backed.app.services.project_cuttag_diagnostic_service import (
@@ -421,7 +422,15 @@ class ProjectAnalysisService:
         normalized = (question or "").lower()
         # Pipeline failure questions are a special early-exit path:
         # ONLY read log files, skip all QC metric analysis entirely.
-        if any(token in normalized for token in cls.PIPELINE_FAILURE_TERMS):
+        # Also match combinations like "失败的原因" (token contains 的 between terms).
+        _is_pipeline_failure = any(token in normalized for token in cls.PIPELINE_FAILURE_TERMS)
+        if not _is_pipeline_failure:
+            # Flexible combination: 失败/报错 + 原因/why → pipeline failure
+            _has_failure = any(t in normalized for t in ("失败", "报错", "错误", "fail", "error"))
+            _has_reason = any(t in normalized for t in ("原因", "为什么", "why", "reason"))
+            if _has_failure and _has_reason:
+                _is_pipeline_failure = True
+        if _is_pipeline_failure:
             return ["pipeline_failure"]
         tags: list[str] = []
 
@@ -4825,6 +4834,14 @@ class ProjectAnalysisService:
         )
         question_types = cls._infer_question_types(question)
         question_type = question_types[0]
+        # For pipeline_failure questions, ensure log files are in the local cache.
+        # resolve_project_root returns cached paths immediately without re-mirroring,
+        # so an old cache may lack log files.  Re-mirror only downloads new/changed files.
+        if question_type == "pipeline_failure" and not find_log_files(root, limit=1):
+            try:
+                refresh_project_sftp_logs(project_id, root)
+            except Exception:
+                pass
         wants_report_summary = cls._wants_existing_report_summary(question, question_types)
         include_html_body = wants_report_summary or bool((planning_hints or {}).get("force_include_html_body"))
         logger.info(
@@ -5459,20 +5476,47 @@ class ProjectAnalysisService:
             question=question,
             project_id=project_id,
         )
-        # Overlay priority 1: when the question is diagnostic and pipeline log files
-        # contain explicit error lines, use those as direct_conclusions and
-        # suppress hypothesis generation entirely.  Log errors are ground-truth
-        # facts (the pipeline actually printed them) and must take precedence
-        # over speculative reasoning_packet hypotheses.
-        # NOTE: we do NOT gate this on fact_packet["project_evidence"] being empty —
-        # a project can have partial QC data AND a pipeline failure at the same time.
+        # Overlay priority 1: pipeline log errors take precedence over all speculation.
+        #
+        # Two triggers:
+        #   A) Explicit: question_type is pipeline_failure / diagnostic / log
+        #   B) Implicit: project produced NO QC evidence at all — the pipeline likely
+        #      failed before generating output, so the log IS the only evidence.
+        #
+        # For trigger B we also do a fallback log scan here, because the question may
+        # have been classified as "overview" (e.g. "项目诊断") and log files were
+        # therefore never included in evidence_files / file_summaries.
+        _no_qc_evidence = not fact_packet.get("project_evidence")
+        _has_log_summaries = any(
+            (fs.get("summary") or {}).get("kind") == "log"
+            for fs in file_summaries
+        )
+
+        if _no_qc_evidence and not _has_log_summaries:
+            # Emergency fallback: scan log files directly and append to file_summaries.
+            _fallback_logs = find_log_files(root, limit=10)
+            for _lf in _fallback_logs:
+                try:
+                    _snippet = read_log_snippet(_lf)
+                    _log_sum = cls._summarize_text_evidence(_lf, _snippet)
+                    _rel = str(_lf.relative_to(root)).replace("\\", "/")
+                    file_summaries.append({
+                        "file": _rel,
+                        "type": "text",
+                        "preview": _snippet,
+                        "summary": _log_sum,
+                    })
+                except Exception:
+                    pass
+
         _log_error_conclusions: list[dict[str, Any]] = []
-        _is_diagnostic_question = (
+        _should_use_log_evidence = (
             "pipeline_failure" in question_types
             or "diagnostic" in question_types
             or "log" in question_types
+            or _no_qc_evidence  # No QC output is itself evidence of pipeline failure
         )
-        if _is_diagnostic_question:
+        if _should_use_log_evidence:
             for _fs in file_summaries:
                 _summary = _fs.get("summary") or {}
                 if _summary.get("kind") != "log":
