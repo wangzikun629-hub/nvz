@@ -392,6 +392,11 @@ class BusinessResponseService:
                 if value not in (None, "") and any(key.startswith(p) for p in _LOW_PRIORITY_PREFIXES)
             ]
             config_items = qc_items + low_items
+            logger.info(
+                "response_service config_items total=%d qc=%d low=%d first_qc=%s",
+                len(config_items), len(qc_items), len(low_items),
+                "; ".join(config_items[:5]),
+            )
             lines.append("pipeline_config: " + "; ".join(config_items))
         if workflow_summary:
             workflow_files = [
@@ -443,9 +448,12 @@ class BusinessResponseService:
         config = context.get("config", {}) or {}
         experiment_design = context.get("experiment_design") or {}
         glossary = context.get("metric_glossary", {}) or {}
+        workflow_rule_sources = context.get("workflow_rule_sources", {}) or {}
+        workflow_summary = context.get("workflow_summary", {}) or {}
         lines: list[str] = []
         if config:
-            preferred_keys = (
+            preferred_keys = [
+                # Always-include: identity & core pipeline params
                 "species",
                 "genome",
                 "reference",
@@ -453,11 +461,24 @@ class BusinessResponseService:
                 "project_type",
                 "Sequencing",
                 "sequencing_mode",
+                "seq_length",
                 "organelle_chroms",
                 "adapter_type",
                 "trimming_tool",
                 "remove_duplicates",
-            )
+                "spikein_analysis",   # relevant for any metric that touches normalization
+            ]
+            # Peak / FRiP metrics → include peak-calling params
+            _PEAK_METRICS = {"peak_count", "frip_ratio"}
+            if target_metrics & _PEAK_METRICS or not target_metrics:
+                preferred_keys += [
+                    "macs3_qvalue",
+                    "macs2_qvalue",
+                    "blacklist_bed",
+                    "tss_region",        # ATAC TSS enrichment window
+                    "TOP_PEAKS_NUM",     # top-N peaks for motif
+                    "KNOWN_MOTIF_TOP_N", # known motif retention count
+                ]
             config_items = [
                 f"{key}={config[key]}"
                 for key in preferred_keys
@@ -500,6 +521,20 @@ class BusinessResponseService:
         ]
         if glossary_lines:
             lines.append("metric_glossary:\n" + "\n".join(glossary_lines))
+        # Include workflow_rule_sources (structured config params with source traceability)
+        if workflow_rule_sources:
+            rule_lines = [
+                f"- {key}: {source.get('value', '')} [{source.get('source_type', '')}; {source.get('source_file', '')}]"
+                for key, source in list(workflow_rule_sources.items())[:12]
+            ]
+            lines.append("workflow_rule_sources:\n" + "\n".join(rule_lines))
+        # Include detected parameters from workflow files (e.g. macs3_qvalue from config.yaml)
+        detected_parameters = workflow_summary.get("detected_parameters", {}) or {}
+        if detected_parameters:
+            lines.append(
+                "workflow_detected_parameters:\n"
+                + "\n".join(f"- {key}: {value}" for key, value in list(detected_parameters.items())[:10])
+            )
         return "\n".join(lines)
 
     @staticmethod
