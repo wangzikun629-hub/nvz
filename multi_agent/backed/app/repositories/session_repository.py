@@ -38,6 +38,9 @@ class SessionRepository:
         self._sessions_metadata_cache: dict[
             str, tuple[tuple[tuple[str, float, int], ...], List[Tuple[str, str, Union[List, Exception]]]]
         ] = {}
+        self._sessions_summary_cache: dict[
+            str, tuple[tuple[tuple[str, float, int], ...], List[Dict[str, Any]]]
+        ] = {}
 
 
     def load_session(
@@ -88,6 +91,7 @@ class SessionRepository:
             if tmp_path.exists():
                 tmp_path.unlink()
         self._sessions_metadata_cache.pop(user_id, None)
+        self._sessions_summary_cache.pop(user_id, None)
 
     def delete_session(self, user_id: str, session_id: str) -> bool:
         """删除指定会话文件。"""
@@ -97,6 +101,7 @@ class SessionRepository:
 
         file_path.unlink()
         self._sessions_metadata_cache.pop(user_id, None)
+        self._sessions_summary_cache.pop(user_id, None)
         return True
 
     # ------------------------------------------------------------------ async
@@ -170,6 +175,58 @@ class SessionRepository:
             return []
 
         self._sessions_metadata_cache[user_id] = (signature, results)
+        return results
+
+    def get_all_sessions_summary_metadata(self, user_id: str) -> List[Dict[str, Any]]:
+        user_dir = self._get_user_directory(user_id)
+
+        if not user_dir.exists():
+            logger.warning(f"鐢ㄦ埛鐩綍涓嶅瓨鍦? {user_id}")
+            return []
+
+        files = list(user_dir.glob("*.json"))
+        signature = tuple(
+            sorted(
+                (
+                    file_path.name,
+                    file_path.stat().st_mtime,
+                    file_path.stat().st_size,
+                )
+                for file_path in files
+            )
+        )
+        cached = self._sessions_summary_cache.get(user_id)
+        if cached and cached[0] == signature:
+            return cached[1]
+
+        results = []
+        for file_path in files:
+            stat = file_path.stat()
+            summary = {
+                "session_id": file_path.stem,
+                "create_time": datetime.fromtimestamp(stat.st_ctime).strftime("%Y-%m-%d %H:%M:%S"),
+                "updated_at": datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                "total_messages": 0,
+                "preview": "",
+            }
+            try:
+                text = file_path.read_text(encoding="utf-8")
+                summary["total_messages"] = len(
+                    re.findall(r'"role"\s*:\s*"(?!system\b)[^"]+"', text)
+                )
+                preview_match = re.search(
+                    r'"role"\s*:\s*"user"\s*,\s*"content"\s*:\s*("(?:\\.|[^"\\])*")',
+                    text,
+                    flags=re.DOTALL,
+                )
+                if preview_match:
+                    summary["preview"] = json.loads(preview_match.group(1))
+            except Exception as e:
+                logger.error(f"璇诲彇浼氳瘽鎽樿 {file_path.name} 澶辫触: {e}")
+                summary["error"] = "无法读取会话摘要"
+            results.append(summary)
+
+        self._sessions_summary_cache[user_id] = (signature, results)
         return results
 
     def _get_user_directory(self, user_id: str) -> Path:

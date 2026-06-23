@@ -141,6 +141,11 @@ class SessionService:
         formatted_sessions.sort(key=lambda item: item.get("create_time") or "", reverse=True)
         return formatted_sessions
 
+    def get_all_sessions_summary(self, user_id: str) -> list[dict[str, Any]]:
+        sessions = self._repo.get_all_sessions_summary_metadata(user_id)
+        sessions.sort(key=lambda item: item.get("updated_at") or item.get("create_time") or "", reverse=True)
+        return sessions
+
     def delete_session(self, user_id: str, session_id: str) -> bool:
         if not user_id or not session_id:
             return False

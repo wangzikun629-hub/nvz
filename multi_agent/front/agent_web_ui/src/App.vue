@@ -692,6 +692,7 @@ export default {
     }
 
     const sessionPreview = (session) => {
+      if (session.preview) return sanitizeDisplayText(session.preview)
       const analysisItem = (session.memory || []).find((item) => item.role === 'analysis' || getSessionPayload(item)?.workflow_trace)
       if (analysisItem) {
         const payload = getSessionPayload(analysisItem) || analysisItem.content
@@ -998,7 +999,10 @@ export default {
       Boolean(session)
       && !session.local_draft
       && !session.error
-      && (session.memory || []).some((msg) => msg.role === 'user' || msg.role === 'assistant')
+      && (
+        Number(session.total_messages || 0) > 0
+        || (session.memory || []).some((msg) => msg.role === 'user' || msg.role === 'assistant')
+      )
     )
 
     const mergeLocalDraftSessions = (serverSessions) => {
@@ -1039,6 +1043,20 @@ export default {
     const loadStoredSessionMessages = (sessionId) => {
       const session = sessions.value.find((item) => item.session_id === sessionId)
       return (session?.memory || []).map(normalizeStoredMessage).filter(Boolean)
+    }
+
+    const fetchSessionMessages = async (sessionId) => {
+      if (!currentUser.value || !sessionId) return []
+      const response = await fetch(`${API_BASE}/session_messages`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          user_id: currentUser.value,
+          session_id: sessionId,
+        }),
+      })
+      const data = await response.json()
+      return (data.messages || []).map(normalizeStoredMessage).filter(Boolean)
     }
 
     const snapshotVisibleSessionState = () => ({
@@ -1152,7 +1170,8 @@ export default {
       stageTimeline.value = []
       latestAnalysisRef.value = null
       if (!restorePendingSessionState(sessionId)) {
-        chatMessages.value = loadStoredSessionMessages(sessionId)
+        const storedMessages = loadStoredSessionMessages(sessionId)
+        chatMessages.value = storedMessages.length ? storedMessages : await fetchSessionMessages(sessionId)
         activeAssistantId.value = ''
         activeUserMessageId.value = ''
       }

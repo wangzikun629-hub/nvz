@@ -197,7 +197,7 @@ def get_user_sessions(request: UserSessionsRequest, auth_user: dict = Depends(_r
     request.user_id = user_id
     try:
         started_at = perf_counter()
-        all_sessions = session_service.get_all_sessions_memory(user_id)
+        all_sessions = session_service.get_all_sessions_summary(user_id)
         logger.info(
             "get_user_sessions done user=%s sessions=%d cost=%.3fs",
             user_id,
