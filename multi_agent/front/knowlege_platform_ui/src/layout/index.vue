@@ -26,10 +26,6 @@
           <el-icon><ChatLineRound /></el-icon>
           <span>知识库问答</span>
         </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/admin">
-          <el-icon><UserFilled /></el-icon>
-          <span>成员管理</span>
-        </el-menu-item>
       </el-menu>
 
       <div class="sidebar-footer">
@@ -106,7 +102,7 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatLineRound, Files, Monitor, SwitchButton, UserFilled } from '@element-plus/icons-vue'
+import { ChatLineRound, Files, Monitor, SwitchButton } from '@element-plus/icons-vue'
 import { listSessions, logout, revokeSession } from '@/api/auth'
 
 const route = useRoute()
@@ -114,7 +110,6 @@ const router = useRouter()
 const activeMenu = computed(() => route.path)
 const currentUser = computed(() => localStorage.getItem('kp_user') || 'User')
 const userInitial = computed(() => (currentUser.value || 'U').charAt(0).toUpperCase())
-const isAdmin = computed(() => currentUser.value === 'admin')
 
 const sessionDialogVisible = ref(false)
 const sessionsLoading = ref(false)
@@ -125,7 +120,6 @@ const clearLocalAuth = () => {
   localStorage.removeItem('kp_user')
   localStorage.removeItem('kp_user_id')
   localStorage.removeItem('kp_auth_token')
-  localStorage.removeItem('kp_admin_token')  // 同步清除管理员令牌
 }
 
 const formatDateTime = value => {
