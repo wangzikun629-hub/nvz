@@ -24,6 +24,12 @@ const routes = [
         name: 'KbChat',
         component: () => import('@/views/KbChat.vue'),
         meta: { title: '知识库问答', icon: 'ChatLineRound' }
+      },
+      {
+        path: 'admin',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/AdminDashboard.vue'),
+        meta: { title: '成员管理', icon: 'UserFilled', adminOnly: true }
       }
     ]
   }
