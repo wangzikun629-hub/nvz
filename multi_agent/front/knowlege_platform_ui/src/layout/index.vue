@@ -38,7 +38,7 @@
           <div class="user-avatar">{{ userInitial }}</div>
           <div class="user-info">
             <span class="user-name">{{ currentUser }}</span>
-            <span class="user-role">内部用户</span>
+            <span class="user-role">{{ isAdmin ? '管理员' : '内部用户' }}</span>
           </div>
         </div>
 
@@ -114,7 +114,7 @@ const router = useRouter()
 const activeMenu = computed(() => route.path)
 const currentUser = computed(() => localStorage.getItem('kp_user') || 'User')
 const userInitial = computed(() => (currentUser.value || 'U').charAt(0).toUpperCase())
-const isAdmin = computed(() => currentUser.value === 'admin')
+const isAdmin = computed(() => localStorage.getItem('kp_is_admin') === '1')
 
 const sessionDialogVisible = ref(false)
 const sessionsLoading = ref(false)
@@ -125,7 +125,7 @@ const clearLocalAuth = () => {
   localStorage.removeItem('kp_user')
   localStorage.removeItem('kp_user_id')
   localStorage.removeItem('kp_auth_token')
-  localStorage.removeItem('kp_admin_token')  // 同步清除管理员令牌
+  localStorage.removeItem('kp_is_admin')
 }
 
 const formatDateTime = value => {

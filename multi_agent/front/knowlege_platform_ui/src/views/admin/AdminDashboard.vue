@@ -1,147 +1,134 @@
 <template>
   <div class="admin-dashboard">
 
-    <!-- 首次进入需要输入管理员令牌 -->
-    <el-dialog
-      v-model="tokenDialogVisible"
-      title="管理员验证"
-      width="400px"
-      :close-on-click-modal="false"
-      :show-close="false"
-    >
-      <p class="token-hint">请输入 APP_API_KEY 以访问管理后台</p>
-      <el-input
-        v-model="tokenInput"
-        type="password"
-        placeholder="管理员令牌"
-        show-password
-        @keyup.enter="saveToken"
-      />
-      <template #footer>
-        <el-button type="primary" :loading="tokenChecking" @click="saveToken">确认</el-button>
-      </template>
-    </el-dialog>
+    <!-- 页头 -->
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">成员管理</h2>
+        <p class="page-sub">共 {{ stats.total_users }} 名成员，当前在线会话 {{ stats.active_sessions }} 个</p>
+      </div>
+      <el-button :loading="loading" @click="loadAll" :icon="Refresh" circle />
+    </div>
 
-    <!-- 主内容（令牌验证通过后显示） -->
-    <template v-if="!tokenDialogVisible">
-
-      <!-- 页头 -->
-      <div class="page-header">
+    <!-- 统计卡片 -->
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="stat-icon purple">
+          <el-icon :size="22"><User /></el-icon>
+        </div>
         <div>
-          <h2 class="page-title">成员管理</h2>
-          <p class="page-sub">共 {{ stats.total_users }} 名成员，当前在线会话 {{ stats.active_sessions }} 个</p>
-        </div>
-        <el-button :loading="loading" @click="loadAll" :icon="Refresh" circle />
-      </div>
-
-      <!-- 统计卡片 -->
-      <div class="stat-row">
-        <div class="stat-card">
-          <div class="stat-icon purple">
-            <el-icon :size="22"><User /></el-icon>
-          </div>
-          <div>
-            <div class="stat-num">{{ stats.total_users }}</div>
-            <div class="stat-label">注册成员总数</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon green">
-            <el-icon :size="22"><Connection /></el-icon>
-          </div>
-          <div>
-            <div class="stat-num">{{ stats.active_sessions }}</div>
-            <div class="stat-label">当前在线会话</div>
-          </div>
+          <div class="stat-num">{{ stats.total_users }}</div>
+          <div class="stat-label">注册成员总数</div>
         </div>
       </div>
+      <div class="stat-card">
+        <div class="stat-icon green">
+          <el-icon :size="22"><Connection /></el-icon>
+        </div>
+        <div>
+          <div class="stat-num">{{ stats.active_sessions }}</div>
+          <div class="stat-label">当前在线会话</div>
+        </div>
+      </div>
+    </div>
 
-      <!-- 成员表格 -->
-      <div class="table-card">
-        <el-table
-          v-loading="loading"
-          :data="users"
-          row-key="id"
-          style="width: 100%"
-          @expand-change="handleExpand"
-        >
-          <!-- 展开列 -->
-          <el-table-column type="expand">
-            <template #default="{ row }">
-              <div class="expand-wrap">
-                <div v-if="convLoading[row.id]" class="conv-loading">
-                  <el-icon class="is-loading"><Loading /></el-icon> 加载对话中…
-                </div>
-                <div v-else-if="!conversations[row.id]?.length" class="conv-empty">
-                  暂无对话记录
-                </div>
-                <div v-else class="conv-grid">
-                  <div
-                    v-for="conv in conversations[row.id]"
-                    :key="conv.session_id"
-                    class="conv-item"
-                  >
-                    <div class="conv-title">{{ conv.title || '（无内容）' }}</div>
-                    <div class="conv-meta">
-                      <el-tag size="small" type="info">{{ conv.total_messages }} 条消息</el-tag>
-                      <span>{{ formatDate(conv.updated_at) }}</span>
-                    </div>
+    <!-- 成员表格 -->
+    <div class="table-card">
+      <el-table
+        v-loading="loading"
+        :data="users"
+        row-key="id"
+        style="width: 100%"
+        @expand-change="handleExpand"
+      >
+        <!-- 展开列 -->
+        <el-table-column type="expand">
+          <template #default="{ row }">
+            <div class="expand-wrap">
+              <div v-if="convLoading[row.id]" class="conv-loading">
+                <el-icon class="is-loading"><Loading /></el-icon> 加载对话中…
+              </div>
+              <div v-else-if="!conversations[row.id]?.length" class="conv-empty">
+                暂无对话记录
+              </div>
+              <div v-else class="conv-grid">
+                <div
+                  v-for="conv in conversations[row.id]"
+                  :key="conv.session_id"
+                  class="conv-item"
+                >
+                  <div class="conv-title">{{ conv.title || '（无内容）' }}</div>
+                  <div class="conv-meta">
+                    <el-tag size="small" type="info">{{ conv.total_messages }} 条消息</el-tag>
+                    <span>{{ formatDate(conv.updated_at) }}</span>
                   </div>
                 </div>
               </div>
-            </template>
-          </el-table-column>
+            </div>
+          </template>
+        </el-table-column>
 
-          <el-table-column label="ID" prop="id" width="70" />
+        <el-table-column label="ID" prop="id" width="70" />
 
-          <el-table-column label="用户名" min-width="140">
-            <template #default="{ row }">
-              <div class="username-cell">
-                <div class="avatar">{{ row.username.charAt(0).toUpperCase() }}</div>
-                <span>{{ row.username }}</span>
+        <el-table-column label="用户名" min-width="160">
+          <template #default="{ row }">
+            <div class="username-cell">
+              <div class="avatar" :class="{ 'avatar-admin': row.is_admin }">
+                {{ row.username.charAt(0).toUpperCase() }}
               </div>
-            </template>
-          </el-table-column>
+              <span>{{ row.username }}</span>
+              <el-tag v-if="row.is_admin" size="small" type="warning" effect="dark">管理员</el-tag>
+            </div>
+          </template>
+        </el-table-column>
 
-          <el-table-column label="注册时间" width="180">
-            <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
-          </el-table-column>
+        <el-table-column label="注册时间" width="180">
+          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+        </el-table-column>
 
-          <el-table-column label="在线状态" width="120">
-            <template #default="{ row }">
-              <el-tag
-                :type="row.active_sessions > 0 ? 'success' : 'info'"
-                size="small"
-              >
-                {{ row.active_sessions > 0 ? `在线 ${row.active_sessions}` : '离线' }}
-              </el-tag>
-            </template>
-          </el-table-column>
+        <el-table-column label="在线状态" width="120">
+          <template #default="{ row }">
+            <el-tag :type="row.active_sessions > 0 ? 'success' : 'info'" size="small">
+              {{ row.active_sessions > 0 ? `在线 ${row.active_sessions}` : '离线' }}
+            </el-tag>
+          </template>
+        </el-table-column>
 
-          <el-table-column label="对话数" width="90" align="center">
-            <template #default="{ row }">
-              <span class="conv-count">{{ row.conversation_count }}</span>
-            </template>
-          </el-table-column>
+        <el-table-column label="对话数" width="80" align="center">
+          <template #default="{ row }">
+            <span class="conv-count">{{ row.conversation_count }}</span>
+          </template>
+        </el-table-column>
 
-          <el-table-column label="操作" width="180" align="right">
-            <template #default="{ row }">
-              <el-button text type="primary" size="small" @click="openReset(row)">
-                重置密码
-              </el-button>
-              <el-button text type="danger" size="small" @click="handleDelete(row)">
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-
-    </template>
+        <el-table-column label="操作" width="220" align="right">
+          <template #default="{ row }">
+            <el-button
+              text
+              :type="row.is_admin ? 'warning' : 'primary'"
+              size="small"
+              :disabled="row.id === currentUserId"
+              @click="toggleAdmin(row)"
+            >
+              {{ row.is_admin ? '取消管理员' : '设为管理员' }}
+            </el-button>
+            <el-button text type="primary" size="small" @click="openReset(row)">
+              重置密码
+            </el-button>
+            <el-button
+              text type="danger" size="small"
+              :disabled="row.id === currentUserId"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </div>
 
     <!-- 重置密码弹窗 -->
     <el-dialog v-model="resetDialog.visible" title="重置密码" width="380px">
-      <p class="token-hint">
+      <p class="dialog-hint">
         为 <strong>{{ resetDialog.user?.username }}</strong> 设置新密码
       </p>
       <el-form :model="resetDialog" label-width="80px" style="margin-top: 8px">
@@ -180,32 +167,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, User, Connection, Loading } from '@element-plus/icons-vue'
 import { adminApi } from '@/api/admin.js'
 
-// ── 令牌验证 ────────────────────────────────────────────────────────────────
-const tokenDialogVisible = ref(false)
-const tokenInput = ref('')
-const tokenChecking = ref(false)
-
-function checkToken() {
-  const saved = localStorage.getItem('kp_admin_token') || ''
-  if (!saved) tokenDialogVisible.value = true
-}
-
-async function saveToken() {
-  const t = tokenInput.value.trim()
-  if (!t) { ElMessage.warning('请输入令牌'); return }
-  tokenChecking.value = true
-  localStorage.setItem('kp_admin_token', t)
-  try {
-    await adminApi.getStats()
-    tokenDialogVisible.value = false
-    loadAll()
-  } catch {
-    localStorage.removeItem('kp_admin_token')
-    ElMessage.error('令牌错误，请重试')
-  } finally {
-    tokenChecking.value = false
-  }
-}
+// 当前登录用户 ID（用于禁用自身操作按钮）
+const currentUserId = localStorage.getItem('kp_user_id') || ''
 
 // ── 数据 ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
@@ -217,10 +180,7 @@ const conversations = reactive({})
 const convLoading = reactive({})
 
 // ── 初始化 ───────────────────────────────────────────────────────────────────
-onMounted(() => {
-  checkToken()
-  if (localStorage.getItem('kp_admin_token')) loadAll()
-})
+onMounted(() => loadAll())
 
 async function loadAll() {
   // 清空对话缓存，防止刷新后展示过期数据
@@ -235,19 +195,18 @@ async function loadAll() {
     stats.value = { total_users: statsRes.total_users, active_sessions: statsRes.active_sessions }
     users.value = usersRes.items
   } catch (e) {
-    ElMessage.error(e.message || '加载失败')
+    ElMessage.error(e.message || '加载失败，请确认当前账号是管理员')
   } finally {
     loading.value = false
   }
 }
 
 // ── 对话展开 ─────────────────────────────────────────────────────────────────
-// expanded 是当前所有已展开行的数组，需判断 row 是否在其中来区分展开/收起
 async function handleExpand(row, expanded) {
   const isExpanding = expanded.some(r => r.id === row.id)
-  if (!isExpanding) return  // 收起行时不请求
+  if (!isExpanding) return
   const uid = row.id
-  if (conversations[uid]) return  // 已加载过，直接复用缓存
+  if (conversations[uid]) return
   convLoading[uid] = true
   try {
     const data = await adminApi.getUserConversations(uid)
@@ -257,6 +216,25 @@ async function handleExpand(row, expanded) {
     conversations[uid] = []
   } finally {
     convLoading[uid] = false
+  }
+}
+
+// ── 切换管理员 ────────────────────────────────────────────────────────────────
+async function toggleAdmin(row) {
+  const action = row.is_admin ? '取消' : '设置'
+  try {
+    await ElMessageBox.confirm(
+      `确定${action} "${row.username}" 的管理员权限？`,
+      `${action}管理员`,
+      { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' }
+    )
+  } catch { return }
+  try {
+    await adminApi.setAdminStatus(row.id, !row.is_admin)
+    ElMessage.success(`已${action} ${row.username} 的管理员权限`)
+    loadAll()
+  } catch (e) {
+    ElMessage.error(e.message || '操作失败')
   }
 }
 
@@ -342,7 +320,6 @@ function formatDate(str) {
   margin: 0;
 }
 
-// 统计卡片
 .stat-row {
   display: flex;
   gap: 16px;
@@ -388,7 +365,6 @@ function formatDate(str) {
   margin-top: 4px;
 }
 
-// 表格卡片
 .table-card {
   background: #0b1320;
   border: 1px solid #1a2638;
@@ -415,7 +391,6 @@ function formatDate(str) {
     }
 
     tr:hover td.el-table__cell { background: rgba(255,255,255,.03); }
-
     .el-table__expand-icon { color: #475569; }
     .el-table__expand-icon--expanded { color: #22c55e; }
   }
@@ -424,7 +399,7 @@ function formatDate(str) {
 .username-cell {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .avatar {
@@ -439,14 +414,14 @@ function formatDate(str) {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+
+  &.avatar-admin {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+  }
 }
 
-.conv-count {
-  color: #64748b;
-  font-size: 14px;
-}
+.conv-count { color: #64748b; font-size: 14px; }
 
-// 展开区
 .expand-wrap {
   padding: 16px 32px 16px 60px;
   background: #060d16;
@@ -492,18 +467,15 @@ function formatDate(str) {
   color: #475569;
 }
 
-// 令牌提示
-.token-hint {
+.dialog-hint {
   font-size: 13px;
   color: #64748b;
   margin: 0 0 16px;
 }
 
-// Element Plus 弹窗深色适配
 :deep(.el-dialog) {
   background: #0b1320;
   border: 1px solid #1a2638;
-
   .el-dialog__title { color: #e2e8f0; }
   .el-dialog__headerbtn .el-dialog__close { color: #475569; }
 }

@@ -15,17 +15,29 @@ CREATE TABLE IF NOT EXISTS users (
     id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     username      VARCHAR(64) NOT NULL UNIQUE,
     password_hash VARCHAR(128) NOT NULL,
+    is_admin      TINYINT NOT NULL DEFAULT 0,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 """
 
+# 字段迁移：为已存在的旧表补加 is_admin 列
+_MIGRATE_IS_ADMIN_SQL = """
+ALTER TABLE users ADD COLUMN is_admin TINYINT NOT NULL DEFAULT 0
+"""
+
 
 def ensure_table() -> None:
-    """启动时调用，确保 users 表存在。"""
+    """启动时调用，确保 users 表及 is_admin 字段存在。"""
     conn = pool.connection()
     try:
         with conn.cursor() as cur:
             cur.execute(_CREATE_TABLE_SQL)
+            # 兼容旧表：若 is_admin 列不存在则添加
+            try:
+                cur.execute(_MIGRATE_IS_ADMIN_SQL)
+                logger.info("[UserRepository] 已为 users 表添加 is_admin 列")
+            except Exception:
+                pass  # 列已存在，忽略
         conn.commit()
     finally:
         conn.close()
@@ -49,7 +61,7 @@ def get_user_by_username(username: str) -> Optional[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, username, password_hash, created_at FROM users WHERE username = %s",
+                "SELECT id, username, password_hash, is_admin, created_at FROM users WHERE username = %s",
                 (username,),
             )
             row = cur.fetchone()
@@ -59,6 +71,29 @@ def get_user_by_username(username: str) -> Optional[dict]:
             "id": row[0],
             "username": row[1],
             "password_hash": row[2],
+            "is_admin": bool(row[3]),
+            "created_at": str(row[4]),
+        }
+    finally:
+        conn.close()
+
+
+def get_user_by_id(user_id: int) -> Optional[dict]:
+    """通过 ID 查找用户，不存在返回 None。"""
+    conn = pool.connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, username, is_admin, created_at FROM users WHERE id = %s",
+                (int(user_id),),
+            )
+            row = cur.fetchone()
+        if row is None:
+            return None
+        return {
+            "id": row[0],
+            "username": row[1],
+            "is_admin": bool(row[2]),
             "created_at": str(row[3]),
         }
     finally:
@@ -92,14 +127,14 @@ def create_user(username: str, plain_password: str) -> dict:
 def authenticate_user(username: str, plain_password: str) -> Optional[dict]:
     """
     验证用户名 + 密码。
-    成功返回用户 dict（不含 password_hash），失败返回 None。
+    成功返回用户 dict（含 is_admin，不含 password_hash），失败返回 None。
     """
     user = get_user_by_username(username)
     if user is None:
         return None
     if not verify_password(plain_password, user["password_hash"]):
         return None
-    return {"id": user["id"], "username": user["username"]}
+    return {"id": user["id"], "username": user["username"], "is_admin": user["is_admin"]}
 
 
 # ── 管理员接口 ────────────────────────────────────────────────────────────────
@@ -110,11 +145,16 @@ def list_all_users() -> list[dict]:
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT id, username, created_at FROM users ORDER BY created_at DESC"
+                "SELECT id, username, is_admin, created_at FROM users ORDER BY created_at DESC"
             )
             rows = cur.fetchall() or []
         return [
-            {"id": row[0], "username": row[1], "created_at": str(row[2])}
+            {
+                "id": row[0],
+                "username": row[1],
+                "is_admin": bool(row[2]),
+                "created_at": str(row[3]),
+            }
             for row in rows
         ]
     finally:
@@ -147,6 +187,25 @@ def update_password(user_id: int, new_plain_password: str) -> bool:
         conn.commit()
         if changed:
             logger.info(f"[UserRepository][Admin] 重置用户 id={user_id} 的密码")
+        return changed
+    finally:
+        conn.close()
+
+
+def set_admin_status(user_id: int, is_admin: bool) -> bool:
+    """设置或取消用户的管理员权限（管理员专用）。"""
+    conn = pool.connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET is_admin = %s WHERE id = %s",
+                (1 if is_admin else 0, int(user_id)),
+            )
+            changed = cur.rowcount > 0
+        conn.commit()
+        if changed:
+            action = "设为管理员" if is_admin else "取消管理员"
+            logger.info(f"[UserRepository][Admin] 用户 id={user_id} {action}")
         return changed
     finally:
         conn.close()

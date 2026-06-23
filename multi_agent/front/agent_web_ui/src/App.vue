@@ -1031,14 +1031,29 @@ export default {
       sessions.value = mergeLocalDraftSessions(data.sessions || [])
     }
 
+    // 恢复草稿时不同步渲染 markdown，避免消息多时阻塞主线程
+    // renderedContent 留空，由 scheduleLazyRender 在 nextTick 后批量填充
     const renderDraftMessages = (messages) => messages.map((item) => {
       if (item.type !== 'assistant') return cloneMessage(item)
       return {
         ...item,
-        renderedContent: item.content ? renderMarkdown(item.content) : '',
-        renderVersion: Date.now(),
+        renderedContent: '',
+        renderVersion: 0,
       }
     })
+
+    // 在当前帧结束后批量渲染所有尚未 render 的 assistant 消息
+    const scheduleLazyRender = () => {
+      nextTick(() => {
+        const now = Date.now()
+        chatMessages.value.forEach((item) => {
+          if (item.type === 'assistant' && !item.streaming && item.content && !item.renderedContent) {
+            item.renderedContent = renderMarkdown(item.content)
+            item.renderVersion = now
+          }
+        })
+      })
+    }
 
     const loadStoredSessionMessages = (sessionId) => {
       const session = sessions.value.find((item) => item.session_id === sessionId)
@@ -1133,6 +1148,7 @@ export default {
       activeAssistantId.value = pending.activeAssistantId
       activeUserMessageId.value = pending.activeUserMessageId
       if (activeAssistantId.value) scheduleAssistantRender(true)
+      scheduleLazyRender()
       return true
     }
 
@@ -1647,12 +1663,34 @@ export default {
     onMounted(async () => {
       const savedUserId = localStorage.getItem('currentUserId')
       const savedToken = localStorage.getItem('authToken')
-      if (savedUserId) {
-        currentUser.value = savedUserId
-        authToken.value = savedToken || ''
-        isLoggedIn.value = true
-        await fetchUserSessions()
+      if (!savedUserId) return
+
+      currentUser.value = savedUserId
+      authToken.value = savedToken || ''
+      isLoggedIn.value = true
+
+      // 1. 立刻从 localStorage 恢复上次会话内容，不等任何 API
+      const savedSessionId = localStorage.getItem(lastSessionStorageKey())
+      const hasDraft = savedSessionId && Boolean(loadPersistedSessionState(savedSessionId))
+      if (hasDraft) {
+        selectedSessionId.value = savedSessionId
+        restorePendingSessionState(savedSessionId)
+        await scrollToLatestQuestion(true)
+      }
+
+      // 2. 并行拉取会话列表和项目上下文，不阻塞界面显示
+      const sessionsFetch = fetchUserSessions()
+      const contextFetch = hasDraft
+        ? Promise.all([refreshProjectContext(), refreshLatestAnalysis()])
+        : Promise.resolve()
+
+      await Promise.all([sessionsFetch, contextFetch])
+
+      // 3. 如果没有本地草稿，走完整 restoreInitialSession（需要 sessions 列表）
+      if (!hasDraft) {
         await restoreInitialSession()
+      } else if (projectContext.value.ai_report_summary_status === 'running') {
+        startAiReportPolling()
       }
     })
 

@@ -114,6 +114,7 @@ const doLogin = async () => {
     localStorage.setItem('kp_user', data.username)
     localStorage.setItem('kp_user_id', data.userId || data.username)
     localStorage.setItem('kp_auth_token', data.authToken || '')
+    localStorage.setItem('kp_is_admin', data.isAdmin ? '1' : '0')
     router.replace('/')
   } catch {
     errorMsg.value = '网络错误，请稍后重试'

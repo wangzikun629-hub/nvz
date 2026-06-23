@@ -82,6 +82,7 @@ def login(body: AuthRequest):
             "ok": True,
             "message": "登录成功",
             "username": user["username"],
+            "isAdmin": bool(user.get("is_admin", False)),
             "userId": str(user["id"]),
             "authToken": token_bundle["token"],
             "sessionId": token_bundle["session_id"],
