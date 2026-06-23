@@ -60,16 +60,6 @@
               <span class="content-meta">{{ filteredFiles.length }} 个文件</span>
             </div>
           </div>
-          <div class="content-header-right">
-            <span class="scope-label-text">知识范围</span>
-            <el-input
-              v-model="kbScope"
-              size="small"
-              placeholder="例如 general"
-              clearable
-              style="width: 160px"
-            />
-          </div>
         </header>
 
         <!-- 上传卡片 -->
@@ -263,7 +253,6 @@ import {
 const categories = ref([])
 const selectedCategoryId = ref(null)
 const files = ref([])
-const kbScope = ref('general')
 const uploading = ref(false)
 const uploadingFileName = ref('')
 const filesLoading = ref(false)
@@ -420,7 +409,7 @@ async function handleUpload(options) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('category_id', String(activeCategory.value.id))
-  formData.append('kb_scope', (kbScope.value || 'general').trim())
+  formData.append('kb_scope', 'general')
 
   uploading.value = true
   uploadingFileName.value = file.name
@@ -708,18 +697,6 @@ onMounted(async () => {
   color: #64748b;
 }
 
-.content-header-right {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.scope-label-text {
-  font-size: 12px;
-  color: #64748b;
-  white-space: nowrap;
-}
 
 /* 卡片通用 */
 .panel-card {

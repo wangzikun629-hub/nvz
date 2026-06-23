@@ -155,6 +155,8 @@ class ProjectAnalysisService:
         "frip_score.xls",
         "frip.xls",
     }
+    # 文件名含有这些 token 时，即使后缀不是 .log 也当作日志文件处理
+    _LOG_NAME_TOKENS = ("stderr", "stdout", "snakemake", "pipeline", "workflow", "error", "traceback", "crash")
     PREFLIGHT_CONFIG_KEYS = {
         "project",
         "project_name",
@@ -369,6 +371,22 @@ class ProjectAnalysisService:
         "看报错",
         "看错误",
         "查看错误",
+        # 单词直接触发 — 无需组合判断
+        "项目失败",
+        "项目报错",
+        "项目错误",
+        "出错了",
+        "报错了",
+        "失败了",
+        "分析报错",
+        "分析出错",
+        "查看日志",
+        "看日志",
+        "看log",
+        "查看log",
+        "有报错",
+        "有错误",
+        "错误原因",
     )
     DIAGNOSTIC_TERMS = (
         "低",
@@ -2296,6 +2314,198 @@ class ProjectAnalysisService:
         return f"project-v1:{digest.hexdigest()[:16]}"
 
     @classmethod
+    def _analyze_pipeline_failure_logs(
+        cls,
+        *,
+        project_id: str,
+        question: str,
+        root: Path,
+        run_id: str,
+        question_types: list[str],
+        analysis_plan: dict[str, Any],
+        planning_hints: dict[str, Any] | None,
+        started_at: float,
+        max_evidence_files: int,
+    ) -> dict[str, Any]:
+        log_files = find_log_files(root, limit=max_evidence_files, strict_log_suffix=True)
+        file_summaries: list[dict[str, Any]] = []
+        evidence_status: list[dict[str, Any]] = []
+        warnings: list[str] = []
+        direct_conclusions: list[dict[str, Any]] = []
+
+        for log_file in log_files:
+            relative = str(log_file.relative_to(root)).replace("\\", "/")
+            file_started_at = perf_counter()
+            try:
+                preview = read_log_snippet(log_file)
+                summary = cls._summarize_text_evidence(log_file, preview)
+                file_summaries.append(
+                    {
+                        "file": relative,
+                        "type": "text",
+                        "preview": preview,
+                        "summary": summary,
+                    }
+                )
+                evidence_status.append(
+                    {
+                        "file": relative,
+                        "status": "ok",
+                        "type": "log",
+                        "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
+                    }
+                )
+                for error_line in (summary.get("error_lines") or [])[:5]:
+                    direct_conclusions.append(
+                        {
+                            "claim": f"[{log_file.name}] {str(error_line)[:400]}",
+                            "evidence_ids": [],
+                            "causal_level": "pipeline_error",
+                            "confidence": "direct_log_evidence",
+                        }
+                    )
+            except Exception as exc:
+                warnings.append(f"{relative} 读取失败: {exc}")
+                file_summaries.append({"file": relative, "type": "error", "error": str(exc)})
+                evidence_status.append(
+                    {
+                        "file": relative,
+                        "status": "error",
+                        "type": "log",
+                        "error": str(exc),
+                        "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
+                    }
+                )
+
+        if not direct_conclusions:
+            if log_files:
+                direct_conclusions = [
+                    {
+                        "claim": "已读取项目 .log 日志文件，未在其中检测到明显的 error / exception / traceback 行；请检查日志末尾的退出状态或 warning 行。",
+                        "evidence_ids": [],
+                        "causal_level": "observation",
+                        "confidence": "log_no_error_found",
+                    }
+                ]
+            else:
+                direct_conclusions = [
+                    {
+                        "claim": "未在项目目录中找到 .log 日志文件，无法仅通过日志判断项目失败或报错原因。",
+                        "evidence_ids": [],
+                        "causal_level": "observation",
+                        "confidence": "no_log_files",
+                    }
+                ]
+
+        fact_packet = {
+            "project_id": project_id,
+            "question": question,
+            "direct_conclusions": direct_conclusions,
+            "pipeline_errors_found": bool(
+                direct_conclusions
+                and direct_conclusions[0].get("confidence") == "direct_log_evidence"
+            ),
+            "project_evidence": [],
+        }
+        reasoning_packet: dict[str, Any] = {
+            "possible_causes": [],
+            "ranked_causes": [],
+            "hypothesis_comparison": [],
+            "verification_plan": [],
+            "evidence_against": [],
+        }
+        evidence_file_list = [str(path.relative_to(root)).replace("\\", "/") for path in log_files]
+        duration_ms = round((perf_counter() - started_at) * 1000, 2)
+        report_lines = [
+            "日志文件：" + ("、".join(evidence_file_list) if evidence_file_list else "未找到 .log"),
+            "错误信息：",
+        ]
+        report_lines.extend(f"- {item['claim']}" for item in direct_conclusions)
+        if fact_packet["pipeline_errors_found"]:
+            report_lines.append("解释：日志中直接出现上述错误行，项目失败原因优先以这些日志错误为准。")
+        elif log_files:
+            report_lines.append("解释：已读取 .log，但未发现明显错误行。")
+        else:
+            report_lines.append("解释：未找到 .log，无法仅通过日志判断失败原因。")
+
+        trace = {
+            "run_id": run_id,
+            "question_type": "pipeline_failure",
+            "question_tags": question_types,
+            "duration_ms": duration_ms,
+            "evidence_attempted": len(log_files),
+            "evidence_succeeded": sum(1 for item in evidence_status if item.get("status") == "ok"),
+            "warning_count": len(warnings),
+            "agent_loop_round_count": 0,
+            "status": "warning" if warnings else "ok",
+            "log_only_short_circuit": True,
+        }
+
+        return {
+            "run_id": run_id,
+            "project_version": f"pipeline-log-v1:{hashlib.sha1(str(root).encode('utf-8', errors='ignore')).hexdigest()[:16]}",
+            "trace": trace,
+            "project_id": project_id,
+            "project_root": str(root),
+            "project_match": {"project_id": project_id, "project_root": str(root)},
+            "question": question,
+            "question_type": "pipeline_failure",
+            "question_tags": question_types,
+            "analysis_plan": analysis_plan,
+            "evidence_request_status": [],
+            "confidence": 1.0 if fact_packet["pipeline_errors_found"] else 0.4,
+            "planning_hints": planning_hints or {},
+            "analysis_cache": "skipped_pipeline_failure_log_only",
+            "metric_priority": [],
+            "read_plan": ["只读 .log，提取错误行"],
+            "project_context": {},
+            "experiment_design": {},
+            "assay_profile": {},
+            "pre_analysis_steps": ["Read .log files only for pipeline failure diagnosis."],
+            "report_mode": "pipeline_failure_log_only",
+            "report_source": "",
+            "stage_names": sorted({path.parts[-2] if len(path.parts) >= 2 else path.name for path in log_files}),
+            "project_file_count": len(log_files),
+            "evidence_files": evidence_file_list,
+            "evidence_status": evidence_status,
+            "file_summaries": file_summaries,
+            "parsed_metrics": {},
+            "metric_tables_ready": [],
+            "comparison_tables": [],
+            "diagnosis_summary": {"conclusions": [item["claim"] for item in direct_conclusions]},
+            "evidence_chain": [],
+            "evidence_cards": [],
+            "evidence_card_validation": {"valid_cards": [], "quarantined_evidence": []},
+            "quarantined_evidence_cards": [],
+            "evidence_conflicts": [],
+            "user_assertions": [],
+            "read_lineage": {},
+            "evidence_reasoning": {},
+            "fact_packet": fact_packet,
+            "reasoning_packet": reasoning_packet,
+            "agent_loop": {"round_count": 0, "observations": [], "evidence_cards": [], "new_evidence_cards": []},
+            "claims": [],
+            "validated_claims": [],
+            "claim_validation": {"valid_claims": [], "invalid_claim_count": 0},
+            "claim_layers": {},
+            "anomaly_summary": {"critical": [], "warning": []},
+            "tool_diagnostics": [],
+            "cause_graph": {},
+            "automatic_findings": [item["claim"] for item in direct_conclusions],
+            "findings": [item["claim"] for item in direct_conclusions],
+            "warnings": warnings,
+            "analysis_limits": [],
+            "next_actions": [],
+            "report": "\n".join(report_lines),
+            "snapshot": {
+                "evidence": "skipped_pipeline_failure_log_only",
+                "assay_profile": "skipped_pipeline_failure_log_only",
+                "read_lineage": "skipped_pipeline_failure_log_only",
+            },
+            "_internal_workflow_context": "",
+        }
+
+    @classmethod
     def _aggregate_motif_metrics(cls, motif_items: list[dict[str, Any]]) -> dict[str, Any]:
         samples: list[dict[str, Any]] = []
         for item in motif_items:
@@ -4149,7 +4359,11 @@ class ProjectAnalysisService:
         lines = [line.strip() for line in preview.splitlines() if line.strip()]
         summary: dict[str, Any] = {"preview": preview[:1500], "findings": []}
 
-        if file_path.suffix.lower() == ".log":
+        _is_log = (
+            file_path.suffix.lower() == ".log"
+            or any(tok in lower_name for tok in cls._LOG_NAME_TOKENS)
+        )
+        if _is_log:
             error_lines: list[str] = []
             warning_lines: list[str] = []
             for line in lines:
@@ -4837,11 +5051,23 @@ class ProjectAnalysisService:
         # For pipeline_failure questions, ensure log files are in the local cache.
         # resolve_project_root returns cached paths immediately without re-mirroring,
         # so an old cache may lack log files.  Re-mirror only downloads new/changed files.
-        if question_type == "pipeline_failure" and not find_log_files(root, limit=1):
+        if question_type == "pipeline_failure" and not find_log_files(root, limit=1, strict_log_suffix=True):
             try:
                 refresh_project_sftp_logs(project_id, root)
             except Exception:
                 pass
+        if question_type == "pipeline_failure":
+            return cls._analyze_pipeline_failure_logs(
+                project_id=project_id,
+                question=question,
+                root=root,
+                run_id=run_id,
+                question_types=question_types,
+                analysis_plan=analysis_plan,
+                planning_hints=planning_hints,
+                started_at=started_at,
+                max_evidence_files=max_evidence_files,
+            )
         wants_report_summary = cls._wants_existing_report_summary(question, question_types)
         include_html_body = wants_report_summary or bool((planning_hints or {}).get("force_include_html_body"))
         logger.info(
@@ -5103,7 +5329,12 @@ class ProjectAnalysisService:
                     cache_kind = "text_summary"
                     cached = cls._get_cached_parse(file_path, cache_kind)
                     if cached is None:
-                        preview = read_text_snippet(file_path) if cls._looks_like_text_file(file_path) else ""
+                        if file_path.suffix.lower() == ".log":
+                            preview = read_log_snippet(file_path)
+                        elif cls._looks_like_text_file(file_path):
+                            preview = read_text_snippet(file_path)
+                        else:
+                            preview = ""
                         summary = cls._summarize_text_evidence(file_path, preview)
                         cached = cls._set_cached_parse(
                             file_path,
@@ -5544,6 +5775,28 @@ class ProjectAnalysisService:
                 "evidence_against": [],
             }
         else:
+            # pipeline_failure 但未找到任何 log 错误行：插入兜底 conclusion 避免 LLM 返回空答案导致 UI 无反应。
+            if "pipeline_failure" in question_types and not fact_packet.get("direct_conclusions"):
+                _log_files_found = bool(
+                    any((fs.get("summary") or {}).get("kind") == "log" for fs in file_summaries)
+                )
+                if _log_files_found:
+                    fact_packet["direct_conclusions"] = [{
+                        "claim": "已读取项目日志文件，未在其中检测到明显的 error / exception / traceback 行，"
+                                 "流程可能因其他原因中止（如资源不足、配置错误），请检查日志末尾的退出状态或告警行。",
+                        "evidence_ids": [],
+                        "causal_level": "observation",
+                        "confidence": "log_no_error_found",
+                    }]
+                else:
+                    fact_packet["direct_conclusions"] = [{
+                        "claim": "未在项目目录中找到任何日志文件（.log / stderr / snakemake 等），"
+                                 "无法通过日志分析错误原因。请确认流程是否已运行，或手动检查项目目录结构。",
+                        "evidence_ids": [],
+                        "causal_level": "observation",
+                        "confidence": "no_log_files",
+                    }]
+                fact_packet["pipeline_errors_found"] = False
             # Overlay priority 2: if validated_claims produced no direct_conclusions,
             # fall back to diagnosis_summary string conclusions so rendering is not empty.
             if not fact_packet.get("direct_conclusions") and diagnosis_summary.get("conclusions"):

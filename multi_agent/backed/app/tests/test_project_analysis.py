@@ -21,6 +21,7 @@ from multi_agent.backed.app.services.business_agent.answer_quality_service impor
 )
 from multi_agent.backed.app.services.business_agent.response_service import business_response_service
 from multi_agent.backed.app.services.business_agent.semantic_guard_service import BusinessSemanticGuardService
+from multi_agent.backed.app.infrastructure.tools.local.project_reader import find_log_files
 
 
 def test_locator_returns_confirmation_for_ambiguous_match(monkeypatch):
@@ -1460,3 +1461,100 @@ def test_threshold_limits_ignore_missing_metric_placeholders():
     assert len(limits) == 1
     assert "Adapter" in limits[0]
     assert "Q30" not in limits[0]
+
+
+def test_strict_log_file_lookup_excludes_non_log_text_files(tmp_path: Path):
+    project_root = tmp_path / "proj_strict_logs"
+    project_root.mkdir()
+    (project_root / "run.log").write_text("ERROR real log failure\n", encoding="utf-8")
+    (project_root / "stderr.txt").write_text("ERROR text stderr should not be used\n", encoding="utf-8")
+    (project_root / "pipeline").write_text("ERROR extensionless file should not be used\n", encoding="utf-8")
+
+    logs = find_log_files(project_root, limit=10, strict_log_suffix=True)
+
+    assert [path.name for path in logs] == ["run.log"]
+
+
+def test_default_log_file_lookup_still_includes_run_text_files(tmp_path: Path):
+    project_root = tmp_path / "proj_default_logs"
+    project_root.mkdir()
+    (project_root / "run.txt").write_text("ERROR legacy run log\n", encoding="utf-8")
+
+    logs = find_log_files(project_root, limit=10)
+
+    assert [path.name for path in logs] == ["run.txt"]
+
+
+def test_pipeline_failure_analysis_reads_only_log_files_and_short_circuits(tmp_path: Path, monkeypatch):
+    project_root = tmp_path / "proj_pipeline_failure"
+    project_root.mkdir()
+    (project_root / "run.log").write_text(
+        "INFO start\n"
+        "Traceback (most recent call last):\n"
+        "ERROR missing reference index\n",
+        encoding="utf-8",
+    )
+    (project_root / "stderr.txt").write_text("ERROR non-log text should not be read\n", encoding="utf-8")
+    (project_root / "ReadsQC.xls").write_text(
+        "Sample\tAdapter\tQ30\nS1\t99\t10\n",
+        encoding="utf-8",
+    )
+    (project_root / "config.yaml").write_text("species: hg38\n", encoding="utf-8")
+    (project_root / "main.sh").write_text("private_command --token hidden\n", encoding="utf-8")
+
+    def fail_build_context(*args, **kwargs):
+        raise AssertionError("pipeline_failure must not build project context")
+
+    def fail_expert_loop(*args, **kwargs):
+        raise AssertionError("pipeline_failure must not run expert loop")
+
+    monkeypatch.setattr(ProjectAnalysisService, "_build_cached_project_context", fail_build_context)
+    monkeypatch.setattr(
+        "multi_agent.backed.app.services.project_analysis_service.project_expert_tool_service.run_loop",
+        fail_expert_loop,
+    )
+
+    result = ProjectAnalysisService.analyze(
+        project_id="proj_pipeline_failure",
+        question="项目报错的原因",
+        project_root=str(project_root),
+        max_evidence_files=10,
+    )
+
+    assert result["question_type"] == "pipeline_failure"
+    assert result["evidence_files"] == ["run.log"]
+    assert result["parsed_metrics"] == {}
+    assert result["agent_loop"]["round_count"] == 0
+    assert "ReadsQC.xls" not in str(result)
+    assert "config.yaml" not in str(result)
+    assert "private_command" not in str(result)
+    assert result["fact_packet"]["pipeline_errors_found"] is True
+    claims = [item["claim"] for item in result["fact_packet"]["direct_conclusions"]]
+    assert any("missing reference index" in claim for claim in claims)
+    assert result["analysis_limits"] == []
+    assert result["read_plan"] == ["只读 .log，提取错误行"]
+    assert result["report"] == (
+        "日志文件：run.log\n"
+        "错误信息：\n"
+        "- [run.log] Traceback (most recent call last):\n"
+        "- [run.log] ERROR missing reference index\n"
+        "解释：日志中直接出现上述错误行，项目失败原因优先以这些日志错误为准。"
+    )
+    assert "下一步" not in result["report"]
+    assert "QC" not in result["report"]
+    assert "指标" not in result["report"]
+    assert business_response_service.build_analysis_context(
+        analysis_result=result,
+        experience_summary={},
+    ) == result["report"]
+    messages = business_response_service._build_fused_answer_messages(
+        question="项目报错的原因",
+        analysis_result=result,
+        retrieval_payload={"documents": []},
+        experience_summary={},
+    )
+    combined_prompt = "\n".join(message["content"] for message in messages)
+    assert "保持简洁" in combined_prompt
+    assert "专业原因链路" not in combined_prompt
+    assert "可执行复核动作" not in combined_prompt
+    assert "QC" not in combined_prompt

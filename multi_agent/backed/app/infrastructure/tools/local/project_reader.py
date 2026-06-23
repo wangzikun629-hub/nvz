@@ -1167,16 +1167,16 @@ def read_log_snippet(path: Path, max_tail_lines: int = 300, max_chars: int = 300
     return snippet[:max_chars]
 
 
-def find_log_files(project_root: Path, limit: int = 10) -> list[Path]:
+def find_log_files(project_root: Path, limit: int = 10, strict_log_suffix: bool = False) -> list[Path]:
     """Find log files scattered under the project directory."""
     index = _get_project_file_index(project_root)
-    log_name_tokens = ("error", "stderr", "stdout", "pipeline", "snakemake", "workflow", "run")
+    log_name_tokens = ("error", "stderr", "stdout", "pipeline", "snakemake", "workflow", "run", "traceback", "crash")
     results: list[Path] = []
     for item in index.files:
         name_lower = item.path.name.lower()
         if item.path.suffix.lower() == ".log":
             results.append(item.path)
-        elif any(token in name_lower for token in log_name_tokens) and item.path.suffix.lower() in {
+        elif not strict_log_suffix and any(token in name_lower for token in log_name_tokens) and item.path.suffix.lower() in {
             ".txt",
             ".log",
             "",

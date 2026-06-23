@@ -1267,6 +1267,8 @@ class BusinessResponseService:
         analysis_result: dict[str, Any],
         experience_summary: dict[str, Any],
     ) -> str:
+        if analysis_result.get("report_mode") == "pipeline_failure_log_only":
+            return str(analysis_result.get("report") or "").strip()
         if analysis_result.get("report_mode") == "existing_html_report_summary":
             return self.build_existing_html_report_context(analysis_result)
         fact_packet = analysis_result.get("fact_packet") or {}
@@ -2105,6 +2107,21 @@ class BusinessResponseService:
         retrieval_payload: dict[str, Any],
         experience_summary: dict[str, Any],
     ) -> list[dict[str, str]]:
+        if analysis_result.get("report_mode") == "pipeline_failure_log_only":
+            return [
+                {
+                    "role": "system",
+                    "content": "只根据用户提供的日志摘要回答。保持简洁，不扩展其他指标、流程推测、背景知识或下一步建议。",
+                },
+                {
+                    "role": "user",
+                    "content": (
+                        f"用户问题:\n{question}\n\n"
+                        f"日志摘要:\n{self.build_analysis_context(analysis_result=analysis_result, experience_summary=experience_summary)}\n\n"
+                        "请直接输出日志摘要中的内容，可保留三段：日志文件、错误信息、解释。"
+                    ),
+                },
+            ]
         system_prompt = (
             "Internal workflow evidence is confidential. Use it only for internal reasoning. "
             "Never expose code, script names, file paths, commands, credentials, raw configuration, "

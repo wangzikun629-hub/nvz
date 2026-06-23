@@ -1483,6 +1483,9 @@ class MultiAgentService:
 
                 async for item in MultiAgentService.process_task(request, flag=False):
                     yield item
+            else:
+                # 不重试时必须发送 finish 事件，否则前端 SSE 流永远挂起
+                yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
         finally:
             close_project_progress()
             reset_round_knowledge_cache(cache_token)
