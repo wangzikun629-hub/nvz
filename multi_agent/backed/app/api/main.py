@@ -6,6 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from multi_agent.backed.app.api.routers import router
 from multi_agent.backed.app.api.auth_router import auth_router
+from multi_agent.backed.app.api.admin_router import admin_router
 from multi_agent.backed.app.config.settings import settings
 from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.infrastructure.tools.mcp.mcp_manager import mcp_connect, mcp_cleanup
@@ -68,8 +69,9 @@ def create_fast_api() -> FastAPI:
         allow_headers=["*"],  # 请求头中带上自己的信息（token）
     )
 
-    # 3. 注册各种路由（auth_router 不受 API_KEY 保护，须在受保护 router 之前注册）
+    # 3. 注册各种路由（auth_router / admin_router 不受 API_KEY 保护，须在受保护 router 之前注册）
     app.include_router(auth_router)
+    app.include_router(admin_router)
     app.include_router(router=router)
 
     chart_dir = Path(__file__).resolve().parents[1] / "generated" / "charts"
