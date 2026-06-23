@@ -72,6 +72,7 @@ def create_fast_api() -> FastAPI:
     # 3. 注册各种路由（auth_router / admin_router 不受 API_KEY 保护，须在受保护 router 之前注册）
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(admin_router, prefix="/api")
     app.include_router(router=router)
 
     chart_dir = Path(__file__).resolve().parents[1] / "generated" / "charts"

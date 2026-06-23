@@ -9,6 +9,11 @@ const routes = [
     meta: { public: true }
   },
   {
+    path: '/admin/login',
+    redirect: '/login',
+    meta: { public: true }
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/knowledge',
@@ -27,6 +32,10 @@ const routes = [
       },
       {
         path: 'admin',
+        redirect: '/admin/dashboard'
+      },
+      {
+        path: 'admin/dashboard',
         name: 'AdminDashboard',
         component: () => import('@/views/admin/AdminDashboard.vue'),
         meta: { title: '成员管理', icon: 'UserFilled', adminOnly: true }
