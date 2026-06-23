@@ -1045,13 +1045,13 @@ export default {
       return (session?.memory || []).map(normalizeStoredMessage).filter(Boolean)
     }
 
-    const fetchSessionMessages = async (sessionId) => {
-      if (!currentUser.value || !sessionId) return []
+    const fetchSessionMessages = async (sessionId, userId = currentUser.value) => {
+      if (!userId || !sessionId) return []
       const response = await fetch(`${API_BASE}/session_messages`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
-          user_id: currentUser.value,
+          user_id: userId,
           session_id: sessionId,
         }),
       })
@@ -1162,6 +1162,7 @@ export default {
 
     const selectSession = async (sessionId) => {
       stopAiReportPolling()
+      const userAtSelection = currentUser.value
       if (selectedSessionId.value && chatMessages.value.length) {
         saveVisibleSessionState(selectedSessionId.value)
       }
@@ -1171,7 +1172,13 @@ export default {
       latestAnalysisRef.value = null
       if (!restorePendingSessionState(sessionId)) {
         const storedMessages = loadStoredSessionMessages(sessionId)
-        chatMessages.value = storedMessages.length ? storedMessages : await fetchSessionMessages(sessionId)
+        if (storedMessages.length) {
+          chatMessages.value = storedMessages
+        } else {
+          const fetchedMessages = await fetchSessionMessages(sessionId, userAtSelection)
+          if (selectedSessionId.value !== sessionId || currentUser.value !== userAtSelection) return
+          chatMessages.value = fetchedMessages
+        }
         activeAssistantId.value = ''
         activeUserMessageId.value = ''
       }
