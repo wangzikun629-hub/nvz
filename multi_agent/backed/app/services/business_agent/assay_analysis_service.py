@@ -63,9 +63,12 @@ class AssayAnalysisService:
             "required_chain": [
                 "sequencing_depth",
                 "mapping_rate_percent",
-                "gene_count_matrix",
+                "unique_mapping_rate_percent",
+                "duplicate_rate_percent",
+                "mrna_ratio_percent",
+                "rrna_ratio_percent",
+                "detected_gene_count",
                 "correlation",
-                "biological_replicates",
             ],
             "controls": [],
         },
@@ -137,6 +140,10 @@ class AssayAnalysisService:
             specialized_rules.append("transcription_factors_require_narrow_peak_and_motif-aware interpretation")
         if assay == "atacseq":
             specialized_rules.append("atacseq_requires_tss_enrichment_and_nucleosomal_fragment_periodicity")
+        if assay == "rnaseq":
+            specialized_rules.append("rnaseq_mrna_ratio_below_30pct_indicates_ribosomal_or_genomic_contamination")
+            specialized_rules.append("rnaseq_low_mapping_rate_may_reflect_reference_genome_mismatch_or_contamination")
+            specialized_rules.append("rnaseq_detected_gene_count_must_be_interpreted_relative_to_species_and_library_depth")
         if assay in {"cuttag", "cutrun"}:
             specialized_rules.append("cuttag_cutrun_controls_and_target_class_must_not_share_one_threshold_contract")
         if any("igg" in target.lower() for target in targets):

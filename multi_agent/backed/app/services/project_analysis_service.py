@@ -3,9 +3,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import re
-import threading
 from concurrent.futures import ThreadPoolExecutor
-from html.parser import HTMLParser
 from pathlib import Path
 from time import perf_counter
 from typing import Any
@@ -67,370 +65,24 @@ from multi_agent.backed.app.services.business_agent.bio_skill_reference_service 
 )
 
 
-class _HTMLTextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self._skip_depth = 0
-        self.parts: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag.lower() in {"script", "style", "noscript"}:
-            self._skip_depth += 1
-        if tag.lower() in {"br", "p", "div", "section", "article", "tr", "li", "h1", "h2", "h3", "h4"}:
-            self.parts.append("\n")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag.lower() in {"script", "style", "noscript"} and self._skip_depth:
-            self._skip_depth -= 1
-        if tag.lower() in {"p", "div", "section", "article", "tr", "li", "h1", "h2", "h3", "h4"}:
-            self.parts.append("\n")
-
-    def handle_data(self, data: str) -> None:
-        if self._skip_depth:
-            return
-        text = " ".join(data.split())
-        if text:
-            self.parts.append(text)
-
-    def text(self) -> str:
-        lines = []
-        for line in "\n".join(self.parts).splitlines():
-            cleaned = " ".join(line.split())
-            if cleaned:
-                lines.append(cleaned)
-        return "\n".join(lines)
+from multi_agent.backed.app.services.project_analysis_constants import (
+    TABLE_PRIORITY,
+    STRUCTURED_TABLE_FILES,
+    PROFESSIONAL_RULES,
+    QUESTION_FILE_HINTS,
+    TARGET_METRIC_FILE_HINTS,
+    SECONDARY_TEXT_HINTS,
+    PIPELINE_FAILURE_TERMS,
+    DIAGNOSTIC_TERMS,
+    INTERNAL_WORKFLOW_TERMS,
+)
+from multi_agent.backed.app.services.project_parse_cache import project_parse_cache
+from multi_agent.backed.app.services.project_file_parser_service import project_file_parser_service
+from multi_agent.backed.app.services.project_context_builder_service import project_context_builder_service
+from multi_agent.backed.app.services.project_cause_analysis_service import project_cause_analysis_service
 
 
 class ProjectAnalysisService:
-    _EVIDENCE_PARSE_WORKERS = 4
-    _FILE_PARSE_CACHE: dict[tuple[str, int, str], dict[str, Any]] = {}
-    _FILE_PARSE_CACHE_MAX_ENTRIES = 512
-    _FILE_PARSE_CACHE_LOCK = threading.Lock()
-    _PROJECT_CONTEXT_CACHE_TTL_SECONDS = 120.0
-    _PROJECT_CONTEXT_CACHE_MAX_ENTRIES = 128
-    _PROJECT_CONTEXT_CACHE: dict[tuple[str, bool], tuple[float, dict[str, Any]]] = {}
-    _PROJECT_CONTEXT_IN_FLIGHT: dict[tuple[str, bool], threading.Event] = {}
-    _PROJECT_CONTEXT_LOCK = threading.Lock()
-    INTERNAL_WORKFLOW_TERMS = (
-        "流程",
-        "脚本",
-        "参数",
-        "命令",
-        "配置",
-        "阈值",       # e.g. "q-value 阈值是多少"
-        "qvalue",
-        "q-value",
-        "q值",
-        "callpeak",
-        "call peak",
-        "snakefile",
-        "snakemake",
-        "workflow",
-        "pipeline",
-        "shell",
-        "config",
-        "script",
-        "trimming",
-        "macs",
-        "bowtie",
-    )
-    TABLE_PRIORITY = [
-        "samplelist",
-        "ReadsQC.xls",
-        "spikein_align.xls",
-        "AlignmentQC.xls",
-        "spearman_Corr_readCounts.tab",
-        "FRiP_score.xls",
-        "Samples_peak_number_stat.xls",
-        "FRiP.xls",
-        "CUTTag_report.html",
-        "report.html",
-    ]
-    STRUCTURED_TABLE_FILES = {
-        "readsqc.xls",
-        "spikein_align.xls",
-        "alignmentqc.xls",
-        "samples_peak_number_stat.xls",
-        "spearman_corr_readcounts.tab",
-        "frip_score.xls",
-        "frip.xls",
-    }
-    # 文件名含有这些 token 时，即使后缀不是 .log 也当作日志文件处理
-    _LOG_NAME_TOKENS = ("stderr", "stdout", "snakemake", "pipeline", "workflow", "error", "traceback", "crash")
-    PREFLIGHT_CONFIG_KEYS = {
-        "project",
-        "project_name",
-        "Sequencing",
-        "scripts",
-        "pipeline",
-        "workflow",
-        "assay",
-        "project_type",
-        "species",
-        "sample",
-        "samplelist",
-        "samplist",               # typo variant used in some pipeline configs
-        "output",
-        "output_dir",
-        "raw_fastq_dir",
-        "sequencing_mode",
-        "seq_length",             # read length, e.g. "150"
-        "adapter_type",
-        "trimming_tool",
-        "remove_duplicates",
-        "spikein_analysis",
-        "macs3_qvalue",
-        "macs2_qvalue",           # macs2 variant
-        "TOP_PEAKS_NUM",
-        "KNOWN_MOTIF_TOP_N",      # motif analysis top-N parameter
-        "organelle_chroms",
-        "genome",
-        "reference",
-        "db_root",                # database root path
-        "effective_genome_size",
-        "peak_caller",
-        "peak_calling",
-        "tss_region",             # TSS window, e.g. "-3000,3000"
-        "blacklist_bed",          # blacklist filter setting ("", "none", or path)
-        "report_lang",            # report language, e.g. "zh" / "en"
-    }
-    PROFESSIONAL_RULES = {
-        "adapter_percent": {
-            "label": "Adapter-detected raw-read rate",
-            "unit": "%",
-            "warning": {"op": ">", "value": 20.0},
-            "critical": {"op": ">", "value": 50.0},
-            "source_field": "Adapter",
-            "definition": "原始 reads 中检测到接头相关序列的 reads 比例。",
-            "denominator": "raw reads",
-            "assumption": "该指标描述 trimming 前的原始 reads；不能单独证明 clean reads 中仍有接头残留。",
-            "interpretation": "需结合 clean FASTQ 的 Adapter Content、clean reads 保留率和 fragment size 判断是否存在处理后残留或短片段 read-through。",
-            "downstream_impact": "只有在接头相关序列造成 reads 丢失或 clean reads 仍有残留时，才可能进一步影响比对和富集分析。",
-        },
-        "q30_ratio": {
-            "label": "Q30",
-            "unit": "",
-            "warning": {"op": "<", "value": 0.93},
-            "critical": {"op": "<", "value": 0.90},
-            "source_field": "Q30",
-            "definition": "碱基质量值不低于 Q30 的比例。",
-            "denominator": "total bases",
-            "assumption": "通常使用测序质控工具统计的 clean reads 或 raw reads 碱基质量比例。",
-            "interpretation": "Q30 偏低提示测序质量下降，需要结合 raw QC 和过滤比例判断。",
-            "downstream_impact": "增加错配风险，可能降低比对率和唯一比对率。",
-        },
-        "mapping_rate_percent": {
-            "label": "Mapping rate",
-            "unit": "%",
-            "warning": {"op": "<", "value": 70.0},
-            "critical": {"op": "<", "value": 60.0},
-            "source_field": "Mapping(%)",
-            "definition": "reads 成功比对到参考基因组的比例。",
-            "denominator": "alignment input reads",
-            "assumption": "需确认参考基因组版本、比对工具参数和是否包含细胞器染色体。",
-            "interpretation": "比对率偏低通常与参考基因组、污染、样本质量或 reads 组成异常相关。",
-            "downstream_impact": "降低可用于后续 peak calling、FRiP 和相关性分析的有效 reads。",
-        },
-        "unique_mapping_rate_percent": {
-            "label": "Unique mapping rate",
-            "unit": "%",
-            "warning": {"op": "<", "value": 30.0},
-            "critical": {"op": "<", "value": 20.0},
-            "source_field": "Unique(%)",
-            "definition": "唯一比对到参考基因组位置的 reads 比例。",
-            "denominator": "alignment input reads",
-            "assumption": "低唯一比对可能来自重复序列、细胞器 reads、参考基因组不匹配或多重比对策略。",
-            "interpretation": "唯一比对率偏低会削弱后续富集、peak 和相关性判断的可靠性。",
-            "downstream_impact": "直接影响 peak calling、FRiP、样本相关性和差异分析可信度。",
-        },
-        "duplicate_rate_percent": {
-            "label": "Duplicate rate",
-            "unit": "%",
-            "warning": {"op": ">", "value": 30.0},
-            "critical": {"op": ">", "value": 50.0},
-            "source_field": "Duplicate(%)",
-            "definition": "被判定为重复的 reads 或 fragments 比例。",
-            "denominator": "mapped reads/fragments",
-            "assumption": "需结合 library complexity；CUT&Tag 中来自真实富集区域的重复不应被简单等同于失败。",
-            "interpretation": "重复率偏高可能来自低复杂度文库，也可能由高比例细胞器 reads 推高。",
-            "downstream_impact": "可能降低有效文库复杂度，并影响 peak 强度和定量稳定性。",
-        },
-        "mt_rate_percent": {
-            "label": "Organelle alignment rate",
-            "unit": "%",
-            "warning": {"op": ">", "value": 10.0},
-            "critical": {"op": ">", "value": 30.0},
-            "source_field": "chrMT/Pt(%)",
-            "definition": "比对到项目所配置细胞器染色体的 reads 比例。",
-            "denominator": "mapped reads",
-            "assumption": "必须根据 species/reference 和 organelle_chroms 判断该字段代表线粒体、叶绿体/质体或其他细胞器。",
-            "interpretation": "细胞器 reads 占比需要结合物种和流程过滤策略解释。",
-            "downstream_impact": "显著压缩核基因组有效 reads，造成 Unique、FRiP、peak 和相关性异常。",
-        },
-        "frip_ratio": {
-            "label": "FRiP",
-            "unit": "",
-            "warning": {"op": "<", "value": 0.20},
-            "critical": {"op": "<", "value": 0.10},
-            "source_field": "FRiP",
-            "definition": "落在 peak 区域内的 reads 占比，用于衡量富集质量。",
-            "denominator": "usable mapped reads/fragments",
-            "assumption": "IgG/Input/control 的 FRiP 不能和实验样本套用相同解释；口径依赖 peak set 和 usable reads 定义。",
-            "interpretation": "FRiP 偏低提示富集效率不足或 peak calling 质量受限。",
-            "downstream_impact": "影响 peak 可信度、差异 peak 和 motif/enrichment 分析。",
-        },
-        "correlation": {
-            "label": "Sample correlation",
-            "unit": "",
-            "warning": {"op": "<", "value": 0.80},
-            "critical": {"op": "<", "value": 0.60},
-            "source_field": "spearman correlation",
-            "definition": "样本间 read count 信号的一致性，通常使用 Spearman 相关系数。",
-            "denominator": "genomic bins or peak/read count features",
-            "assumption": "应优先比较同组生物学重复；不同处理组或 IgG/control 与实验样本不应强行要求高度相关。",
-            "interpretation": "样本相关性偏低提示重复一致性不足或样本间存在系统差异。",
-            "downstream_impact": "影响重复合并、差异分析和最终生物学解释可靠性。",
-        },
-    }
-
-    QUESTION_FILE_HINTS = {
-        "qc": ["ReadsQC.xls", "1.ReadsQC.readme.txt"],
-        "alignment": ["AlignmentQC.xls", "2.1AlignmentStat.readme.txt"],
-        "correlation": ["spearman_Corr_readCounts.tab", "3.Correlation.readme.txt"],
-        "peak": ["FRiP_score.xls", "FRiP_raw.txt", "Samples_peak_number_stat.xls", "5.1PeakStat.readme.txt", "5.1PeakStat"],
-        "frip": ["FRiP_score.xls", "FRiP.xls", "FRiP_raw.txt", "peakFrip"],
-        "spikein": ["spikein_align.xls", "Spikein"],
-        "diagnostic": [
-            "ReadsQC.xls",
-            "AlignmentQC.xls",
-            "spikein_align.xls",
-            "FRiP.xls",
-            "FRiP_score.xls",
-            "FRiP_raw.txt",
-            "peakFrip",
-            "Samples_peak_number_stat.xls",
-            "spearman_Corr_readCounts.tab",
-        ],
-        "diff": [
-            "final_anno",
-            "GO_up",
-            "GO_down",
-            "Pathway",
-            "DiffPeak.readme.txt",
-            "GOList.readme.txt",
-            "PathwayList.readme.txt",
-            "DiffAnalysis",
-            "diff",
-            "DEG",
-        ],
-        "motif": ["knownResults.txt", "homerMotifs.all.motifs", "_meme.txt", "Motify.readme.txt", "Motifyhtml", "MotifyAnalysis", "Motif", "meme"],
-        "igv": ["ForIGV", "bigwig", "bw", "bedgraph"],
-        "overview": ["CUTTag_report.html", "README.txt", "report.html", "ReadsQC.xls", "AlignmentQC.xls"],
-        "log": [".log", "error", "stderr", "stdout", "pipeline", "snakemake", "workflow"],
-    }
-    TARGET_METRIC_FILE_HINTS = {
-        "adapter_percent": ("ReadsQC.xls",),
-        "q30_ratio": ("ReadsQC.xls",),
-        "mapping_rate_percent": ("AlignmentQC.xls",),
-        "unique_mapping_rate_percent": ("AlignmentQC.xls",),
-        "duplicate_rate_percent": ("AlignmentQC.xls",),
-        "mt_rate_percent": ("AlignmentQC.xls",),
-        "chrmt_pt_rate_percent": ("AlignmentQC.xls",),
-        "frip": ("FRiP_score.xls", "FRiP.xls", "FRiP_raw.txt"),
-        "frip_ratio": ("FRiP_score.xls", "FRiP.xls", "FRiP_raw.txt"),
-        "correlation": ("spearman_Corr_readCounts.tab",),
-        "peak_count": ("Samples_peak_number_stat.xls",),
-    }
-    # Terms that indicate the pipeline itself failed — only log files should be read.
-    PIPELINE_FAILURE_TERMS = (
-        "为什么失败",
-        "为什么报错",
-        "失败原因",
-        "报错原因",
-        "分析失败",
-        "跑失败",
-        "没跑完",
-        "没有跑完",
-        "没分析完",
-        "没有分析完",
-        "任务失败",
-        "流程报错",
-        "流程失败",
-        "pipeline失败",
-        "pipeline报错",
-        "pipeline error",
-        "pipeline failed",
-        "why failed",
-        "why error",
-        "job failed",
-        "task failed",
-        "run failed",
-        "什么错误",
-        "什么报错",
-        "查看报错",
-        "看报错",
-        "看错误",
-        "查看错误",
-        # 单词直接触发 — 无需组合判断
-        "项目失败",
-        "项目报错",
-        "项目错误",
-        "出错了",
-        "报错了",
-        "失败了",
-        "分析报错",
-        "分析出错",
-        "查看日志",
-        "看日志",
-        "看log",
-        "查看log",
-        "有报错",
-        "有错误",
-        "错误原因",
-    )
-    DIAGNOSTIC_TERMS = (
-        "低",
-        "偏低",
-        "高",
-        "偏高",
-        "差",
-        "不好",
-        "不对",
-        "异常",
-        "太少",
-        "太多",
-        "怎么回事",
-        "为什么",
-        "失败",
-        "不理想",
-        "有问题",
-        "low",
-        "lower",
-        "high",
-        "higher",
-        "bad",
-        "poor",
-        "abnormal",
-        "wrong",
-        "issue",
-        "problem",
-        "fail",
-        "failed",
-        "why",
-        "报错",
-        "错误",
-        "日志",
-        "错误日志",
-        "log",
-        "error",
-    )
-    SECONDARY_TEXT_HINTS = {
-        "diff": ["diff", "deg", "differential"],
-        "motif": ["motif", "homer", "meme"],
-        "igv": ["igv", "bigwig", "bedgraph", ".bw"],
-        "log": [".log", "error", "stderr", "stdout"],
-    }
-
     @classmethod
     def classify_question(cls, question: str) -> str:
         return cls._infer_question_types(question)[0]
@@ -441,7 +93,7 @@ class ProjectAnalysisService:
         # Pipeline failure questions are a special early-exit path:
         # ONLY read log files, skip all QC metric analysis entirely.
         # Also match combinations like "失败的原因" (token contains 的 between terms).
-        _is_pipeline_failure = any(token in normalized for token in cls.PIPELINE_FAILURE_TERMS)
+        _is_pipeline_failure = any(token in normalized for token in PIPELINE_FAILURE_TERMS)
         if not _is_pipeline_failure:
             # Flexible combination: 失败/报错 + 原因/why → pipeline failure
             _has_failure = any(t in normalized for t in ("失败", "报错", "错误", "fail", "error"))
@@ -518,7 +170,7 @@ class ProjectAnalysisService:
 
     @classmethod
     def _has_diagnostic_signal(cls, normalized_question: str) -> bool:
-        return any(token in normalized_question for token in cls.DIAGNOSTIC_TERMS)
+        return any(token in normalized_question for token in DIAGNOSTIC_TERMS)
 
     @classmethod
     def _select_evidence_files(
@@ -592,7 +244,7 @@ class ProjectAnalysisService:
             )
         for metric in analysis_plan.get("target_metrics", []) or []:
             normalized_metric = str(metric or "").strip().lower()
-            for hint in cls.TARGET_METRIC_FILE_HINTS.get(normalized_metric, ()):
+            for hint in TARGET_METRIC_FILE_HINTS.get(normalized_metric, ()):
                 ordered.extend(find_files(project_root, [hint], limit=2))
         prioritized_hints = [
             str(item).strip()
@@ -602,14 +254,14 @@ class ProjectAnalysisService:
         for hint in prioritized_hints:
             ordered.extend(find_files(project_root, [hint], limit=2))
         for question_type in question_types:
-            for hint in cls.QUESTION_FILE_HINTS.get(question_type, []):
+            for hint in QUESTION_FILE_HINTS.get(question_type, []):
                 ordered.extend(find_files(project_root, [hint], limit=3))
-        for question_type, hints in cls.SECONDARY_TEXT_HINTS.items():
+        for question_type, hints in SECONDARY_TEXT_HINTS.items():
             if question_type in question_types:
                 ordered.extend(find_files(project_root, hints, limit=2))
         if "log" in question_types or "diagnostic" in question_types:
             ordered.extend(find_log_files(project_root, limit=5))
-        for name in cls.TABLE_PRIORITY:
+        for name in TABLE_PRIORITY:
             ordered.extend(find_files(project_root, [name], limit=1))
 
         seen_paths: set[Path] = set()
@@ -625,1693 +277,6 @@ class ProjectAnalysisService:
             if len(unique) >= max_evidence_files:
                 break
         return unique
-
-    @staticmethod
-    def _looks_like_text_file(path: Path) -> bool:
-        return path.suffix.lower() in {".txt", ".md", ".log", ".html", ".htm", ".bed", ".tsv", ".tab", ".csv", ".xls"}
-
-    @staticmethod
-    def _resolve_table_kind(file_path: Path) -> str | None:
-        lower_path = str(file_path).lower().replace("/", "\\")
-        lower_name = file_path.name.lower()
-        if lower_name == "readsqc.xls":
-            return "qc"
-        if lower_name == "spikein_align.xls":
-            return "spikein"
-        if lower_name == "alignmentqc.xls":
-            return "alignment"
-        if lower_name == "samples_peak_number_stat.xls":
-            return "peak"
-        if lower_name == "frip_raw.txt":
-            return "frip"
-        if "frip" in lower_name and file_path.suffix.lower() in {".xls", ".csv", ".tab", ".tsv"}:
-            return "frip"
-        if lower_name == "spearman_corr_readcounts.tab":
-            return "correlation"
-        if "final_anno" in lower_name:
-            return "diff_annotation"
-        if "go_up" in lower_name or "go_down" in lower_name:
-            return "diff_go"
-        if "pathway" in lower_name and file_path.suffix.lower() in {".xls", ".csv", ".tab", ".tsv"}:
-            return "diff_pathway"
-        if "diff" in lower_path and file_path.suffix.lower() in {".xls", ".csv", ".tab", ".tsv"}:
-            return "diff_table"
-        return None
-
-    @staticmethod
-    def _clean_matrix_token(value: str) -> str:
-        return (value or "").strip().strip("'").strip('"')
-
-    @classmethod
-    def _read_correlation_rows(cls, file_path: Path) -> list[dict[str, str]]:
-        text = file_path.read_text(encoding="utf-8", errors="ignore")
-        lines = [line.rstrip("\n\r") for line in text.splitlines() if line.strip()]
-        data_lines = [line for line in lines if not line.startswith("#")]
-        if len(data_lines) < 2:
-            raise ValueError(f"Correlation matrix has insufficient data: {file_path}")
-
-        header_parts = [cls._clean_matrix_token(part) for part in data_lines[0].split("\t")]
-        sample_names = [part for part in header_parts[1:] if part]
-        rows: list[dict[str, str]] = []
-
-        for line in data_lines[1:]:
-            parts = [cls._clean_matrix_token(part) for part in line.split("\t")]
-            if len(parts) < 2:
-                continue
-            sample = parts[0]
-            values = parts[1:]
-            row = {"Sample": sample}
-            for index, other in enumerate(sample_names):
-                row[other] = values[index] if index < len(values) else ""
-            rows.append(row)
-        return rows
-
-    @staticmethod
-    def _parse_numeric(value: str | None) -> float | None:
-        if value is None:
-            return None
-        raw = str(value).strip()
-        if not raw:
-            return None
-        for token in ("(", "%"):
-            if token in raw:
-                raw = raw.split(token, 1)[0].strip()
-        raw = raw.replace(",", "")
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _first_nonempty(row: dict[str, str], *keys: str) -> str:
-        for key in keys:
-            value = row.get(key)
-            if value not in (None, ""):
-                return value
-        return ""
-
-    @staticmethod
-    def _first_nonempty_with_key(row: dict[str, str], *keys: str) -> tuple[str, str]:
-        for key in keys:
-            value = row.get(key)
-            if value not in (None, ""):
-                return str(value), key
-        return "", ""
-
-    @staticmethod
-    def _parse_embedded_percent(value: str | None) -> float | None:
-        raw = str(value or "").strip()
-        if not raw:
-            return None
-        if "(" in raw and "%)" in raw:
-            raw = raw.rsplit("(", 1)[1].split("%", 1)[0].strip()
-        elif "%" in raw:
-            raw = raw.split("%", 1)[0].strip()
-        else:
-            return None
-        raw = raw.replace(",", "")
-        try:
-            return float(raw)
-        except ValueError:
-            return None
-
-    @classmethod
-    def _normalize_ratio(
-        cls,
-        value: str | None,
-        metric_id: str = "",
-        source_field: str = "",
-        *,
-        numerator: Any = None,
-        denominator: Any = None,
-    ) -> float | None:
-        if metric_id:
-            return metric_schema_service.normalize(
-                metric_id,
-                value,
-                source_field=source_field,
-                numerator=numerator,
-                denominator=denominator,
-            ).get("value")
-        embedded_percent = cls._parse_embedded_percent(value)
-        if embedded_percent is not None:
-            return embedded_percent / 100.0
-        parsed = cls._parse_numeric(value)
-        if parsed is None:
-            return None
-        if parsed > 1:
-            return parsed / 100.0
-        return parsed
-
-    @classmethod
-    def _normalize_percent(
-        cls,
-        value: str | None,
-        metric_id: str = "",
-        source_field: str = "",
-        *,
-        numerator: Any = None,
-        denominator: Any = None,
-    ) -> float | None:
-        if metric_id:
-            return metric_schema_service.normalize(
-                metric_id,
-                value,
-                source_field=source_field,
-                numerator=numerator,
-                denominator=denominator,
-            ).get("value")
-        embedded_percent = cls._parse_embedded_percent(value)
-        if embedded_percent is not None:
-            return embedded_percent
-        parsed = cls._parse_numeric(value)
-        if parsed is None:
-            return None
-        if parsed <= 1:
-            return parsed * 100.0
-        return parsed
-
-    @staticmethod
-    def _raw_table_value(row: dict[str, str], *keys: str) -> str:
-        return ProjectAnalysisService._first_nonempty(row, *keys)
-
-    @classmethod
-    def _build_qc_summary(cls, rows: list[dict[str, str]]) -> dict[str, Any]:
-        metrics = []
-        for row in rows:
-            sample = row.get("Sample", "")
-            clean_reads_raw = cls._first_nonempty(row, "Clean Reads", "Total Clean Reads")
-            clean_bases_raw = cls._first_nonempty(row, "Clean Bases", "Total Clean Bases")
-            adapter_raw = row.get("Adapter", "")
-            adapter = cls._normalize_percent(adapter_raw, "adapter_percent", "Adapter")
-            q20 = cls._normalize_ratio(row.get("Q20", ""), "q20_ratio", "Q20")
-            q30 = cls._normalize_ratio(row.get("Q30", ""), "q30_ratio", "Q30")
-            clean_retention = cls._parse_embedded_percent(clean_reads_raw)
-            clean_base_retention = cls._parse_embedded_percent(clean_bases_raw)
-            metrics.append(
-                {
-                    "sample": sample,
-                    "raw_reads": cls._first_nonempty(row, "Raw Reads", "Total Raw Reads"),
-                    "raw_read_count": cls._parse_numeric(
-                        cls._first_nonempty(row, "Raw Reads", "Total Raw Reads")
-                    ),
-                    "clean_reads": clean_reads_raw,
-                    "clean_read_count": cls._parse_numeric(clean_reads_raw),
-                    "clean_read_retention_percent": clean_retention,
-                    "clean_bases": clean_bases_raw,
-                    "clean_base_retention_percent": clean_base_retention,
-                    "adapter": adapter_raw,
-                    "adapter_reads": cls._parse_numeric(adapter_raw),
-                    "adapter_percent": adapter,
-                    "q20_ratio": q20,
-                    "q30_ratio": q30,
-                }
-            )
-        return {"metrics": metrics, "findings": []}
-
-    @classmethod
-    def _build_alignment_summary(cls, rows: list[dict[str, str]]) -> dict[str, Any]:
-        metrics = []
-        for row in rows:
-            sample = cls._first_nonempty(row, "Sample", "Sample_ID", "SampleID", "Sample Name", "样本")
-            mapping_raw, mapping_field = cls._first_nonempty_with_key(
-                row, "Mapping rate", "Mapping_Rate", "Mapping(%)", "Mapping", "Mapping%"
-            )
-            unique_raw, unique_field = cls._first_nonempty_with_key(
-                row,
-                "Unique mapping rate",
-                "Unique_Mapped_Rate",
-                "Unique(%)",
-                "Unique",
-                "Unique%",
-            )
-            duplicate_raw, duplicate_field = cls._first_nonempty_with_key(
-                row,
-                "Duplicate rate",
-                "Picard_Duplication_Rate",
-                "PERCENT_DUPLICATION",
-                "Duplicate(%)",
-                "Duplicate",
-                "Duplicate%",
-            )
-            mt_raw, mt_field = cls._first_nonempty_with_key(
-                row, "chrMT/Pt rate", "MT_Ratio", "chrMT/Pt(%)", "chrMT/Pt", "chrMT/Pt%"
-            )
-            duplicate_metric = (
-                "picard_duplicate_pair_rate_percent"
-                if duplicate_field == "PERCENT_DUPLICATION"
-                else "duplicate_rate_percent"
-            )
-            mapping = cls._normalize_percent(
-                mapping_raw, "mapping_rate_percent", mapping_field
-            )
-            unique = cls._normalize_percent(
-                unique_raw, "unique_mapping_rate_percent", unique_field
-            )
-            duplicate = cls._normalize_percent(
-                duplicate_raw, duplicate_metric, duplicate_field
-            )
-            mt_rate = cls._normalize_percent(mt_raw, "mt_rate_percent", mt_field)
-            nrf = cls._normalize_ratio(row.get("NRF", ""), "nrf", "NRF")
-            pbc1 = cls._normalize_ratio(row.get("PBC1", ""), "pbc1", "PBC1")
-            pbc2 = metric_schema_service.normalize(
-                "pbc2", row.get("PBC2", ""), source_field="PBC2"
-            ).get("value")
-            metrics.append(
-                {
-                    "sample": sample,
-                    "host_alignment_input_reads": cls._parse_numeric(
-                        cls._first_nonempty(
-                            row,
-                            "Total_Reads",
-                            "Total Reads",
-                            "Alignment input reads",
-                        )
-                    ),
-                    "total_mapped_reads": cls._parse_numeric(
-                        cls._first_nonempty(
-                            row,
-                            "Total_Mapped_Reads",
-                            "Total Mapped Reads",
-                            "Mapped reads",
-                        )
-                    ),
-                    "unique_mapped_reads": cls._parse_numeric(
-                        cls._first_nonempty(
-                            row,
-                            "Unique_Mapped_Reads",
-                            "Unique Mapped Reads",
-                            "Unique mapping reads",
-                        )
-                    ),
-                    "mt_mapped_reads": cls._parse_numeric(
-                        cls._first_nonempty(
-                            row,
-                            "MT_Mapped_Reads",
-                            "MT Mapped Reads",
-                            "chrMT/Pt mapped reads",
-                        )
-                    ),
-                    "mapping_rate_percent": mapping,
-                    "unique_mapping_rate_percent": unique,
-                    "duplicate_rate_percent": duplicate,
-                    "mt_rate_percent": mt_rate,
-                    "complexity": cls._first_nonempty(
-                        row, "Est.Lib.Complexity", "Estimated_Library_Size", "Complexity"
-                    ),
-                    "nrf": nrf,
-                    "pbc1": pbc1,
-                    "pbc2": pbc2,
-                    "source_fields": {
-                        "mapping_rate_percent": mapping_field,
-                        "unique_mapping_rate_percent": unique_field,
-                        "duplicate_rate_percent": duplicate_field,
-                        "mt_rate_percent": mt_field,
-                        "nrf": "NRF",
-                        "pbc1": "PBC1",
-                        "pbc2": "PBC2",
-                    },
-                }
-            )
-        return {"metrics": metrics, "findings": []}
-
-    @classmethod
-    def _build_spikein_summary(cls, rows: list[dict[str, str]]) -> dict[str, Any]:
-        metrics = []
-        for row in rows:
-            sample = row.get("Sample", "")
-            unique_raw, unique_field = cls._first_nonempty_with_key(
-                row,
-                "Unique mapping rate(%)",
-                "Unique mapping rate",
-                "Unique(%)",
-            )
-            unique_rate = cls._normalize_percent(
-                unique_raw,
-                "spikein_unique_mapping_rate_percent",
-                unique_field,
-            )
-            metrics.append(
-                {
-                    "sample": sample,
-                    "spikein_alignment_input_reads": cls._parse_numeric(
-                        cls._first_nonempty(row, "Clean reads", "Clean Reads")
-                    ),
-                    "mapped_reads": cls._parse_numeric(row.get("Mapped reads", "")),
-                    "unique_mapped_reads": cls._parse_numeric(
-                        cls._first_nonempty(
-                            row,
-                            "Unique mapping reads",
-                            "Unique mapped reads",
-                        )
-                    ),
-                    "unique_mapping_rate_percent": unique_rate,
-                    "scaling_factor": metric_schema_service.normalize(
-                        "spikein_scaling_factor",
-                        cls._first_nonempty(
-                            row,
-                            "Scaling factor",
-                            "Scale factor",
-                            "Normalization factor",
-                        ),
-                        source_field="Scaling factor",
-                    ).get("value"),
-                }
-            )
-        return {"metrics": metrics, "findings": []}
-
-    @classmethod
-    def _build_frip_summary(
-        cls,
-        rows: list[dict[str, str]],
-        source_name: str = "",
-    ) -> dict[str, Any]:
-        metrics = []
-        for row in rows:
-            sample = row.get("Sample", "") or row.get("sample", "") or row.get("file", "")
-            frip_value = None
-            frip_field = ""
-            reads_in_peaks = (
-                row.get("Reads_in_Peaks", "")
-                or row.get("Reads in peaks", "")
-                or row.get("featureReadCount", "")
-            )
-            mapped_reads = (
-                row.get("Mapped_Reads", "")
-                or row.get("Mapped reads", "")
-                or row.get("totalReadCount", "")
-            )
-            for key in (
-                "FRiP",
-                "Frip",
-                "frip",
-                "Reads in peaks ratio",
-                "ReadsInPeaksRatio",
-                "percent",
-            ):
-                raw_value = row.get(key)
-                source_scale = ""
-                if (
-                    key.lower() == "percent"
-                    or source_name.lower() in {"frip_raw.txt", "frip_score.xls"}
-                ):
-                    source_scale = "percent"
-                normalized = metric_schema_service.normalize(
-                    "frip_ratio",
-                    raw_value,
-                    source_field=key,
-                    source_scale=source_scale,
-                    numerator=reads_in_peaks,
-                    denominator=mapped_reads,
-                )
-                frip_value = normalized.get("value") if normalized.get("valid") else None
-                if frip_value is not None:
-                    frip_field = key
-                    break
-            peak_set = cls._first_nonempty(
-                row,
-                "PeakSet",
-                "Peak Set",
-                "featureType",
-                "Feature",
-                "Reference sample",
-            )
-            metrics.append(
-                {
-                    "sample": sample,
-                    "frip_ratio": frip_value,
-                    "peak_count": row.get("PeakCount", "") or row.get("Peaks_number", ""),
-                    "reads_in_peaks": reads_in_peaks,
-                    "mapped_reads": mapped_reads,
-                    "peak_set": peak_set,
-                    "comparison_type": (
-                        "cross_frip" if peak_set and peak_set != sample else "self_frip"
-                    ),
-                    "source_field": frip_field,
-                }
-            )
-        return {"metrics": metrics, "findings": []}
-
-    @staticmethod
-    def _merge_frip_metrics(
-        existing: list[dict[str, Any]],
-        incoming: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        merged: dict[tuple[str, str], dict[str, Any]] = {}
-        order: list[tuple[str, str]] = []
-        for item in [*existing, *incoming]:
-            if not isinstance(item, dict):
-                continue
-            sample = str(item.get("sample") or "")
-            peak_set = str(item.get("peak_set") or sample)
-            key = (sample, peak_set)
-            if key not in merged:
-                merged[key] = item
-                order.append(key)
-                continue
-            current = merged[key]
-            current_has_counts = bool(
-                current.get("reads_in_peaks") and current.get("mapped_reads")
-            )
-            incoming_has_counts = bool(
-                item.get("reads_in_peaks") and item.get("mapped_reads")
-            )
-            if incoming_has_counts and not current_has_counts:
-                merged[key] = item
-        return [merged[key] for key in order]
-
-    @staticmethod
-    def _build_peak_summary(rows: list[dict[str, str]]) -> dict[str, Any]:
-        counts = {
-            row.get("Sample", ""): int(float(row.get("Peaks_number", "0") or 0))
-            for row in rows
-            if row.get("Sample")
-        }
-        ranked = sorted(counts.items(), key=lambda item: item[1], reverse=True)
-        findings = [f"{ranked[-1][0]} peak 数量最低({ranked[-1][1]})"] if ranked else []
-        return {"metrics": counts, "ranked": ranked, "findings": findings}
-
-    @classmethod
-    def _build_correlation_summary(cls, rows: list[dict[str, str]]) -> dict[str, Any]:
-        max_pair = None
-        min_pair = None
-        pairs: list[dict[str, Any]] = []
-        seen_pairs: set[tuple[str, str]] = set()
-        for row in rows:
-            sample = row.get("Sample", "")
-            for other, value in row.items():
-                if other == "Sample" or not other or sample == other:
-                    continue
-                pair_key = tuple(sorted((sample, other)))
-                if pair_key in seen_pairs:
-                    continue
-                seen_pairs.add(pair_key)
-                num = cls._normalize_ratio(value, "correlation", other)
-                if num is None:
-                    continue
-                pair = (sample, other, num)
-                pairs.append({"left": sample, "right": other, "value": num})
-                if max_pair is None or num > max_pair[2]:
-                    max_pair = pair
-                if min_pair is None or num < min_pair[2]:
-                    min_pair = pair
-        findings = [f"最低相关性为 {min_pair[0]} vs {min_pair[1]} ({min_pair[2]:.4f})"] if min_pair else []
-        return {
-            "max_pair": max_pair,
-            "min_pair": min_pair,
-            "pairs": pairs,
-            "strata": {},
-            "findings": [],
-        }
-
-    @classmethod
-    def _stratify_correlation_summary(
-        cls,
-        summary: dict[str, Any],
-        experiment_design: dict[str, Any] | None,
-    ) -> dict[str, Any]:
-        enriched = copy.deepcopy(summary)
-        strata: dict[str, list[dict[str, Any]]] = {}
-        for pair in enriched.get("pairs", []) or []:
-            relation = experiment_design_service.classify_pair(
-                str(pair.get("left") or ""),
-                str(pair.get("right") or ""),
-                experiment_design,
-            )
-            pair["pair_type"] = relation
-            strata.setdefault(relation, []).append(pair)
-        enriched["strata"] = {
-            relation: {
-                "pair_count": len(items),
-                "min_pair": min(items, key=lambda item: item["value"]) if items else None,
-                "max_pair": max(items, key=lambda item: item["value"]) if items else None,
-                "pairs": items,
-            }
-            for relation, items in strata.items()
-        }
-        replicate_pairs = strata.get("biological_replicates", [])
-        enriched["replicate_min_pair"] = (
-            min(replicate_pairs, key=lambda item: item["value"])
-            if replicate_pairs
-            else None
-        )
-        enriched["findings"] = []
-        return enriched
-
-    @classmethod
-    def _build_diff_annotation_summary(cls, rows: list[dict[str, str]]) -> dict[str, Any]:
-        change_counts = {"up": 0, "down": 0, "not": 0, "other": 0}
-        top_genes: list[dict[str, str]] = []
-        for row in rows:
-            change = (row.get("change", "") or "").strip().lower()
-            if change in change_counts:
-                change_counts[change] += 1
-            else:
-                change_counts["other"] += 1
-            symbol = row.get("SYMBOL", "") or row.get("GENENAME", "") or row.get("geneId", "")
-            if symbol and len(top_genes) < 100 and change in {"up", "down"}:
-                top_genes.append(
-                    {
-                        "symbol": symbol,
-                        "change": change,
-                        "annotation": row.get("annotation", ""),
-                        "distance_to_tss": row.get("distanceToTSS", ""),
-                    }
-                )
-        findings: list[str] = []
-        if change_counts["up"] or change_counts["down"]:
-            findings.append(
-                f"差异峰统计: up={change_counts['up']}, down={change_counts['down']}, not={change_counts['not']}"
-            )
-        return {
-            "change_counts": change_counts,
-            "top_genes": top_genes,
-            "findings": findings,
-        }
-
-    @classmethod
-    def _build_enrichment_summary(cls, rows: list[dict[str, str]], enrichment_type: str) -> dict[str, Any]:
-        top_terms: list[dict[str, Any]] = []
-        for row in rows[:100]:
-            description = row.get("Description", "") or row.get("Term", "") or row.get("ID", "")
-            if not description:
-                continue
-            top_terms.append(
-                {
-                    "description": description,
-                    "ontology": row.get("ONTOLOGY", "") or row.get("Category", ""),
-                    "gene_ratio": row.get("GeneRatio", ""),
-                    "p_adjust": row.get("p.adjust", "") or row.get("padj", "") or row.get("qvalue", ""),
-                }
-            )
-        findings: list[str] = []
-        if top_terms:
-            findings.append(f"{enrichment_type} 富集 top term: {top_terms[0]['description']}")
-        return {
-            "enrichment_type": enrichment_type,
-            "top_terms": top_terms,
-            "findings": findings,
-        }
-
-    @staticmethod
-    def _safe_float(value: Any) -> float | None:
-        try:
-            if value is None or value == "":
-                return None
-            return float(str(value))
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _extract_motif_sample_name(file_path: Path) -> str:
-        lower_name = file_path.name.lower()
-        if lower_name.endswith("_meme.txt"):
-            return file_path.name[:-9]
-        if lower_name.endswith("_meme.html"):
-            return file_path.name[:-10]
-        if "_logo" in lower_name:
-            return file_path.name.split("_logo", 1)[0]
-        return file_path.stem
-
-    @classmethod
-    def _cache_key(cls, file_path: Path, parser_kind: str) -> tuple[str, int, str]:
-        stat = file_path.stat()
-        return (str(file_path.resolve()), stat.st_mtime_ns, parser_kind)
-
-    @staticmethod
-    def _clone_payload(payload: dict[str, Any]) -> dict[str, Any]:
-        if not payload:
-            return {}
-        cloned: dict[str, Any] = {}
-        for key, value in payload.items():
-            if isinstance(value, dict):
-                cloned[key] = dict(value)
-            elif isinstance(value, list):
-                cloned[key] = [dict(item) if isinstance(item, dict) else item for item in value]
-            else:
-                cloned[key] = value
-        return cloned
-
-    @classmethod
-    def _get_cached_parse(cls, file_path: Path, parser_kind: str) -> dict[str, Any] | None:
-        with cls._FILE_PARSE_CACHE_LOCK:
-            cached = cls._FILE_PARSE_CACHE.get(cls._cache_key(file_path, parser_kind))
-        if cached is None:
-            return None
-        return cls._clone_payload(cached)
-
-    @classmethod
-    def _set_cached_parse(cls, file_path: Path, parser_kind: str, payload: dict[str, Any]) -> dict[str, Any]:
-        cloned = cls._clone_payload(payload)
-        cache_key = cls._cache_key(file_path, parser_kind)
-        resolved_path = cache_key[0]
-        with cls._FILE_PARSE_CACHE_LOCK:
-            stale_keys = [
-                key
-                for key in cls._FILE_PARSE_CACHE
-                if key[0] == resolved_path and key[2] == parser_kind and key != cache_key
-            ]
-            for key in stale_keys:
-                cls._FILE_PARSE_CACHE.pop(key, None)
-            cls._FILE_PARSE_CACHE[cache_key] = cloned
-            while len(cls._FILE_PARSE_CACHE) > cls._FILE_PARSE_CACHE_MAX_ENTRIES:
-                cls._FILE_PARSE_CACHE.pop(next(iter(cls._FILE_PARSE_CACHE)))
-        return cls._clone_payload(cloned)
-
-    @classmethod
-    def _project_context_key(cls, root: Path, include_html_body: bool) -> tuple[str, bool]:
-        return (str(root.resolve()), include_html_body)
-
-    @staticmethod
-    def _clone_project_context(payload: dict[str, Any]) -> dict[str, Any]:
-        return copy.deepcopy(payload)
-
-    @classmethod
-    def _get_cached_project_context(cls, root: Path, include_html_body: bool) -> dict[str, Any] | None:
-        key = cls._project_context_key(root, include_html_body)
-        now = perf_counter()
-        with cls._PROJECT_CONTEXT_LOCK:
-            cached = cls._PROJECT_CONTEXT_CACHE.get(key)
-            if cached is None:
-                return None
-            cached_at, payload = cached
-            if now - cached_at > cls._PROJECT_CONTEXT_CACHE_TTL_SECONDS:
-                cls._PROJECT_CONTEXT_CACHE.pop(key, None)
-                return None
-            return cls._clone_project_context(payload)
-
-    @classmethod
-    def _set_cached_project_context(
-        cls,
-        root: Path,
-        include_html_body: bool,
-        payload: dict[str, Any],
-    ) -> dict[str, Any]:
-        cloned = cls._clone_project_context(payload)
-        with cls._PROJECT_CONTEXT_LOCK:
-            now = perf_counter()
-            expired = [
-                key
-                for key, (cached_at, _) in cls._PROJECT_CONTEXT_CACHE.items()
-                if now - cached_at > cls._PROJECT_CONTEXT_CACHE_TTL_SECONDS
-            ]
-            for key in expired:
-                cls._PROJECT_CONTEXT_CACHE.pop(key, None)
-            cls._PROJECT_CONTEXT_CACHE[cls._project_context_key(root, include_html_body)] = (now, cloned)
-            while len(cls._PROJECT_CONTEXT_CACHE) > cls._PROJECT_CONTEXT_CACHE_MAX_ENTRIES:
-                cls._PROJECT_CONTEXT_CACHE.pop(next(iter(cls._PROJECT_CONTEXT_CACHE)))
-        return cls._clone_project_context(cloned)
-
-    @classmethod
-    def _build_cached_project_context(cls, root: Path, include_html_body: bool) -> dict[str, Any]:
-        key = cls._project_context_key(root, include_html_body)
-        context_snapshot_key = project_snapshot_service.build_context_snapshot_key(
-            root=str(root.resolve()),
-            include_html_body=include_html_body,
-        )
-        while True:
-            cached = cls._get_cached_project_context(root, include_html_body)
-            if cached is not None:
-                logger.info(
-                    "project_analysis stage=build_context_cache root=%s include_html_body=%s status=hit",
-                    str(root),
-                    include_html_body,
-                )
-                return cached
-
-            with cls._PROJECT_CONTEXT_LOCK:
-                event = cls._PROJECT_CONTEXT_IN_FLIGHT.get(key)
-                if event is None:
-                    event = threading.Event()
-                    cls._PROJECT_CONTEXT_IN_FLIGHT[key] = event
-                    owner = True
-                else:
-                    owner = False
-
-            if owner:
-                try:
-                    snapshot_payload = project_snapshot_service.get(context_snapshot_key)
-                    if snapshot_payload is not None:
-                        logger.info(
-                            "project_analysis stage=context_snapshot root=%s include_html_body=%s snapshot=hit",
-                            str(root),
-                            include_html_body,
-                        )
-                        payload = snapshot_payload.get("project_context", {}) or {}
-                    else:
-                        logger.info(
-                            "project_analysis stage=context_snapshot root=%s include_html_body=%s snapshot=miss",
-                            str(root),
-                            include_html_body,
-                        )
-                        payload = cls._build_project_context(root, include_html_body=include_html_body)
-                        project_snapshot_service.set(
-                            context_snapshot_key,
-                            {
-                                "project_context": payload,
-                                "experiment_design": payload.get("experiment_design", {}),
-                                "evidence_catalog_summary": payload.get("evidence_catalog_summary", {}),
-                            },
-                        )
-                    return cls._set_cached_project_context(root, include_html_body, payload)
-                finally:
-                    with cls._PROJECT_CONTEXT_LOCK:
-                        cls._PROJECT_CONTEXT_IN_FLIGHT.pop(key, None)
-                        event.set()
-
-            logger.info(
-                "project_analysis stage=build_context_cache root=%s include_html_body=%s status=wait_in_flight",
-                str(root),
-                include_html_body,
-            )
-            event.wait(timeout=30.0)
-
-    @staticmethod
-    def _relative_path(root: Path, path: Path) -> str:
-        try:
-            return str(path.relative_to(root))
-        except ValueError:
-            return str(path)
-
-    @classmethod
-    def _parse_samplelist(cls, path: Path) -> list[dict[str, Any]]:
-        rows: list[dict[str, Any]] = []
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        content_lines = [
-            raw_line.strip()
-            for raw_line in text.splitlines()
-            if raw_line.strip() and not raw_line.strip().startswith("#")
-        ]
-        if not content_lines:
-            return rows
-        first_parts = [part.strip() for part in content_lines[0].split("\t")]
-        if len(first_parts) < 2:
-            first_parts = content_lines[0].split()
-        normalized_headers = [re.sub(r"[^a-z0-9]+", "_", item.lower()).strip("_") for item in first_parts]
-        known_headers = {
-            "sample",
-            "sample_id",
-            "fastq_1",
-            "fastq1",
-            "condition",
-            "replicate",
-            "target",
-            "role",
-            "control_for",
-            "batch",
-        }
-        has_header = bool(set(normalized_headers) & known_headers)
-        data_lines = content_lines[1:] if has_header else content_lines
-        for raw_line in data_lines:
-            line = raw_line.strip()
-            parts = [part.strip() for part in line.split("\t")]
-            if len(parts) < 2:
-                parts = line.split()
-            if not parts:
-                continue
-            mapped = {
-                normalized_headers[index]: value
-                for index, value in enumerate(parts)
-                if has_header and index < len(normalized_headers)
-            }
-            sample = mapped.get("sample") or mapped.get("sample_id") or parts[0]
-            design_fields = {
-                key: mapped.get(key, "")
-                for key in ("condition", "replicate", "target", "role", "control_for", "batch")
-                if mapped.get(key, "") not in (None, "")
-            }
-            row = {
-                "sample": sample,
-                "fastq_1": mapped.get("fastq_1") or mapped.get("fastq1") or (parts[1] if len(parts) > 1 else ""),
-                "fastq_2": mapped.get("fastq_2") or mapped.get("fastq2") or (parts[2] if len(parts) > 2 else ""),
-                "peak_type": mapped.get("peak_type") or (parts[3] if len(parts) > 3 else ""),
-                "control_sample": mapped.get("control") or (
-                    parts[4] if not has_header and len(parts) > 4 else ""
-                ),
-                "design_fields": design_fields,
-                "raw_fields": parts,
-            }
-            rows.append(row)
-        return rows
-
-    # Nested YAML sections to flatten one level deep as "section.subkey"
-    _CONFIG_NESTED_SECTIONS = {"deeptools_params", "threads"}
-    # Top-level sections / keys to skip entirely (binary paths or annotation DB
-    # paths that are irrelevant to QC analysis and only add noise).
-    _CONFIG_SKIP_SECTIONS = {"software"}
-    _CONFIG_SKIP_KEYS = {
-        "genome_size_file",           # internal genome sizes file path
-        "peak_go_term2gene_relpath",  # GO annotation DB relative path
-        "go_name",                    # GO term name DB path
-        "kegg_name",                  # KEGG pathway name DB path
-    }
-
-    @classmethod
-    def _extract_yaml_config_fields(cls, raw: dict) -> dict[str, str]:
-        """Walk a parsed YAML dict and extract ALL pipeline parameters.
-
-        Strategy (blocklist instead of whitelist):
-        - Skip _CONFIG_SKIP_SECTIONS (e.g. "software" — just tool binary paths).
-        - Flatten _CONFIG_NESTED_SECTIONS one level deep: deeptools_params.body_len, etc.
-        - Flatten adapter_sets two levels deep: adapter_sets.tn5.PE, adapter_sets.illumina.SE, etc.
-        - For any other nested dict, emit a compact "k=v; k=v" summary string.
-        - All scalars and lists are included unconditionally.
-        """
-        result: dict[str, str] = {}
-        for key, value in raw.items():
-            if not isinstance(key, str):
-                continue
-            if key in cls._CONFIG_SKIP_SECTIONS or key in cls._CONFIG_SKIP_KEYS:
-                continue
-            if isinstance(value, dict):
-                if key in cls._CONFIG_NESTED_SECTIONS:
-                    # Flatten one level: deeptools_params.body_len = "3000"
-                    for sub_key, sub_val in value.items():
-                        if isinstance(sub_val, (str, int, float, bool)):
-                            result[f"{key}.{sub_key}"] = str(sub_val)
-                elif key == "adapter_sets":
-                    # Flatten two levels: adapter_sets.tn5.PE = "-a CTGTCTCT..."
-                    for adapter_type, tool_dict in value.items():
-                        if not isinstance(tool_dict, dict):
-                            continue
-                        for tool, mode_dict in tool_dict.items():
-                            if not isinstance(mode_dict, dict):
-                                continue
-                            for mode, cmd in mode_dict.items():
-                                result[f"adapter_sets.{adapter_type}.{mode}"] = str(cmd)[:240]
-                else:
-                    # Generic nested dict → compact summary
-                    pairs = "; ".join(
-                        f"{k}={v}"
-                        for k, v in value.items()
-                        if isinstance(v, (str, int, float, bool))
-                    )
-                    if pairs:
-                        result[key] = pairs[:300]
-            elif isinstance(value, list):
-                result[key] = ", ".join(str(item) for item in value)[:200]
-            else:
-                str_val = "" if value is None else str(value)
-                result[key] = str_val
-                # Normalise "samplist" typo → "samplelist"
-                if key == "samplist" and "samplelist" not in result:
-                    result["samplelist"] = str_val
-        return result
-
-    @classmethod
-    def _parse_config_summary(cls, path: Path) -> dict[str, str]:
-        text = path.read_text(encoding="utf-8", errors="ignore")
-
-        # Primary: proper YAML parsing handles nested structures and quoted values
-        try:
-            import yaml  # PyYAML — available as a transitive dependency
-            raw = yaml.safe_load(text)
-            if isinstance(raw, dict):
-                result = cls._extract_yaml_config_fields(raw)
-                logger.info("config_parse path=%s parser=yaml keys=%d", path, len(result))
-                return result
-            logger.warning("config_parse path=%s parser=yaml result_not_dict type=%s", path, type(raw))
-        except ImportError:
-            logger.warning("config_parse path=%s parser=yaml_unavailable fallback=line_by_line", path)
-        except Exception as exc:
-            logger.warning("config_parse path=%s parser=yaml_failed error=%s fallback=line_by_line", path, exc)
-
-        # Fallback: line-by-line flat parser for non-standard YAML files
-        summary: dict[str, str] = {}
-        for raw_line in text.splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or ":" not in line:
-                continue
-            key, value = line.split(":", 1)
-            key = key.strip().strip("'\"")
-            if key not in cls.PREFLIGHT_CONFIG_KEYS and key != "samplist":
-                continue
-            cleaned_value = value.strip()
-            if cleaned_value.startswith(("'", '"')):
-                quote_char = cleaned_value[0]
-                end_index = cleaned_value.find(quote_char, 1)
-                if end_index > 0:
-                    cleaned_value = cleaned_value[: end_index + 1]
-            elif "#" in cleaned_value:
-                cleaned_value = cleaned_value.split("#", 1)[0].strip()
-            cleaned_value = cleaned_value.strip().strip("'\"")
-            norm_key = "samplelist" if key == "samplist" else key
-            summary[norm_key] = cleaned_value
-        return summary
-
-    @staticmethod
-    def _infer_sample_role(sample_name: str, raw_fields: list[str] | None = None) -> str:
-        tokens = " ".join([sample_name or "", *[str(item) for item in (raw_fields or [])]]).lower()
-        if any(token in tokens for token in ("igg", "isotype", "negative")):
-            return "IgG/control"
-        if any(token in tokens for token in ("input", "inputdna", "input_dna")):
-            return "Input"
-        if any(token in tokens for token in ("control", "ctrl", "mock", "vehicle")):
-            return "Control"
-        if any(token in tokens for token in ("treat", "case", "ko", "oe", "stim")):
-            return "Treatment"
-        return "Experimental"
-
-    @classmethod
-    def _build_sample_roles(cls, samples: list[dict[str, Any]]) -> list[dict[str, str]]:
-        roles: list[dict[str, str]] = []
-        for item in samples:
-            sample = str(item.get("sample") or "").strip()
-            if not sample:
-                continue
-            roles.append(
-                {
-                    "sample": sample,
-                    "role": cls._infer_sample_role(sample, item.get("raw_fields") or []),
-                    "basis": "samplelist/name heuristic",
-                }
-            )
-        return roles
-
-    @classmethod
-    def _build_workflow_summary(
-        cls,
-        root: Path,
-        limit: int = 10,
-        project_config: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        files: list[dict[str, str]] = []
-        detected_parameters: dict[str, str] = {}
-        code_formula_sources: dict[str, dict[str, str]] = {}
-        keyword_patterns = {
-            "aligner": r"\b(bowtie2|bwa|hisat2|star)\b",
-            "peak_caller": r"\b(macs2|macs3|seacr)\b",
-            "duplicate_handling": r"\b(remove_duplicates|markdup|rmdup|dedup|picard)\b",
-            "organelle_filter": r"\b(organelle_chroms|chrM|chrMT|Pt|chloroplast|mitochond)\b",
-            "reference_genome": r"\b(species|genome|reference|fasta|hg38|hg19|mm10|tair|grch)\b",
-            "frip": r"\b(FRiP|frip|reads.*peak|peak.*reads)\b",
-        }
-        metric_formula_patterns = {
-            "adapter_percent": r"(adapter[^=\n]{0,40}=\s*[^\n]+|adapter[^/\n]{0,60}/[^\n]+)",
-            "q30_ratio": r"(q30[^=\n]{0,40}=\s*[^\n]+|Q\s*>=\s*30|qual[^/\n]{0,60}/[^\n]+)",
-            "mapping_rate_percent": r"(mapping[^=\n]{0,40}=\s*[^\n]+|map[^/\n]{0,80}/[^\n]+)",
-            "unique_mapping_rate_percent": r"(unique[^=\n]{0,40}=\s*[^\n]+|uniq[^/\n]{0,80}/[^\n]+)",
-            "duplicate_rate_percent": r"(duplicate[^=\n]{0,40}=\s*[^\n]+|dup[^/\n]{0,80}/[^\n]+)",
-            "mt_rate_percent": r"((?:chrMT|chrM|organelle|mitochond|chloroplast|chrPt)[^=\n]{0,60}=\s*[^\n]+|(?:chrMT|chrM|organelle|mitochond|chloroplast|chrPt)[^/\n]{0,80}/[^\n]+)",
-            "frip_ratio": r"(frip[^=\n]{0,40}=\s*[^\n]+|reads[^/\n]{0,40}peaks[^/\n]{0,80}/[^\n]+|peak[^/\n]{0,40}reads[^/\n]{0,80}/[^\n]+)",
-            "correlation": r"(spearman[^=\n]{0,40}=\s*[^\n]+|correlation[^=\n]{0,40}=\s*[^\n]+)",
-        }
-
-        def read_workflow_text(path: Path) -> str:
-            try:
-                text = path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                return ""
-            return text[:50000]
-
-        def logical_lines(text: str) -> list[tuple[int, str]]:
-            rows: list[tuple[int, str]] = []
-            pending = ""
-            start_line = 1
-            for line_no, raw in enumerate(text.splitlines(), start=1):
-                stripped = raw.strip()
-                if not stripped or stripped.startswith(("#", "//")):
-                    continue
-                if not pending:
-                    start_line = line_no
-                pending = f"{pending} {stripped}".strip()
-                if stripped.endswith(("\\", "+", "%>%", "|>", ",")):
-                    continue
-                rows.append((start_line, pending))
-                pending = ""
-            if pending:
-                rows.append((start_line, pending))
-            return rows
-
-        def is_formula_like(line: str) -> bool:
-            code_only = re.sub(r"(['\"]).*?\1", "", line)
-            lowered = code_only.lower()
-            if any(token in lowered for token in ("read.table", "read_csv", "read.delim", "fread", "open(", "file.path")):
-                return False
-            has_assignment = bool(re.search(r"(<-|=|:=)", code_only))
-            has_ratio = "/" in code_only or "percent" in lowered or "rate" in lowered or "ratio" in lowered
-            has_compute_call = any(token in lowered for token in ("mutate(", "summarise(", "awk", "bc", "scale=", "corr(", "cor("))
-            return has_assignment and (has_ratio or has_compute_call)
-
-        def extract_formula(metric_key: str, text: str) -> tuple[str, int] | None:
-            code_patterns = {
-                "mapping_rate_percent": (
-                    r"metrics\[['\"]Mapping_Rate['\"]\]\s*=\s*[^\n]+",
-                    r"overall alignment rate",
-                ),
-                "unique_mapping_rate_percent": (
-                    r"metrics\[['\"]Unique_Mapped_Rate['\"]\]\s*=\s*[^\n]+",
-                    r"aligned concordantly exactly 1 time",
-                ),
-                "duplicate_rate_percent": (
-                    r"metrics\[f?['\"][^'\"]*Duplication_Rate['\"]\]\s*=\s*[^\n]+",
-                    r"PERCENT_DUPLICATION",
-                ),
-                "frip_ratio": (
-                    r"target_df\.columns\s*=\s*\[[^\n]*['\"]FRiP['\"][^\n]*\]",
-                    r"plotEnrichment[^\n]+--outRawCounts",
-                ),
-            }.get(metric_key, ())
-            for pattern in code_patterns:
-                match = re.search(pattern, text, flags=re.IGNORECASE)
-                if not match:
-                    continue
-                line_no = text[: match.start()].count("\n") + 1
-                line = " ".join(match.group(0).strip().split())
-                if metric_key == "frip_ratio" and "target_df.columns" in line:
-                    line = f"{line}; FRiP is read from plotEnrichment --outRawCounts after retaining matching BAM/peak rows"
-                if metric_key == "mapping_rate_percent" and "overall alignment rate" in line.lower():
-                    line = "Mapping_Rate is parsed from bowtie2 'overall alignment rate' line"
-                if metric_key == "unique_mapping_rate_percent" and "aligned concordantly exactly 1 time" in line.lower():
-                    line = "Unique_Mapped_Rate is parsed from bowtie2 'aligned concordantly exactly 1 time' line"
-                if metric_key == "duplicate_rate_percent" and "percent_duplication" in line.upper():
-                    line = "Picard_Duplication_Rate is derived from Picard PERCENT_DUPLICATION * 100"
-                return line[:320], line_no
-
-            terms = {
-                "adapter_percent": ("adapter",),
-                "q30_ratio": ("q30", "qual", "quality"),
-                "mapping_rate_percent": ("mapping", "map_rate", "mapped", "alignment_rate"),
-                "unique_mapping_rate_percent": ("unique", "uniq"),
-                "duplicate_rate_percent": ("duplicate", "duplication", "dup_rate", "dup"),
-                "mt_rate_percent": ("chrmt", "chrm", "organelle", "mitochond", "chloroplast", "chrpt"),
-                "frip_ratio": ("frip", "reads_in_peak", "reads_in_peaks", "in_peaks"),
-                "correlation": ("spearman", "correlation", "corr"),
-            }.get(metric_key, ())
-            for line_no, line in logical_lines(text):
-                lowered = line.lower()
-                if not any(term in lowered for term in terms):
-                    continue
-                if not is_formula_like(line):
-                    continue
-                return " ".join(line.split())[:320], line_no
-            return None
-
-        for path in find_internal_workflow_files(root, limit=limit, project_config=project_config):
-            text = read_workflow_text(path)
-            if not text:
-                continue
-            lower_text = text.lower()
-            matched = []
-            is_code_file = path.suffix.lower() in {
-                ".py",
-                ".r",
-                ".rmd",
-                ".sh",
-                ".bash",
-                ".awk",
-                ".sed",
-                ".pl",
-                ".smk",
-                ".rule",
-                ".rules",
-            } or path.name.lower() == "snakefile"
-            if is_code_file:
-                for metric_key, pattern in metric_formula_patterns.items():
-                    if metric_key in code_formula_sources:
-                        continue
-                    extracted = extract_formula(metric_key, text)
-                    if extracted:
-                        formula, source_line = extracted
-                    else:
-                        match = re.search(pattern, text, flags=re.IGNORECASE)
-                        if not match:
-                            continue
-                        if not is_formula_like(match.group(0)):
-                            continue
-                        formula = " ".join(match.group(0).strip().split())[:320]
-                        source_line = text[: match.start()].count("\n") + 1
-                    code_formula_sources[metric_key] = {
-                        "formula": formula,
-                        "source_file": cls._relative_path(root, path),
-                        "source_line": str(source_line),
-                    }
-            for key, pattern in keyword_patterns.items():
-                if re.search(pattern, text, flags=re.IGNORECASE):
-                    matched.append(key)
-                    if key not in detected_parameters:
-                        line = next(
-                            (
-                                raw.strip()
-                                for raw in text.splitlines()
-                                if re.search(pattern, raw, flags=re.IGNORECASE)
-                            ),
-                            "",
-                        )
-                        detected_parameters[key] = line[:240]
-            files.append(
-                {
-                    "file": cls._relative_path(root, path),
-                    "type": path.suffix.lower() or path.name,
-                    "matched_topics": ", ".join(matched),
-                    "has_shell_command": str(any(cmd in lower_text for cmd in ("bowtie2", "macs", "samtools", "bedtools"))),
-                }
-            )
-        return {
-            "files": files,
-            "detected_parameters": detected_parameters,
-            "code_formula_sources": code_formula_sources,
-            "file_count": len(files),
-        }
-
-    @classmethod
-    def _organelle_semantics(cls, payload: dict[str, Any] | None) -> dict[str, str]:
-        payload = payload or {}
-        config = payload.get("config") if isinstance(payload.get("config"), dict) else payload
-        species = str(
-            config.get("species")
-            or config.get("genome")
-            or config.get("reference")
-            or ""
-        ).strip()
-        normalized = species.lower()
-        plant_tokens = (
-            "tair",
-            "arabidopsis",
-            "oryza",
-            "rice",
-            "zea",
-            "maize",
-            "tomato",
-            "solanum",
-            "wheat",
-            "triticum",
-            "brassica",
-            "plant",
-        )
-        animal_tokens = (
-            "hg",
-            "grch",
-            "human",
-            "mm",
-            "grcm",
-            "mouse",
-            "rn",
-            "rat",
-            "danrer",
-            "zebrafish",
-            "bos",
-            "sus",
-            "canfam",
-        )
-        if any(token in normalized for token in plant_tokens):
-            return {
-                "species": species,
-                "label": "Mitochondrial/plastid alignment rate",
-                "table_label": "chrMT/Pt(%)",
-                "definition": "比对到线粒体或叶绿体/质体染色体的 reads 比例。",
-                "assumption": "植物样本需结合 organelle_chroms 确认 chrMT 与 Pt/chrPt 的实际染色体命名和过滤策略。",
-                "interpretation": "该值描述植物细胞器 reads 占比，需要结合核基因组有效 reads 和流程过滤策略解释。",
-                "downstream_impact": "若细胞器 reads 占用较多已比对 reads，可能减少可用于核基因组信号分析的 reads。",
-            }
-        if any(token in normalized for token in animal_tokens):
-            return {
-                "species": species,
-                "label": "Mitochondrial alignment rate",
-                "table_label": "Mitochondrial(%)",
-                "definition": "比对到线粒体染色体的 reads 比例。",
-                "assumption": "当前参考基因组属于动物/人类体系，应按 chrM/MT 及项目配置核对该指标。",
-                "interpretation": "该值描述线粒体 reads 占比，需要结合参考基因组、chrM/MT 命名和过滤策略解释。",
-                "downstream_impact": "若线粒体 reads 占用较多已比对 reads，可能减少可用于核基因组信号分析的 reads。",
-            }
-        return {
-            "species": species,
-            "label": "Organelle alignment rate",
-            "table_label": "Organelle(%)",
-            "definition": "比对到项目所配置细胞器染色体的 reads 比例。",
-            "assumption": "物种信息不足时不能自行判断该字段代表线粒体还是叶绿体/质体。",
-            "interpretation": "需先确认 species/reference 和 organelle_chroms，再解释该指标。",
-            "downstream_impact": "需先确认物种和细胞器染色体口径，才能判断其对核基因组有效 reads 的影响。",
-        }
-
-    @classmethod
-    def _metric_glossary(cls, config: dict[str, Any] | None = None) -> dict[str, str]:
-        organelle = cls._organelle_semantics(config)
-        return {
-            "samplelist": "Defines sample IDs and input FASTQ paths. This should be read before interpreting all downstream metrics.",
-            "config.yaml": "Pipeline parameters, species/reference choice, output path, duplicate handling, spike-in setting and peak calling thresholds.",
-            "ReadsQC.Total Clean Reads": "Reads retained after filtering. Low retention can indicate raw sequencing or trimming problems.",
-            "ReadsQC.Adapter": "Fraction of raw reads in which adapter-related sequence was detected. It does not by itself prove adapter remains in clean reads after trimming.",
-            "ReadsQC.Q20/Q30": "Base quality ratios. Lower Q30 usually points to sequencing quality issues.",
-            "AlignmentQC.Mapping_Rate": "Fraction of reads mapped to the reference genome. Low values can suggest species/reference mismatch or poor read quality.",
-            "AlignmentQC.Unique_Mapped_Rate": "Uniquely mapped read ratio. Low values can indicate repetitive reads or reference issues.",
-            "AlignmentQC.Picard_Duplication_Rate": "PCR/optical duplication estimate. High duplication can reduce usable library complexity.",
-            "AlignmentQC.MT_Ratio": f"{organelle['definition']} {organelle['assumption']}",
-            "Correlation.Spearman": "Sample similarity based on genome-wide signal. Replicates should generally correlate better than unrelated controls.",
-            "Peak.FRIP": "Reads in peaks fraction. It reflects enrichment strength and should be interpreted with peak count and control samples.",
-            "Peak.PeakCount": "Number of called peaks. Very high control peak counts or very low target peaks need review.",
-            "Motif.knownResults": "Known motif enrichment from peak sequences. Top motifs should match target biology or expected cofactors where possible.",
-        }
-
-    @classmethod
-    def _read_metric_guides(cls, root: Path, report_roots: list[Path]) -> list[dict[str, str]]:
-        relative_candidates = [
-            "README.txt",
-            "1.ReadsQC/README.txt",
-            "2.AlignmentQC/README.txt",
-            "2.AlignmentQC/2.1AlignmentStat/README.txt",
-            "3.Correlation/README.txt",
-            "5.Peakcalling/README.txt",
-            "5.Peakcalling/5.1PeakStat/README.txt",
-            "5.Peakcalling/5.3PeakAnno/README.txt",
-            "7.Motif/README.txt",
-            "8.MotifyAnalysis/README.txt",
-        ]
-        candidates: list[Path] = [root / "README.txt"]
-        for report_root in report_roots:
-            candidates.extend(report_root / relative for relative in relative_candidates)
-
-        guides: list[dict[str, str]] = []
-        seen: set[Path] = set()
-        for path in candidates:
-            try:
-                resolved = path.resolve()
-            except (OSError, RuntimeError):
-                resolved = path
-            if resolved in seen or not path.exists() or not path.is_file():
-                continue
-            seen.add(resolved)
-            try:
-                preview = read_text_snippet(path, max_lines=120, max_chars=12000)
-            except OSError:
-                continue
-            guides.append(
-                {
-                    "file": cls._relative_path(root, path),
-                    "section": path.parent.name,
-                    "preview": preview[:3000],
-                }
-            )
-            if len(guides) >= 12:
-                break
-        return guides
-
-    @classmethod
-    def _build_metric_rule_sources(
-        cls,
-        *,
-        metric_guides: list[dict[str, str]],
-        workflow_summary: dict[str, Any],
-        config: dict[str, str],
-    ) -> dict[str, dict[str, Any]]:
-        searchable_blocks: list[tuple[str, str, str]] = []
-        for guide in metric_guides:
-            searchable_blocks.append(
-                (
-                    "report_readme",
-                    str(guide.get("file", "")),
-                    str(guide.get("preview", "")),
-                )
-            )
-        for key, value in (workflow_summary.get("detected_parameters", {}) or {}).items():
-            searchable_blocks.append(("project_workflow", key, str(value)))
-        if config:
-            searchable_blocks.append(("project_config", "config.yaml", "\n".join(f"{k}: {v}" for k, v in config.items())))
-
-        metric_terms = {
-            "adapter_percent": ("adapter", "接头"),
-            "q30_ratio": ("q30",),
-            "mapping_rate_percent": ("mapping", "mapping rate", "比对率"),
-            "unique_mapping_rate_percent": ("unique", "unique mapping", "唯一比对"),
-            "duplicate_rate_percent": ("duplicate", "duplication", "重复率", "picard"),
-            "mt_rate_percent": ("chrmt", "chrmt/pt", "mtratio", "organelle", "线粒体", "叶绿体", "质体"),
-            "frip_ratio": ("frip", "reads in peaks"),
-            "correlation": ("spearman", "correlation", "相关性"),
-        }
-        sources: dict[str, dict[str, Any]] = {}
-        for metric_key, terms in metric_terms.items():
-            matched: list[dict[str, str]] = []
-            for source_type, source_file, text in searchable_blocks:
-                lower_text = text.lower()
-                if not any(term.lower() in lower_text for term in terms):
-                    continue
-                line = next(
-                    (
-                        raw.strip()
-                        for raw in text.splitlines()
-                        if any(term.lower() in raw.lower() for term in terms)
-                    ),
-                    text.strip()[:240],
-                )
-                matched.append(
-                    {
-                        "source_type": source_type,
-                        "source_file": source_file,
-                        "evidence": line[:240],
-                    }
-                )
-            code_formula = (workflow_summary.get("code_formula_sources", {}) or {}).get(metric_key)
-            formula_complete = cls._is_complete_metric_formula(metric_key, code_formula)
-            if matched or code_formula:
-                source_level = "project_verified" if formula_complete else "project_metric_mentioned"
-                sources[metric_key] = {
-                    "source_level": source_level,
-                    "formula": code_formula.get("formula", "") if formula_complete else "",
-                    "formula_candidate": code_formula.get("formula", "") if code_formula and not formula_complete else "",
-                    "formula_source": (
-                        "project_code"
-                        if formula_complete
-                        else "project_code_partial"
-                        if code_formula
-                        else "not_found_in_project_code"
-                    ),
-                    "formula_source_file": code_formula.get("source_file", "") if code_formula else "",
-                    "formula_source_line": code_formula.get("source_line", "") if code_formula else "",
-                    "threshold_source": "professional_default_unverified",
-                    "matched_sources": matched[:4],
-                    "needs_verification": not formula_complete,
-                    "confidence": 0.8 if formula_complete else 0.5 if code_formula else 0.45,
-                }
-            else:
-                sources[metric_key] = {
-                    "source_level": "not_found_in_project",
-                    "formula": "",
-                    "formula_source": "not_found_in_project_code",
-                    "formula_source_file": "",
-                    "formula_source_line": "",
-                    "threshold_source": "not_found_in_project",
-                    "matched_sources": [],
-                    "needs_verification": True,
-                    "confidence": 0.25,
-                }
-        return sources
-
-    @staticmethod
-    def _is_complete_metric_formula(metric_key: str, code_formula: dict[str, Any] | None) -> bool:
-        if not isinstance(code_formula, dict):
-            return False
-        formula = str(code_formula.get("formula") or "").strip().lower()
-        if not formula:
-            return False
-        if metric_key == "mt_rate_percent":
-            return "/" in formula and any(token in formula for token in ("mapped", "total", "alignment"))
-        return True
-
-    @staticmethod
-    def _first_present(config: dict[str, str], keys: tuple[str, ...]) -> dict[str, str]:
-        return {
-            key: str(config.get(key, "")).strip()
-            for key in keys
-            if str(config.get(key, "")).strip()
-        }
-
-    @classmethod
-    def _build_workflow_rule_sources(
-        cls,
-        *,
-        workflow_summary: dict[str, Any],
-        config: dict[str, str],
-        config_file: str,
-    ) -> dict[str, dict[str, Any]]:
-        detected = workflow_summary.get("detected_parameters", {}) or {}
-        sources: dict[str, dict[str, Any]] = {}
-
-        def add_config_rule(rule_key: str, label: str, keys: tuple[str, ...]) -> None:
-            values = cls._first_present(config, keys)
-            if not values:
-                return
-            evidence = "; ".join(f"{key}={value}" for key, value in values.items())
-            sources[rule_key] = {
-                "label": label,
-                "source_level": "project_verified",
-                "source_type": "project_config",
-                "source_file": config_file or "config.yaml",
-                "value": evidence,
-                "evidence": evidence,
-                "needs_verification": False,
-                "confidence": 0.82,
-            }
-
-        def add_workflow_rule(rule_key: str, label: str, parameter_key: str) -> None:
-            evidence = str(detected.get(parameter_key, "")).strip()
-            if not evidence:
-                return
-            existing = sources.get(rule_key)
-            if existing:
-                existing["source_type"] = "project_config+workflow"
-                existing["evidence"] = f"{existing.get('evidence', '')}; workflow: {evidence}"[:500]
-                existing["value"] = f"{existing.get('value', '')}; workflow: {evidence}"[:500]
-                existing["confidence"] = 0.9
-                return
-            sources[rule_key] = {
-                "label": label,
-                "source_level": "project_verified",
-                "source_type": "project_workflow",
-                "source_file": parameter_key,
-                "value": evidence,
-                "evidence": evidence,
-                "needs_verification": False,
-                "confidence": 0.78,
-            }
-
-        add_config_rule(
-            "reference_config",
-            "reference genome and species configuration",
-            ("species", "genome", "reference", "effective_genome_size"),
-        )
-        add_config_rule(
-            "dedup_policy",
-            "duplicate removal policy",
-            ("remove_duplicates",),
-        )
-        add_config_rule(
-            "peak_calling_params",
-            "peak calling parameters",
-            ("peak_caller", "peak_calling", "macs3_qvalue", "TOP_PEAKS_NUM"),
-        )
-        add_config_rule(
-            "organelle_handling",
-            "mitochondrial/plastid chromosome handling",
-            ("organelle_chroms",),
-        )
-        add_config_rule(
-            "trimming_policy",
-            "adapter trimming policy",
-            ("adapter_type", "trimming_tool"),
-        )
-        add_config_rule(
-            "sequencing_mode",
-            "sequencing mode",
-            ("Sequencing", "sequencing_mode", "assay", "project_type"),
-        )
-
-        add_workflow_rule("aligner_config", "alignment tool and command rule", "aligner")
-        add_workflow_rule("peak_calling_params", "peak calling parameters", "peak_caller")
-        add_workflow_rule("dedup_policy", "duplicate handling rule", "duplicate_handling")
-        add_workflow_rule("organelle_handling", "organelle filtering rule", "organelle_filter")
-        add_workflow_rule("reference_config", "reference genome and species configuration", "reference_genome")
-        add_workflow_rule("frip_data_source", "FRiP data source rule", "frip")
-
-        return sources
-
-    @staticmethod
-    def _html_to_text(html: str) -> str:
-        parser = _HTMLTextExtractor()
-        parser.feed(html)
-        return parser.text()
-
-    @classmethod
-    def _extract_html_report_sections(cls, html: str) -> list[dict[str, str]]:
-        sections: list[dict[str, str]] = []
-        section_matches = list(re.finditer(r"<section\b[^>]*>(.*?)</section>", html, flags=re.IGNORECASE | re.DOTALL))
-        if not section_matches:
-            text = cls._html_to_text(html)
-            return [{"title": "完整报告", "text": text[:80000]}] if text else []
-
-        for match in section_matches:
-            section_html = match.group(1)
-            text = cls._html_to_text(section_html)
-            lines = [line.strip() for line in text.splitlines() if line.strip()]
-            if not lines:
-                continue
-            title = lines[0]
-            body = "\n".join(lines[1:]).strip()
-            if not body:
-                body = title
-            sections.append(
-                {
-                    "title": title[:120],
-                    "text": body[:10000],
-                }
-            )
-            if len(sections) >= 24:
-                break
-        return sections
-
-    @staticmethod
-    def _format_report_sections(sections: list[dict[str, str]], max_chars: int = 30000) -> str:
-        blocks: list[str] = []
-        used = 0
-        for index, section in enumerate(sections, start=1):
-            title = section.get("title", f"Section {index}")
-            text = section.get("text", "")
-            block = f"## {index}. {title}\n{text}".strip()
-            if not block:
-                continue
-            remaining = max_chars - used
-            if remaining <= 0:
-                break
-            if len(block) > remaining:
-                block = block[:remaining]
-            blocks.append(block)
-            used += len(block)
-        return "\n\n".join(blocks)
-
-    @classmethod
-    def _find_project_html_report(cls, root: Path, report_roots: list[Path], include_body: bool = True) -> dict[str, Any]:
-        candidates: list[Path] = []
-        preferred_names = [
-            "CUTTag_report.html",
-            "CUTTag_report.htm",
-            "report.html",
-            "report.htm",
-            f"{root.name}.html",
-            f"{root.name}.htm",
-        ]
-        for report_root in report_roots:
-            candidates.extend(report_root / name for name in preferred_names)
-            candidates.extend((report_root / "report" / name) for name in preferred_names)
-        candidates.extend(root / name for name in preferred_names)
-        for path in find_files(root, ["cuttag_report.html", "report.html", ".html"], limit=10):
-            if path not in candidates:
-                candidates.append(path)
-
-        seen: set[Path] = set()
-        for path in candidates:
-            try:
-                resolved = path.resolve()
-            except (OSError, RuntimeError):
-                resolved = path
-            if resolved in seen or not path.exists() or not path.is_file():
-                continue
-            seen.add(resolved)
-            if not include_body:
-                return {
-                    "file": cls._relative_path(root, path),
-                    "text_excerpt": "",
-                    "sections": [],
-                    "section_text": "",
-                    "source": "project_html_report",
-                }
-            try:
-                html = path.read_text(encoding="utf-8", errors="ignore")
-            except OSError:
-                continue
-            body_index = html.lower().find("<body")
-            if body_index >= 0:
-                html = html[body_index:]
-            text = cls._html_to_text(html)
-            sections = cls._extract_html_report_sections(html)
-            section_text = cls._format_report_sections(sections)
-            if not text:
-                continue
-            return {
-                "file": cls._relative_path(root, path),
-                "text_excerpt": text[:80000],
-                "sections": sections,
-                "section_text": section_text,
-                "source": "project_html_report",
-            }
-        return {}
-
-    @classmethod
-    def _build_project_context(cls, root: Path, include_html_body: bool = True) -> dict[str, Any]:
-        report_roots = list_report_roots(root)
-        samplelist_files = [path for path in (root / "samplelist", root / "samplelist.txt") if path.exists()]
-        for path in find_files(root, ["samplelist"], limit=3):
-            if path not in samplelist_files:
-                samplelist_files.append(path)
-        config_files = [path for path in (root / "config.yaml", root / "config.yml") if path.exists()]
-        for path in find_files(root, ["config.yaml", "config.yml"], limit=3):
-            if path not in config_files:
-                config_files.append(path)
-        logger.info(
-            "build_project_context root=%s config_files=%s",
-            root,
-            [str(p) for p in config_files],
-        )
-
-        samples: list[dict[str, Any]] = []
-        samplelist_path = ""
-        if samplelist_files:
-            samplelist_path = cls._relative_path(root, samplelist_files[0])
-            try:
-                samples = cls._parse_samplelist(samplelist_files[0])
-            except OSError:
-                samples = []
-
-        config: dict[str, str] = {}
-        config_path = ""
-        if config_files:
-            config_path = cls._relative_path(root, config_files[0])
-            try:
-                config = cls._parse_config_summary(config_files[0])
-            except OSError:
-                config = {}
-        workflow_summary = cls._build_workflow_summary(root, project_config=config)
-        metric_guides = cls._read_metric_guides(root, report_roots)
-        workflow_rule_sources = cls._build_workflow_rule_sources(
-            workflow_summary=workflow_summary,
-            config=config,
-            config_file=config_path,
-        )
-        sample_roles = cls._build_sample_roles(samples)
-        experiment_design = experiment_design_service.build(
-            samples,
-            config=config,
-            sample_roles=sample_roles,
-        )
-        evidence_catalog = evidence_catalog_service.build(root)
-
-        return {
-            "samplelist_file": samplelist_path,
-            "samples": samples,
-            "sample_roles": sample_roles,
-            "sample_roles_deprecated": True,
-            "experiment_design": experiment_design,
-            "evidence_catalog": evidence_catalog,
-            "evidence_catalog_summary": evidence_catalog_service.summary_for_context(
-                evidence_catalog
-            ),
-            "metric_schema": metric_schema_service.export_schema(),
-            "knowledge_base_contract": {
-                "version": "project-analysis-kb-v1",
-                "stores": [
-                    "metric definitions, units, formulas, numerators, denominators, and physical ranges",
-                    "assay and target-class distinctions",
-                    "versioned literature or guideline references",
-                    "project SOP and workflow rules",
-                ],
-                "reference_range_policy": "source-attributed and versioned; never promoted to a project threshold without project evidence",
-                "diagnostic_procedure_policy": "stored in metadata-filtered Skill decision cards, not long tutorial prompts",
-            },
-            "sample_count": len(samples),
-            "config_file": config_path,
-            "config": config,
-            "workflow_summary": workflow_summary,
-            "workflow_rule_sources": workflow_rule_sources,
-            "metric_rule_sources": cls._build_metric_rule_sources(
-                metric_guides=metric_guides,
-                workflow_summary=workflow_summary,
-                config=config,
-            ),
-            "report_roots": [cls._relative_path(root, path) for path in report_roots],
-            "html_report": cls._find_project_html_report(root, report_roots, include_body=include_html_body),
-            "metric_guides": metric_guides,
-            "metric_glossary": cls._metric_glossary(config),
-        }
-
-    @classmethod
-    def _build_project_version(cls, root: Path, project_context: dict[str, Any]) -> str:
-        digest = hashlib.sha1()
-        digest.update(str(root).encode("utf-8", errors="ignore"))
-        for record in ((project_context.get("evidence_catalog") or {}).get("files", []) or []):
-            if not isinstance(record, dict):
-                continue
-            digest.update(str(record.get("path") or "").encode("utf-8", errors="ignore"))
-            digest.update(str(record.get("size_bytes") or 0).encode("utf-8", errors="ignore"))
-            digest.update(str(record.get("mtime_ns") or 0).encode("utf-8", errors="ignore"))
-        return f"project-v1:{digest.hexdigest()[:16]}"
 
     @classmethod
     def _analyze_pipeline_failure_logs(
@@ -2338,7 +303,7 @@ class ProjectAnalysisService:
             file_started_at = perf_counter()
             try:
                 preview = read_log_snippet(log_file)
-                summary = cls._summarize_text_evidence(log_file, preview)
+                summary = project_file_parser_service.summarize_text_evidence(log_file, preview)
                 file_summaries.append(
                     {
                         "file": relative,
@@ -2506,255 +471,6 @@ class ProjectAnalysisService:
         }
 
     @classmethod
-    def _aggregate_motif_metrics(cls, motif_items: list[dict[str, Any]]) -> dict[str, Any]:
-        samples: list[dict[str, Any]] = []
-        for item in motif_items:
-            sample_name = str(item.get("sample") or "").strip()
-            top_motifs = item.get("top_motifs") or []
-            top_motif = top_motifs[0] if top_motifs else None
-            samples.append(
-                {
-                    "sample": sample_name,
-                    "motif_source": item.get("motif_source"),
-                    "motif_count": item.get("motif_count", len(top_motifs)),
-                    "top_motif_name": (top_motif or {}).get("motif_name"),
-                    "top_motif_sites": (top_motif or {}).get("sites"),
-                    "top_motif_evalue": (top_motif or {}).get("evalue"),
-                }
-            )
-
-        ranked_samples = sorted(
-            samples,
-            key=lambda item: cls._safe_float(item.get("top_motif_evalue")) or float("inf"),
-        )
-        findings: list[str] = []
-        if ranked_samples:
-            best = ranked_samples[0]
-            findings.append(
-                f"motif 聚合结果显示 {best.get('sample')} 的 top motif 为 {best.get('top_motif_name')}, E-value={best.get('top_motif_evalue')}"
-            )
-        return {
-            "sample_count": len(samples),
-            "samples": ranked_samples,
-            "findings": findings,
-        }
-
-    @staticmethod
-    def _collect_evidence_notes_from_file_summaries(file_summaries: list[dict[str, Any]]) -> list[str]:
-        findings: list[str] = []
-        for item in file_summaries:
-            if not isinstance(item, dict):
-                continue
-            summary = item.get("summary") or {}
-            if isinstance(summary, dict):
-                findings.extend(str(value) for value in (summary.get("findings") or []) if str(value).strip())
-        return list(dict.fromkeys(findings))
-
-    @classmethod
-    def _parse_evidence_file(
-        cls,
-        *,
-        root: Path,
-        file_path: Path,
-        experiment_design: dict[str, Any],
-    ) -> dict[str, Any]:
-        relative = str(file_path.relative_to(root))
-        lower_name = file_path.name.lower()
-        file_started_at = perf_counter()
-        table_kind = cls._resolve_table_kind(file_path)
-        progress_stage, progress_label = cls._progress_stage_for_evidence(file_path, table_kind)
-        try:
-            if table_kind is not None or lower_name in cls.STRUCTURED_TABLE_FILES or table_kind in {
-                "diff_annotation",
-                "diff_go",
-                "diff_pathway",
-                "diff_table",
-            }:
-                cache_kind = f"table:v2:{table_kind or lower_name}"
-                cached = cls._get_cached_parse(file_path, cache_kind)
-                if cached is None:
-                    rows = cls._read_correlation_rows(file_path) if table_kind == "correlation" else read_table_rows(file_path)
-                    if table_kind == "qc":
-                        summary = cls._build_qc_summary(rows)
-                        metric_payload = {"target": "qc", "value": summary.get("metrics", []), "mode": "replace"}
-                    elif table_kind == "spikein":
-                        summary = cls._build_spikein_summary(rows)
-                        metric_payload = {"target": "spikein", "value": summary.get("metrics", []), "mode": "replace"}
-                    elif table_kind == "alignment":
-                        summary = cls._build_alignment_summary(rows)
-                        metric_payload = {"target": "alignment", "value": summary.get("metrics", []), "mode": "replace"}
-                    elif table_kind == "peak":
-                        summary = cls._build_peak_summary(rows)
-                        metric_payload = {
-                            "target": "peak",
-                            "value": {
-                                "metrics": summary.get("metrics", {}),
-                                "ranked": summary.get("ranked", []),
-                            },
-                            "mode": "replace",
-                        }
-                    elif table_kind == "frip":
-                        summary = cls._build_frip_summary(rows, source_name=file_path.name)
-                        metric_payload = {"target": "frip", "value": summary.get("metrics", []), "mode": "merge_frip"}
-                    elif table_kind == "correlation":
-                        summary = cls._build_correlation_summary(rows)
-                        metric_payload = {"target": "correlation", "value": summary, "mode": "replace"}
-                    elif table_kind == "diff_annotation":
-                        summary = cls._build_diff_annotation_summary(rows)
-                        metric_payload = {
-                            "target": "diff",
-                            "value": {
-                                "kind": "diff_annotation",
-                                "change_counts": summary.get("change_counts", {}),
-                                "top_genes": summary.get("top_genes", []),
-                            },
-                            "mode": "append",
-                        }
-                    elif table_kind == "diff_go":
-                        summary = cls._build_enrichment_summary(rows, "GO")
-                        metric_payload = {
-                            "target": "diff",
-                            "value": {
-                                "kind": "diff_go",
-                                "top_terms": summary.get("top_terms", []),
-                            },
-                            "mode": "append",
-                        }
-                    elif table_kind == "diff_pathway":
-                        summary = cls._build_enrichment_summary(rows, "Pathway")
-                        metric_payload = {
-                            "target": "diff",
-                            "value": {
-                                "kind": "diff_pathway",
-                                "top_terms": summary.get("top_terms", []),
-                            },
-                            "mode": "append",
-                        }
-                    else:
-                        summary = cls._build_enrichment_summary(rows, "DiffTable")
-                        metric_payload = {
-                            "target": "diff",
-                            "value": {
-                                "kind": "diff_table",
-                                "top_terms": summary.get("top_terms", []),
-                            },
-                            "mode": "append",
-                        }
-                    cached = cls._set_cached_parse(
-                        file_path,
-                        cache_kind,
-                        {"summary": summary, "metric_payload": metric_payload},
-                    )
-                summary = cached["summary"]
-                metric_payload = cached["metric_payload"]
-                if table_kind == "correlation":
-                    summary = cls._stratify_correlation_summary(summary, experiment_design)
-                    metric_payload = {
-                        "target": "correlation",
-                        "value": summary,
-                        "mode": "replace",
-                    }
-                return {
-                    "relative": relative,
-                    "progress_stage": progress_stage,
-                    "progress_label": progress_label,
-                    "file_summary": {"file": relative, "type": "table", "summary": summary},
-                    "evidence_status": {
-                        "file": relative,
-                        "status": "ok",
-                        "type": "table",
-                        "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
-                    },
-                    "parsed_metric_update": metric_payload,
-                    "findings": summary.get("findings", []),
-                }
-
-            cache_kind = "text_summary"
-            cached = cls._get_cached_parse(file_path, cache_kind)
-            if cached is None:
-                if file_path.suffix.lower() == ".log":
-                    preview = read_log_snippet(file_path)
-                elif cls._looks_like_text_file(file_path):
-                    preview = read_text_snippet(file_path)
-                else:
-                    preview = ""
-                summary = cls._summarize_text_evidence(file_path, preview)
-                cached = cls._set_cached_parse(
-                    file_path,
-                    cache_kind,
-                    {"preview": preview, "summary": summary},
-                )
-            preview = cached["preview"]
-            summary = cached["summary"]
-            parsed_metric_update = None
-            findings = []
-            if summary.get("kind") in {"diff", "motif", "igv"}:
-                payload = {key: value for key, value in summary.items() if key not in {"preview", "findings"}}
-                if summary.get("kind") == "motif":
-                    payload["sample"] = cls._extract_motif_sample_name(file_path)
-                payload["file"] = relative
-                parsed_metric_update = {
-                    "target": summary["kind"],
-                    "value": payload,
-                    "mode": "append",
-                }
-                findings = summary.get("findings", [])
-            return {
-                "relative": relative,
-                "progress_stage": progress_stage,
-                "progress_label": progress_label,
-                "file_summary": {"file": relative, "type": "text", "preview": preview, "summary": summary},
-                "evidence_status": {
-                    "file": relative,
-                    "status": "ok",
-                    "type": "text",
-                    "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
-                },
-                "parsed_metric_update": parsed_metric_update,
-                "findings": findings,
-            }
-        except Exception as exc:
-            return {
-                "relative": relative,
-                "progress_stage": progress_stage,
-                "progress_label": progress_label,
-                "error": str(exc),
-                "file_summary": {"file": relative, "type": "error", "error": str(exc)},
-                "evidence_status": {
-                    "file": relative,
-                    "status": "error",
-                    "type": "unknown",
-                    "error": str(exc),
-                    "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
-                },
-                "parsed_metric_update": None,
-                "findings": [],
-            }
-
-    @classmethod
-    def _apply_parsed_metric_update(
-        cls,
-        parsed_metrics: dict[str, Any],
-        update: dict[str, Any] | None,
-    ) -> None:
-        if not update:
-            return
-        target = str(update.get("target") or "")
-        mode = str(update.get("mode") or "replace")
-        value = update.get("value")
-        if not target:
-            return
-        if mode == "append":
-            parsed_metrics.setdefault(target, []).append(value)
-            return
-        if mode == "merge_frip":
-            parsed_metrics["frip"] = cls._merge_frip_metrics(
-                parsed_metrics.get("frip", []) or [],
-                value or [],
-            )
-            return
-        parsed_metrics[target] = value
-
     @staticmethod
     def _format_percent(value: float | None) -> str:
         if value is None:
@@ -2820,8 +536,8 @@ class ProjectAnalysisService:
 
         for field, label, formatter, higher_is_worse, lower_is_worse in metric_specs:
             sample_value_raw = focus_row.get(field)
-            sample_value = cls._safe_float(sample_value_raw)
-            peer_values = [cls._safe_float(item.get(field)) for item in peer_rows]
+            sample_value = project_file_parser_service.safe_float(sample_value_raw)
+            peer_values = [project_file_parser_service.safe_float(item.get(field)) for item in peer_rows]
             peer_values = [value for value in peer_values if value is not None]
             peer_min, peer_max = cls._peer_range(peer_values)
             if formatter is cls._format_percent:
@@ -2879,27 +595,6 @@ class ProjectAnalysisService:
                 return file_name
         return ""
 
-    @staticmethod
-    def _progress_stage_for_evidence(file_path: Path, table_kind: str | None) -> tuple[str, str]:
-        lower_name = file_path.name.lower()
-        if table_kind == "qc" or lower_name == "readsqc.xls":
-            return "read_reads_qc", "ReadsQC"
-        if table_kind == "alignment" or lower_name in {"alignmentqc.xls", "aligentqc.xls"}:
-            return "read_alignment_qc", "AlignmentQC"
-        if table_kind == "spikein":
-            return "read_spikein", "Spike-in"
-        if table_kind == "frip" or "frip" in lower_name:
-            return "read_frip", "FRiP"
-        if table_kind == "peak":
-            return "read_peak", "Peak 统计"
-        if table_kind == "correlation":
-            return "read_correlation", "相关性矩阵"
-        if table_kind and table_kind.startswith("diff"):
-            return "read_diff", "差异分析结果"
-        if "readme" in lower_name:
-            return "read_metric_guide", "指标说明"
-        return "read_evidence_file", file_path.name
-
     @classmethod
     def _rule_severity(cls, rule: dict[str, Any], value: float | None) -> str:
         if value is None:
@@ -2907,7 +602,7 @@ class ProjectAnalysisService:
         for severity in ("critical", "warning"):
             threshold = rule.get(severity) or {}
             op = threshold.get("op")
-            threshold_value = cls._safe_float(threshold.get("value"))
+            threshold_value = project_file_parser_service.safe_float(threshold.get("value"))
             if threshold_value is None:
                 continue
             if op == ">" and value > threshold_value:
@@ -2949,7 +644,7 @@ class ProjectAnalysisService:
         rule_source: dict[str, Any] | None = None,
         semantic_overrides: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        rule = dict(cls.PROFESSIONAL_RULES.get(metric_key, {}))
+        rule = dict(PROFESSIONAL_RULES.get(metric_key, {}))
         schema = metric_schema_service.get(metric_key)
         if schema:
             rule.setdefault("label", schema.get("label", metric_key))
@@ -2979,7 +674,7 @@ class ProjectAnalysisService:
         has_structured_threshold = any(
             isinstance(threshold_rule.get(level), dict)
             and threshold_rule[level].get("op") in {"<", ">"}
-            and cls._safe_float(threshold_rule[level].get("value")) is not None
+            and project_file_parser_service.safe_float(threshold_rule[level].get("value")) is not None
             for level in ("warning", "critical")
         )
         threshold_verified = (
@@ -3089,12 +784,16 @@ class ProjectAnalysisService:
     ) -> list[dict[str, Any]]:
         chain: list[dict[str, Any]] = []
         metric_rule_sources = metric_rule_sources or {}
-        qc_source = cls._source_file_for_metric(file_summaries, "readsqc.xls")
+        qc_source = cls._source_file_for_metric(file_summaries, "readsqc.xls", "statistic_reads.xls")
         alignment_source = cls._source_file_for_metric(file_summaries, "alignmentqc.xls", "aligentqc.xls")
         spikein_source = cls._source_file_for_metric(file_summaries, "spikein")
         frip_source = cls._source_file_for_metric(file_summaries, "frip")
-        correlation_source = cls._source_file_for_metric(file_summaries, "spearman_corr_readcounts.tab")
-        organelle_semantics = cls._organelle_semantics(project_context)
+        correlation_source = cls._source_file_for_metric(
+            file_summaries, "spearman_corr_readcounts.tab", "correlation_summary"
+        )
+        rnaseq_reads_class_source = cls._source_file_for_metric(file_summaries, "rrna_globin_stat")
+        rnaseq_gene_exp_source = cls._source_file_for_metric(file_summaries, "exprange")
+        organelle_semantics = project_context_builder_service.organelle_semantics(project_context)
 
         for item in parsed_metrics.get("qc", []) or []:
             sample = item.get("sample") or "-"
@@ -3103,7 +802,7 @@ class ProjectAnalysisService:
                     metric_key="sequencing_depth",
                     category="ReadsQC",
                     sample=sample,
-                    value=cls._safe_float(item.get("clean_read_count")),
+                    value=project_file_parser_service.safe_float(item.get("clean_read_count")),
                     source_file=qc_source,
                     source_field="Total Clean Reads",
                     rule_source=metric_rule_sources.get("sequencing_depth"),
@@ -3115,7 +814,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="ReadsQC",
                         sample=sample,
-                        value=cls._safe_float(item.get(key)),
+                        value=project_file_parser_service.safe_float(item.get(key)),
                         source_file=qc_source,
                         rule_source=metric_rule_sources.get(key),
                     )
@@ -3126,10 +825,62 @@ class ProjectAnalysisService:
                         metric_key="clean_read_retention_percent",
                         category="ReadsQC",
                         sample=sample,
-                        value=cls._safe_float(item.get("clean_read_retention_percent")),
+                        value=project_file_parser_service.safe_float(item.get("clean_read_retention_percent")),
                         source_file=qc_source,
                         source_field="Clean Reads",
                         rule_source=metric_rule_sources.get("clean_read_retention_percent"),
+                    )
+                )
+            # RNA-seq Statistic_Reads.xls 中的 Dup(%) 字段
+            if item.get("duplicate_rate_percent") is not None:
+                chain.append(
+                    cls._build_rule_entry(
+                        metric_key="duplicate_rate_percent",
+                        category="ReadsQC",
+                        sample=sample,
+                        value=project_file_parser_service.safe_float(item.get("duplicate_rate_percent")),
+                        source_file=qc_source,
+                        source_field="Dup(%)",
+                        rule_source=metric_rule_sources.get("duplicate_rate_percent"),
+                    )
+                )
+
+        # ── RNA-seq Reads 组成分析 (Samples.rRNA_Globin_stat.xls) ─────────
+        for item in parsed_metrics.get("rnaseq_reads_class", []) or []:
+            sample = item.get("sample") or "-"
+            for key, source_field in (
+                ("mrna_ratio_percent", "mRNA_ratio(%)"),
+                ("rrna_ratio_percent", "rRNA_ratio(%)"),
+                ("exon_ratio_percent", "mRNA_Exon_ratio(%)"),
+                ("intronic_ratio_percent", "mRNA_Intronic_ratio(%)"),
+                ("intergenic_ratio_percent", "Intergenic_ratio(%)"),
+            ):
+                if item.get(key) is not None:
+                    chain.append(
+                        cls._build_rule_entry(
+                            metric_key=key,
+                            category="RNAseqReadsClass",
+                            sample=sample,
+                            value=project_file_parser_service.safe_float(item.get(key)),
+                            source_file=rnaseq_reads_class_source,
+                            source_field=source_field,
+                            rule_source=metric_rule_sources.get(key),
+                        )
+                    )
+
+        # ── RNA-seq 基因表达分布 (Samples.ExpRange.xls) ───────────────────
+        for item in parsed_metrics.get("rnaseq_gene_exp", []) or []:
+            sample = item.get("sample") or "-"
+            if item.get("detected_gene_count") is not None:
+                chain.append(
+                    cls._build_rule_entry(
+                        metric_key="detected_gene_count",
+                        category="RNAseqGeneExp",
+                        sample=sample,
+                        value=project_file_parser_service.safe_float(item.get("detected_gene_count")),
+                        source_file=rnaseq_gene_exp_source,
+                        source_field="Sum.",
+                        rule_source=metric_rule_sources.get("detected_gene_count"),
                     )
                 )
 
@@ -3150,7 +901,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="AlignmentQC",
                         sample=sample,
-                        value=cls._safe_float(item.get(key)),
+                        value=project_file_parser_service.safe_float(item.get(key)),
                         source_file=alignment_source,
                         source_field=source_fields.get(key),
                         rule_source=metric_rule_sources.get(key),
@@ -3175,7 +926,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="SpikeIn",
                         sample=sample,
-                        value=cls._safe_float(item.get(source_key)),
+                        value=project_file_parser_service.safe_float(item.get(source_key)),
                         source_file=spikein_source,
                         source_field=field,
                         rule_source=metric_rule_sources.get(key),
@@ -3189,7 +940,7 @@ class ProjectAnalysisService:
                 metric_key="frip_ratio",
                 category="CrossFRiP" if item.get("comparison_type") == "cross_frip" else "FRiP",
                 sample=f"{sample} against {peak_set}" if peak_set != sample else sample,
-                value=cls._safe_float(item.get("frip_ratio")),
+                value=project_file_parser_service.safe_float(item.get("frip_ratio")),
                 source_file=frip_source,
                 source_field=item.get("source_field") or "percent",
                 rule_source=metric_rule_sources.get("frip_ratio"),
@@ -3211,8 +962,8 @@ class ProjectAnalysisService:
                     )
                     if peak_set != sample
                     else "self",
-                    "numerator_value": cls._safe_float(item.get("reads_in_peaks")),
-                    "denominator_value": cls._safe_float(item.get("mapped_reads")),
+                    "numerator_value": project_file_parser_service.safe_float(item.get("reads_in_peaks")),
+                    "denominator_value": project_file_parser_service.safe_float(item.get("mapped_reads")),
                 }
             )
             chain.append(entry)
@@ -3224,7 +975,7 @@ class ProjectAnalysisService:
                 metric_key="correlation",
                 category="Correlation",
                 sample=f"{pair.get('left')} vs {pair.get('right')}",
-                value=cls._safe_float(pair.get("value")),
+                value=project_file_parser_service.safe_float(pair.get("value")),
                 source_file=correlation_source,
                 source_field="spearman correlation",
                 rule_source=metric_rule_sources.get("correlation"),
@@ -3354,702 +1105,6 @@ class ProjectAnalysisService:
             if diagnostic:
                 diagnostics.append(diagnostic)
         return diagnostics
-
-    @classmethod
-    def _build_cause_graph(
-        cls,
-        *,
-        question: str,
-        analysis_plan: dict[str, Any],
-        evidence_chain: list[dict[str, Any]],
-        tool_diagnostics: list[dict[str, Any]],
-        project_context: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        metric_evidence_plan = analysis_plan.get("metric_evidence_plan") if isinstance(analysis_plan, dict) else {}
-        if not isinstance(metric_evidence_plan, dict) or not metric_evidence_plan:
-            target_metrics = analysis_plan.get("target_metrics", []) if isinstance(analysis_plan, dict) else []
-            metric_evidence_plan = cls._fallback_metric_evidence_plan(target_metrics, question)
-
-        nodes: list[dict[str, Any]] = []
-        for metric, graph in metric_evidence_plan.items():
-            if not isinstance(graph, dict):
-                continue
-            node = cls._build_cause_node(
-                metric=str(metric),
-                graph=graph,
-                evidence_chain=evidence_chain,
-                tool_diagnostics=tool_diagnostics,
-                project_context=project_context or {},
-            )
-            if node:
-                nodes.append(node)
-
-        ranked_causes = cls._aggregate_ranked_causes(nodes)
-        leading_hypothesis = ranked_causes[0] if ranked_causes else None
-        confirmed_hypothesis = (
-            leading_hypothesis
-            if leading_hypothesis and leading_hypothesis.get("support_level") == "supported"
-            else None
-        )
-        confidence_score = cls._cause_graph_confidence(ranked_causes)
-        competing_hypotheses = cls._build_competing_hypotheses(ranked_causes)
-        return {
-            "version": "metric-evidence-graph-v2",
-            "mode": "question_driven_metric_diagnosis" if nodes else "evidence_only",
-            "nodes": nodes,
-            "ranked_causes": ranked_causes,
-            "competing_hypotheses": competing_hypotheses,
-            "leading_hypothesis": leading_hypothesis,
-            "confirmed_hypothesis": confirmed_hypothesis,
-            "diagnostic_confidence": {
-                "score": confidence_score,
-                "level": "high" if confidence_score >= 0.75 else "moderate" if confidence_score >= 0.45 else "low",
-                "boundary": (
-                    "根因已获得独立项目证据支持。"
-                    if confirmed_hypothesis
-                    else "当前仅形成待验证的差异诊断，目标指标本身不能证明根因。"
-                ),
-            },
-            "answer_guidance": [
-                "Answer the user's current question first.",
-                "Use evidence_chain for observed values and source fields.",
-                "Use ranked_causes for differential diagnosis, supporting or contradicting evidence, and verification actions.",
-                "Do not treat the focus metric itself as proof of its root cause.",
-                "Do not judge overall project pass/fail.",
-            ],
-        }
-
-    @classmethod
-    def _build_cause_node(
-        cls,
-        *,
-        metric: str,
-        graph: dict[str, Any],
-        evidence_chain: list[dict[str, Any]],
-        tool_diagnostics: list[dict[str, Any]],
-        project_context: dict[str, Any],
-    ) -> dict[str, Any] | None:
-        primary_metrics = [cls._canonical_metric_key(item) for item in graph.get("primary", []) or []]
-        if not primary_metrics:
-            primary_metrics = [cls._canonical_metric_key(metric)]
-        upstream_metrics = [cls._canonical_metric_key(item) for item in graph.get("upstream", []) or []]
-        parallel_metrics = [cls._canonical_metric_key(item) for item in graph.get("parallel", []) or []]
-        downstream_metrics = [cls._canonical_metric_key(item) for item in graph.get("downstream", []) or []]
-
-        primary_evidence = cls._evidence_for_metrics(evidence_chain, primary_metrics)
-        upstream_evidence = cls._evidence_for_metrics(evidence_chain, upstream_metrics)
-        parallel_evidence = cls._evidence_for_metrics(evidence_chain, parallel_metrics)
-        downstream_evidence = cls._evidence_for_metrics(evidence_chain, downstream_metrics)
-        diagnostics = cls._diagnostics_for_metric(metric, tool_diagnostics)
-
-        if not any((primary_evidence, upstream_evidence, parallel_evidence, downstream_evidence, diagnostics)):
-            return None
-
-        evidence_gaps: list[str] = []
-        next_checks: list[str] = []
-        reasoning: list[str] = []
-        for diagnostic in diagnostics:
-            for item in diagnostic.get("evidence_gaps", []) or []:
-                text = str(item).strip()
-                if text and text not in evidence_gaps:
-                    evidence_gaps.append(text)
-            for item in diagnostic.get("next_checks", []) or []:
-                text = str(item).strip()
-                if text and text not in next_checks:
-                    next_checks.append(text)
-            for item in diagnostic.get("reasoning_chain", []) or []:
-                text = str(item).strip()
-                if text and text not in reasoning:
-                    reasoning.append(text)
-
-        hypotheses = cls._rank_candidate_causes(
-            focus_metric=cls._canonical_metric_key(metric),
-            candidate_causes=graph.get("candidate_causes", []) or [],
-            primary_evidence=primary_evidence,
-            upstream_evidence=upstream_evidence,
-            parallel_evidence=parallel_evidence,
-            downstream_evidence=downstream_evidence,
-            diagnostics=diagnostics,
-            project_context=project_context,
-            diagnostic_gaps=evidence_gaps,
-            diagnostic_checks=next_checks,
-        )
-
-        return {
-            "focus_metric": cls._canonical_metric_key(metric),
-            "primary_evidence": primary_evidence[:8],
-            "upstream_evidence": upstream_evidence[:8],
-            "parallel_evidence": parallel_evidence[:8],
-            "downstream_evidence": downstream_evidence[:8],
-            "candidate_causes": hypotheses[:8],
-            "ranked_causes": hypotheses[:8],
-            "diagnostic_summaries": [
-                {
-                    "tool": item.get("tool", ""),
-                    "status": item.get("status", ""),
-                    "summary": item.get("summary", ""),
-                }
-                for item in diagnostics[:4]
-                if isinstance(item, dict)
-            ],
-            "reasoning_chain": reasoning[:8],
-            "evidence_gaps": evidence_gaps[:8],
-            "next_checks": next_checks[:8],
-        }
-
-    @classmethod
-    def _rank_candidate_causes(
-        cls,
-        *,
-        focus_metric: str,
-        candidate_causes: list[Any],
-        primary_evidence: list[dict[str, Any]],
-        upstream_evidence: list[dict[str, Any]],
-        parallel_evidence: list[dict[str, Any]],
-        downstream_evidence: list[dict[str, Any]],
-        diagnostics: list[dict[str, Any]],
-        project_context: dict[str, Any],
-        diagnostic_gaps: list[str],
-        diagnostic_checks: list[str],
-    ) -> list[dict[str, Any]]:
-        related_evidence: list[tuple[str, dict[str, Any]]] = []
-        seen_related: set[tuple[str, str, str, str, str, str]] = set()
-        for relation, items in (
-            ("upstream", upstream_evidence),
-            ("parallel", parallel_evidence),
-            ("downstream", downstream_evidence),
-        ):
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                semantic_key = (
-                    relation,
-                    cls._canonical_metric_key(item.get("metric_key")),
-                    str(item.get("sample") or "-"),
-                    str(item.get("measurement_id") or item.get("metric_key") or ""),
-                    str(item.get("population_scope") or ""),
-                    str(item.get("value") or ""),
-                )
-                if semantic_key in seen_related:
-                    continue
-                seen_related.add(semantic_key)
-                related_evidence.append((relation, item))
-
-        ranked: list[dict[str, Any]] = []
-        diagnostic_review = any(item.get("status") == "needs_review" for item in diagnostics)
-        diagnostic_available = any(item.get("status") != "missing_evidence" for item in diagnostics)
-        for index, raw_cause in enumerate(candidate_causes):
-            cause_id = str(raw_cause or "").strip()
-            if not cause_id:
-                continue
-            profile = cls._cause_profile(cause_id)
-            support_metrics = {cls._canonical_metric_key(item) for item in profile["support_metrics"]}
-            contradict_on_normal = {
-                cls._canonical_metric_key(item) for item in profile.get("contradict_on_normal", [])
-            }
-            supporting: list[dict[str, Any]] = []
-            contradicting: list[dict[str, Any]] = []
-            verified_support_families: set[tuple[str, str, str, str]] = set()
-            for relation, item in related_evidence:
-                metric_key = cls._canonical_metric_key(item.get("metric_key"))
-                if metric_key not in support_metrics:
-                    continue
-                severity = str(item.get("severity") or "")
-                evidence_item = {
-                    "evidence_id": item.get("evidence_id", ""),
-                    "relation": relation,
-                    "metric_key": metric_key,
-                    "sample": item.get("sample", "-"),
-                    "value": item.get("value", "-"),
-                    "severity": severity or "-",
-                    "source": item.get("source", "-"),
-                    "measurement_id": item.get("measurement_id", metric_key),
-                    "population_scope": item.get("population_scope", ""),
-                    "strength": "verified" if severity in {"critical", "warning"} else "observational",
-                }
-                if severity == "normal" and metric_key in contradict_on_normal:
-                    evidence_item["reason"] = "该关联指标在项目阈值下正常，未出现该假设预期的联动。"
-                    contradicting.append(evidence_item)
-                else:
-                    if severity in {"critical", "warning"}:
-                        verified_support_families.add(
-                            (
-                                metric_key,
-                                str(item.get("sample") or "-"),
-                                str(item.get("measurement_id") or metric_key),
-                                str(item.get("population_scope") or ""),
-                            )
-                        )
-                        evidence_item["reason"] = "项目阈值支持该关联指标需要复核，为根因假设提供独立支持。"
-                    else:
-                        evidence_item["reason"] = "存在同项目关联观测，但阈值或方向尚未验证，只能作为弱支持。"
-                    supporting.append(evidence_item)
-
-            verified_support_count = len(verified_support_families)
-            context_evidence = cls._cause_context_evidence(profile, project_context)
-            score = 12 + max(0, 4 - index)
-            score += min(verified_support_count * 18, 36)
-            score += min(sum(1 for item in supporting if item["strength"] == "observational") * 4, 12)
-            score += min(len(context_evidence) * 2, 4)
-            score += 5 if diagnostic_review else 2 if diagnostic_available else 0
-            score -= min(len(contradicting) * 15, 30)
-            score = max(0, min(score, 100))
-
-            if verified_support_count >= 2 and not contradicting:
-                support_level = "supported"
-            elif verified_support_count >= 1:
-                support_level = "partially_supported"
-            elif supporting or context_evidence or diagnostic_available:
-                support_level = "plausible"
-            else:
-                support_level = "insufficient_evidence"
-
-            verification_actions = cls._dedupe_text(
-                list(profile["verification_actions"]) + list(diagnostic_checks)
-            )[:5]
-            missing_evidence = cls._dedupe_text(
-                list(profile["missing_evidence"]) + list(diagnostic_gaps)
-            )[:5]
-            expected_validation_outcomes = cls._expected_validation_outcomes(
-                cause_id,
-                profile,
-            )
-            reasoning_summary = cls._cause_reasoning_summary(
-                label=profile["label"],
-                support_level=support_level,
-                supporting=supporting,
-                contradicting=contradicting,
-                context_evidence=context_evidence,
-            )
-            ranked.append(
-                {
-                    "cause_id": cause_id,
-                    "cause": cause_id,
-                    "label": profile["label"],
-                    "score": score,
-                    "support_level": support_level,
-                    "supporting_evidence": supporting[:6],
-                    "supporting_evidence_count": len(supporting),
-                    "verified_support_count": verified_support_count,
-                    "contradicting_evidence": contradicting[:4],
-                    "context_evidence": context_evidence[:4],
-                    "missing_evidence": missing_evidence,
-                    "verification_actions": verification_actions,
-                    "expected_validation_outcomes": expected_validation_outcomes,
-                    "downstream_impacts": list(profile["downstream_impacts"])[:4],
-                    "reasoning_summary": reasoning_summary,
-                    "focus_metric": focus_metric,
-                }
-            )
-
-        ranked.sort(
-            key=lambda item: (
-                -int(item.get("score") or 0),
-                -int(item.get("verified_support_count") or 0),
-                str(item.get("cause_id") or ""),
-            )
-        )
-        for rank, item in enumerate(ranked, start=1):
-            item["rank"] = rank
-        return ranked
-
-    @staticmethod
-    def _build_competing_hypotheses(ranked_causes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        panel: list[dict[str, Any]] = []
-        leader = ranked_causes[0] if ranked_causes else None
-        leader_score = float(leader.get("score") or 0.0) if isinstance(leader, dict) else 0.0
-        for cause in ranked_causes[:4]:
-            if not isinstance(cause, dict):
-                continue
-            score = float(cause.get("score") or 0.0)
-            panel.append(
-                {
-                    "hypothesis_id": cause.get("cause_id") or cause.get("label") or "candidate",
-                    "label": cause.get("label") or cause.get("cause_id") or "candidate",
-                    "focus_metric": cause.get("focus_metric") or "",
-                    "support_level": cause.get("support_level") or "",
-                    "confidence": round(min(score / 100.0, 0.99), 3),
-                    "supporting_evidence": list(cause.get("supporting_evidence") or [])[:3],
-                    "contradicting_evidence": list(cause.get("contradicting_evidence") or [])[:2],
-                    "missing_critical_evidence": list(cause.get("missing_evidence") or [])[:3],
-                    "verification_actions": list(cause.get("verification_actions") or [])[:3],
-                    "preferred_over_alternatives": bool(
-                        leader is cause or str(cause.get("cause_id") or "") == str((leader or {}).get("cause_id") or "")
-                    ),
-                    "preference_reason": (
-                        "当前综合得分最高，且独立支持证据更多。"
-                        if leader is cause or str(cause.get("cause_id") or "") == str((leader or {}).get("cause_id") or "")
-                        else "当前排序低于首位假设，需要更多独立证据或更少反证才能提升优先级。"
-                        if leader_score > score
-                        else "当前与其他假设接近，仍需补充验证。"
-                    ),
-                }
-            )
-        return panel
-
-    @classmethod
-    def _aggregate_ranked_causes(cls, nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        by_cause: dict[str, dict[str, Any]] = {}
-        for node in nodes:
-            for cause in node.get("ranked_causes", []) or []:
-                if not isinstance(cause, dict):
-                    continue
-                cause_id = str(cause.get("cause_id") or cause.get("cause") or "")
-                current = by_cause.get(cause_id)
-                if current is None or int(cause.get("score") or 0) > int(current.get("score") or 0):
-                    by_cause[cause_id] = copy.deepcopy(cause)
-        ranked = sorted(
-            by_cause.values(),
-            key=lambda item: (
-                -int(item.get("score") or 0),
-                -int(item.get("verified_support_count") or 0),
-                str(item.get("cause_id") or ""),
-            ),
-        )
-        for rank, item in enumerate(ranked, start=1):
-            item["rank"] = rank
-        return ranked[:12]
-
-    @staticmethod
-    def _cause_graph_confidence(ranked_causes: list[dict[str, Any]]) -> float:
-        if not ranked_causes:
-            return 0.0
-        top = ranked_causes[0]
-        score = 0.15
-        score += min(int(top.get("verified_support_count") or 0) * 0.22, 0.44)
-        score += min(int(top.get("supporting_evidence_count") or 0) * 0.04, 0.16)
-        score += 0.1 if top.get("context_evidence") else 0.0
-        score -= min(len(top.get("contradicting_evidence") or []) * 0.12, 0.24)
-        return round(max(0.0, min(score, 0.95)), 2)
-
-    @classmethod
-    def _cause_context_evidence(
-        cls,
-        profile: dict[str, Any],
-        project_context: dict[str, Any],
-    ) -> list[dict[str, Any]]:
-        sources = project_context.get("workflow_rule_sources") or {}
-        evidence: list[dict[str, Any]] = []
-        for rule_key in profile.get("context_rules", []) or []:
-            source = sources.get(rule_key) if isinstance(sources, dict) else None
-            if not isinstance(source, dict) or not source:
-                continue
-            evidence.append(
-                {
-                    "rule": rule_key,
-                    "value": source.get("value", "-"),
-                    "source": source.get("source_file") or source.get("evidence") or "-",
-                    "source_level": source.get("source_level", "-"),
-                    "reason": "项目配置可用于直接核验该假设，但配置存在本身不等于根因成立。",
-                }
-            )
-        return evidence
-
-    @staticmethod
-    def _cause_reasoning_summary(
-        *,
-        label: str,
-        support_level: str,
-        supporting: list[dict[str, Any]],
-        contradicting: list[dict[str, Any]],
-        context_evidence: list[dict[str, Any]],
-    ) -> str:
-        if support_level in {"supported", "partially_supported"}:
-            summary = f"{label}获得独立关联指标支持"
-        elif supporting:
-            summary = f"{label}与当前关联观测一致，但相关阈值或方向尚未验证"
-        elif context_evidence:
-            summary = f"{label}可由项目配置直接核验，但当前没有独立指标证明"
-        else:
-            summary = f"{label}目前仅是机制上可解释的候选原因"
-        if contradicting:
-            summary += f"；同时有 {len(contradicting)} 条关联证据削弱该假设"
-        return summary + "。"
-
-    @staticmethod
-    def _expected_validation_outcomes(
-        cause_id: str,
-        profile: dict[str, Any],
-    ) -> list[str]:
-        specific = {
-            "organelle_dna_background": [
-                "若假设成立，raw/trimmed/mapped 各阶段会持续看到细胞器 reads 富集，且问题样本高于同批对照。",
-                "若假设不成立，细胞器比例应主要由某一统计阶段或口径变化造成，而不是从原始数据开始持续升高。",
-            ],
-            "organelle_filtering_not_applied_before_statistics": [
-                "若假设成立，过滤前 BAM 的细胞器比例较高，而过滤后核基因组 usable reads 明显恢复。",
-                "若假设不成立，过滤前后比例变化不足以解释当前观测。",
-            ],
-            "short_fragment_readthrough": [
-                "若假设成立，短片段区间与 Adapter Content 同步富集，clean FASTQ 或重剪切后该信号应下降。",
-                "若假设不成立，Adapter 信号与片段长度无明显关联，且 clean FASTQ 中不持续存在。",
-            ],
-            "reference_genome_mismatch": [
-                "若假设成立，更换正确参考或索引后 mapping/unique 应同步改善，未比对 reads 的物种归属会发生系统变化。",
-                "若假设不成立，使用备选正确参考复算后 mapping/unique 不会得到有意义恢复。",
-            ],
-            "insufficient_effective_reads": [
-                "若假设成立，reads 流失会集中在可定位的处理阶段，并与 FRiP、peak count 或相关性下降同向。",
-                "若假设不成立，进入 peak calling 的 usable reads 仍充足，需要转向富集、背景或参数原因。",
-            ],
-            "high_background": [
-                "若假设成立，IgG/Input 或 peak 外信号会升高，信噪比下降，且背景校正后 FRiP/peak 特异性改善。",
-                "若假设不成立，对照与 peak 外背景不高，应优先检查目标富集强度或 peak calling 参数。",
-            ],
-            "missing_or_mismatched_control": [
-                "若假设成立，修正 control 配对后背景估计和 peak 集合会发生方向一致的变化。",
-                "若假设不成立，正确绑定 control 后主要结论应保持稳定。",
-            ],
-        }
-        if cause_id in specific:
-            return specific[cause_id]
-        label = str(profile.get("label") or cause_id)
-        actions = [str(item) for item in profile.get("verification_actions", []) if str(item).strip()]
-        action = actions[0] if actions else "补充该假设对应的独立项目证据"
-        return [
-            f"若“{label}”成立，执行“{action}”后应观察到与该机制一致、可重复的方向性变化。",
-            f"若“{label}”不成立，复核结果不会出现预期联动，应降低该原因排序并转向其他候选原因。",
-        ]
-
-    @staticmethod
-    def _dedupe_text(items: list[Any]) -> list[str]:
-        values: list[str] = []
-        for item in items:
-            text = str(item or "").strip()
-            if text and text not in values:
-                values.append(text)
-        return values
-
-    @staticmethod
-    def _cause_profile(cause_id: str) -> dict[str, Any]:
-        profiles: dict[str, dict[str, Any]] = {
-            "organelle_dna_background": {
-                "label": "样本中细胞器 DNA 背景较高",
-                "support_metrics": ["duplicate_rate_percent", "mapping_rate_percent", "unique_mapping_rate_percent"],
-                "contradict_on_normal": ["mapping_rate_percent", "unique_mapping_rate_percent"],
-                "context_rules": ["organelle_handling"],
-                "missing_evidence": ["缺少 raw/clean reads 中细胞器 reads 的分阶段计数。", "缺少样本制备或细胞核提取质量记录。"],
-                "verification_actions": ["分别统计 raw、trimmed、mapped BAM 中细胞器 reads 占比，定位升高发生在哪一步。", "复核样本裂解、细胞核纯化和起始材料状态，确认是否引入细胞器 DNA 背景。"],
-                "downstream_impacts": ["可能压缩核基因组有效 reads，并传导到 unique mapping、FRiP、peak 和相关性。"],
-            },
-            "organelle_filtering_not_applied_before_statistics": {
-                "label": "统计口径位于细胞器 reads 过滤之前",
-                "support_metrics": ["mapping_rate_percent", "unique_mapping_rate_percent"],
-                "contradict_on_normal": [],
-                "context_rules": ["organelle_handling"],
-                "missing_evidence": ["缺少该比例对应 BAM 阶段及分母定义。", "缺少细胞器过滤命令与统计命令的执行顺序。"],
-                "verification_actions": ["核对 AlignmentQC 指标使用的 BAM、分母以及 organelle filtering 的先后顺序。", "对过滤前后 BAM 重算该比例，判断高值是否主要来自统计口径。"],
-                "downstream_impacts": ["若只是过滤前统计口径，高比例不必然等同于下游有效 reads 同比例损失。"],
-            },
-            "sample_preparation_background": {
-                "label": "样本制备引入的细胞器背景",
-                "support_metrics": ["duplicate_rate_percent", "adapter_percent", "q30_ratio"],
-                "contradict_on_normal": [],
-                "context_rules": [],
-                "missing_evidence": ["缺少裂解、细胞核分离、起始量和样本状态记录。"],
-                "verification_actions": ["按样本批次对照裂解和细胞核纯化记录，并比较同批次样本的细胞器 reads。", "结合片段长度和文库复杂度判断是否存在制备阶段的系统性背景。"],
-                "downstream_impacts": ["可能减少核基因组有效片段并增加样本间技术差异。"],
-            },
-            "reference_genome_mismatch": {
-                "label": "参考基因组或版本不匹配",
-                "support_metrics": ["mapping_rate_percent", "unique_mapping_rate_percent", "q30_ratio"],
-                "contradict_on_normal": ["mapping_rate_percent", "unique_mapping_rate_percent"],
-                "context_rules": ["reference_config"],
-                "missing_evidence": ["缺少样本物种、参考版本与比对索引的一致性核对。"],
-                "verification_actions": ["核对 species、reference、index 构建来源和染色体命名是否一致。", "抽取未比对 reads 重新比对到预期参考或污染库，比较归属变化。"],
-                "downstream_impacts": ["会同时降低 mapping/unique，并减少可用于 peak calling 的有效 reads。"],
-            },
-            "adapter_or_low_quality_reads": {
-                "label": "接头或低质量 reads 消耗",
-                "support_metrics": ["adapter_percent", "q30_ratio", "mapping_rate_percent"],
-                "contradict_on_normal": ["adapter_percent", "q30_ratio"],
-                "context_rules": ["trimming_policy"],
-                "missing_evidence": ["缺少 clean FASTQ 的 Adapter Content 和过滤前后保留率。"],
-                "verification_actions": ["比较 raw/clean FastQC 的 Adapter Content、Q30 和 reads 保留率。", "核对 trimming 参数后重算 mapping，确认是否可恢复。"],
-                "downstream_impacts": ["可能降低 mapping/unique，并进一步减少富集分析可用 reads。"],
-            },
-            "organelle_reads_dominant": {
-                "label": "细胞器 reads 占用主要比对 reads",
-                "support_metrics": ["mt_rate_percent", "mapping_rate_percent", "unique_mapping_rate_percent", "duplicate_rate_percent"],
-                "contradict_on_normal": ["mapping_rate_percent", "unique_mapping_rate_percent"],
-                "context_rules": ["organelle_handling"],
-                "missing_evidence": ["缺少过滤前后核基因组有效 reads 计数。"],
-                "verification_actions": ["按细胞器和核基因组分别统计 mapped/unique reads，并比较过滤前后变化。"],
-                "downstream_impacts": ["可能压缩核基因组有效 reads，影响 FRiP、peak 和相关性。"],
-            },
-            "multi_mapping_or_repetitive_regions": {
-                "label": "多重比对或重复区域占比较高",
-                "support_metrics": ["mapping_rate_percent", "unique_mapping_rate_percent", "duplicate_rate_percent"],
-                "contradict_on_normal": ["unique_mapping_rate_percent"],
-                "context_rules": ["reference_config"],
-                "missing_evidence": ["缺少 uniquely mapped、multi-mapped 和 unmapped reads 的拆分统计。"],
-                "verification_actions": ["从比对日志拆分 unique、multi-mapped 和 unmapped reads，并核对 MAPQ 过滤口径。"],
-                "downstream_impacts": ["会降低 unique reads，并影响后续定量和 peak 稳定性。"],
-            },
-            "short_fragment_readthrough": {
-                "label": "短片段导致 adapter read-through",
-                "support_metrics": ["fragment_size", "adapter_percent", "mapping_rate_percent", "unique_mapping_rate_percent"],
-                "contradict_on_normal": [],
-                "context_rules": ["trimming_policy"],
-                "missing_evidence": ["缺少 fragment size 分布和 clean FASTQ adapter 证据。"],
-                "verification_actions": ["联合查看 fragment size 与 raw/clean Adapter Content，确认 adapter 是否集中在短片段。"],
-                "downstream_impacts": ["可能造成 reads 丢失并降低 mapping、unique 和有效富集 reads。"],
-            },
-            "adapter_trimming_parameter_mismatch": {
-                "label": "trimming 参数或接头序列不匹配",
-                "support_metrics": ["adapter_percent", "mapping_rate_percent", "q30_ratio"],
-                "contradict_on_normal": ["adapter_percent"],
-                "context_rules": ["trimming_policy"],
-                "missing_evidence": ["缺少接头序列、overlap、错误率和最小保留长度参数。"],
-                "verification_actions": ["核对接头序列与试剂盒，并用参数敏感性重跑小批 reads 比较保留率和 mapping。"],
-                "downstream_impacts": ["可能留下接头或过度剪切，降低 clean reads 和比对效率。"],
-            },
-            "high_organelle_or_low_complexity_reads": {
-                "label": "细胞器 reads 或低复杂度序列偏多",
-                "support_metrics": ["mt_rate_percent", "duplicate_rate_percent", "unique_mapping_rate_percent"],
-                "contradict_on_normal": ["mt_rate_percent", "duplicate_rate_percent"],
-                "context_rules": ["organelle_handling"],
-                "missing_evidence": ["缺少低复杂度、细胞器 reads 和重复序列的分类统计。"],
-                "verification_actions": ["对未通过 trimming 或比对的 reads 做序列分类，并联合查看复杂度与细胞器占比。"],
-                "downstream_impacts": ["可能减少可用于核基因组富集分析的有效 reads。"],
-            },
-            "library_construction_issue": {
-                "label": "文库构建或起始材料问题",
-                "support_metrics": ["duplicate_rate_percent", "q30_ratio", "mapping_rate_percent", "frip_ratio"],
-                "contradict_on_normal": [],
-                "context_rules": [],
-                "missing_evidence": ["缺少起始量、PCR cycle、文库浓度和片段分布记录。"],
-                "verification_actions": ["复核起始量、PCR cycle、文库浓度和片段分布，并与同批正常样本比较。"],
-                "downstream_impacts": ["可能同时影响复杂度、比对和富集稳定性。"],
-            },
-            "low_library_complexity": {
-                "label": "文库复杂度不足",
-                "support_metrics": ["duplicate_rate_percent", "frip_ratio", "correlation"],
-                "contradict_on_normal": ["duplicate_rate_percent"],
-                "context_rules": ["dedup_policy"],
-                "missing_evidence": ["缺少 NRF/PBC 或 estimated library size。"],
-                "verification_actions": ["查看 NRF、PBC1/PBC2、estimated library size 和去重前后有效 reads。"],
-                "downstream_impacts": ["可能降低 peak 定量稳定性和样本重复一致性。"],
-            },
-            "true_enrichment_duplication": {
-                "label": "真实富集区域产生的生物学重复",
-                "support_metrics": ["frip_ratio", "peak_count"],
-                "contradict_on_normal": [],
-                "context_rules": ["dedup_policy"],
-                "missing_evidence": ["缺少 duplicates 在 peak 内外的分布和去重前后 FRiP 对比。"],
-                "verification_actions": ["比较 duplicates 在 peak 内外的富集，并评估去重前后 FRiP/peak 稳定性。"],
-                "downstream_impacts": ["若重复集中在真实 peak，简单删除可能损失真实信号。"],
-            },
-            "organelle_or_repetitive_reads": {
-                "label": "细胞器或重复序列推高重复率",
-                "support_metrics": ["mt_rate_percent", "unique_mapping_rate_percent", "duplicate_rate_percent"],
-                "contradict_on_normal": ["mt_rate_percent", "unique_mapping_rate_percent"],
-                "context_rules": ["organelle_handling", "dedup_policy"],
-                "missing_evidence": ["缺少 duplicates 的染色体和 MAPQ 分布。"],
-                "verification_actions": ["按染色体、MAPQ 和细胞器/核基因组拆分 duplicates。"],
-                "downstream_impacts": ["可能降低核基因组有效复杂度和定量稳定性。"],
-            },
-            "pcr_amplification_bias": {
-                "label": "PCR 扩增偏倚",
-                "support_metrics": ["duplicate_rate_percent", "frip_ratio", "correlation"],
-                "contradict_on_normal": [],
-                "context_rules": ["dedup_policy"],
-                "missing_evidence": ["缺少 PCR cycle、起始量和文库复杂度统计。"],
-                "verification_actions": ["核对 PCR cycle 与起始量，并比较同批次文库复杂度和 duplicates 分布。"],
-                "downstream_impacts": ["可能放大少数片段并降低样本间定量一致性。"],
-            },
-            "insufficient_effective_reads": {
-                "label": "核基因组有效 reads 不足",
-                "support_metrics": ["mapping_rate_percent", "unique_mapping_rate_percent", "mt_rate_percent", "duplicate_rate_percent"],
-                "contradict_on_normal": ["mapping_rate_percent", "unique_mapping_rate_percent"],
-                "context_rules": [],
-                "missing_evidence": ["缺少进入 peak calling 的 usable reads 绝对数量。"],
-                "verification_actions": ["按 raw、clean、mapped、unique、去重后和 peak calling 输入逐级核算 reads。"],
-                "downstream_impacts": ["可直接限制 FRiP、peak 数量和相关性稳定性。"],
-            },
-            "high_background": {
-                "label": "背景信号较高",
-                "support_metrics": ["frip_ratio", "peak_count", "peak_width", "tss_enrichment", "correlation"],
-                "contradict_on_normal": ["frip_ratio", "correlation"],
-                "context_rules": ["peak_calling_params"],
-                "missing_evidence": ["缺少 IgG/Input、peak 外信号和信噪比分布。"],
-                "verification_actions": ["比较实验样本与 IgG/Input 的 peak 内外信号、FRiP 和覆盖轨迹。"],
-                "downstream_impacts": ["会降低 peak 特异性并削弱重复一致性。"],
-            },
-            "weak_target_enrichment": {
-                "label": "目标蛋白富集较弱",
-                "support_metrics": ["frip_ratio", "peak_count", "peak_width", "tss_enrichment", "correlation"],
-                "contradict_on_normal": ["frip_ratio", "peak_count"],
-                "context_rules": [],
-                "missing_evidence": ["缺少阳性位点、抗体批次和目标蛋白预期富集模式。"],
-                "verification_actions": ["检查阳性位点覆盖、抗体信息和目标蛋白预期 broad/narrow 富集模式。"],
-                "downstream_impacts": ["可能导致 peak 数量少、FRiP 低和生物学解释受限。"],
-            },
-            "peak_calling_parameter_issue": {
-                "label": "peak calling 参数或模式不适配",
-                "support_metrics": ["frip_ratio", "peak_count"],
-                "contradict_on_normal": [],
-                "context_rules": ["peak_calling_params"],
-                "missing_evidence": ["缺少 peak caller、阈值、broad/narrow 和 control 参数。"],
-                "verification_actions": ["用符合目标蛋白模式的 peak caller/参数做小范围敏感性比较。"],
-                "downstream_impacts": ["会改变 peak 集合，从而影响 FRiP、motif 和下游富集分析。"],
-            },
-            "missing_or_mismatched_control": {
-                "label": "对照缺失或角色不匹配",
-                "support_metrics": ["frip_ratio", "peak_count", "correlation"],
-                "contradict_on_normal": [],
-                "context_rules": ["peak_calling_params"],
-                "missing_evidence": ["缺少 IgG/Input/control 角色和 peak calling 对照绑定关系。"],
-                "verification_actions": ["核对样本角色、control 配对和 peak caller 实际使用的对照文件。"],
-                "downstream_impacts": ["可能造成背景估计偏差并改变 peak 集合。"],
-            },
-            "weak_signal_noise_dominated_bins": {
-                "label": "弱信号导致相关性被噪音主导",
-                "support_metrics": ["frip_ratio", "peak_count", "mapping_rate_percent"],
-                "contradict_on_normal": ["frip_ratio", "peak_count"],
-                "context_rules": [],
-                "missing_evidence": ["缺少相关性使用的 bin/peak 特征空间和信号分布。"],
-                "verification_actions": ["分别在全基因组 bins 和共识 peaks 上重算相关性，并过滤低信号区域。"],
-                "downstream_impacts": ["会降低重复一致性并影响差异分析可靠性。"],
-            },
-            "sample_role_or_group_mismatch": {
-                "label": "样本角色或分组不匹配",
-                "support_metrics": ["correlation"],
-                "contradict_on_normal": [],
-                "context_rules": [],
-                "missing_evidence": ["缺少样本分组、处理条件和 biological replicate 定义。"],
-                "verification_actions": ["核对 samplelist 中的组别、处理条件和重复关系后分层比较相关性。"],
-                "downstream_impacts": ["错误分组会造成不恰当的重复一致性判断。"],
-            },
-            "upstream_qc_or_enrichment_issue": {
-                "label": "上游 QC 或富集问题传导",
-                "support_metrics": ["mapping_rate_percent", "unique_mapping_rate_percent", "frip_ratio", "peak_count"],
-                "contradict_on_normal": ["mapping_rate_percent", "unique_mapping_rate_percent", "frip_ratio"],
-                "context_rules": [],
-                "missing_evidence": ["缺少最低相关样本的完整 QC 与富集链路。"],
-                "verification_actions": ["对最低相关样本逐级比较 mapping、unique、FRiP、peak count 和覆盖轨迹。"],
-                "downstream_impacts": ["可使相关性下降并削弱重复合并与差异分析。"],
-            },
-            "incorrect_correlation_feature_space": {
-                "label": "相关性特征空间或参数不适配",
-                "support_metrics": ["correlation", "peak_count"],
-                "contradict_on_normal": [],
-                "context_rules": [],
-                "missing_evidence": ["缺少相关性输入矩阵、bin size、归一化和过滤参数。"],
-                "verification_actions": ["核对相关性输入矩阵、bin size、归一化，并在共识 peak 上复算。"],
-                "downstream_impacts": ["可能产生与真实生物学重复关系不一致的相关性结果。"],
-            },
-        }
-        generic = {
-            "label": cause_id.replace("_", " "),
-            "support_metrics": [],
-            "contradict_on_normal": [],
-            "context_rules": [],
-            "missing_evidence": ["缺少能够区分该候选原因与其他原因的独立项目证据。"],
-            "verification_actions": ["补充与该假设直接对应的项目配置、原始质控或分阶段统计后再判断。"],
-            "downstream_impacts": [],
-        }
-        return profiles.get(cause_id, generic)
 
     @classmethod
     def _fallback_metric_evidence_plan(cls, target_metrics: Any, question: str) -> dict[str, Any]:
@@ -4337,7 +1392,7 @@ class ProjectAnalysisService:
             hypothesis_comparison.append(
                 f"{item.get('label', '-')}: {item.get('preference_reason', '')}"
             )
-        verification_plan = cls._dedupe_text(verification_plan + list(next_actions))[:6]
+        verification_plan = project_cause_analysis_service.dedupe_text(verification_plan + list(next_actions))[:6]
 
         return {
             "conclusions": conclusions[:5],
@@ -4352,147 +1407,6 @@ class ProjectAnalysisService:
             "verification_plan": verification_plan,
             "next_actions": verification_plan[:5] or next_actions[:5],
         }
-
-    @classmethod
-    def _summarize_text_evidence(cls, file_path: Path, preview: str) -> dict[str, Any]:
-        lower_name = file_path.name.lower()
-        lines = [line.strip() for line in preview.splitlines() if line.strip()]
-        summary: dict[str, Any] = {"preview": preview[:1500], "findings": []}
-
-        _is_log = (
-            file_path.suffix.lower() == ".log"
-            or any(tok in lower_name for tok in cls._LOG_NAME_TOKENS)
-        )
-        if _is_log:
-            error_lines: list[str] = []
-            warning_lines: list[str] = []
-            for line in lines:
-                ll = line.lower()
-                if any(tok in ll for tok in ("error", "exception", "traceback", "critical", "fatal", "abort", "报错", "错误")):
-                    error_lines.append(line)
-                elif any(tok in ll for tok in ("warning", "warn", "警告")):
-                    warning_lines.append(line)
-            summary.update(
-                {
-                    "kind": "log",
-                    "total_lines_in_preview": len(lines),
-                    "error_line_count": len(error_lines),
-                    "warning_line_count": len(warning_lines),
-                    "error_lines": error_lines[:20],
-                    "warning_lines": warning_lines[:10],
-                }
-            )
-            if error_lines:
-                summary["findings"].append(
-                    f"日志中发现 {len(error_lines)} 行错误信息，首条：{error_lines[0][:200]}"
-                )
-            elif warning_lines:
-                summary["findings"].append(
-                    f"日志中发现 {len(warning_lines)} 行警告信息，首条：{warning_lines[0][:200]}"
-                )
-            else:
-                summary["findings"].append("日志末尾未检测到明显错误或警告行")
-            return summary
-
-        if lower_name.endswith("_meme.txt"):
-            motifs: list[dict[str, Any]] = []
-            for line in lines:
-                if not line.startswith("MOTIF "):
-                    continue
-                pieces = line.split()
-                motif_name = pieces[1] if len(pieces) > 1 else "unknown"
-                sites = None
-                evalue = None
-                if "sites" in line:
-                    try:
-                        sites = int(line.split("sites =", 1)[1].split()[0])
-                    except (IndexError, ValueError):
-                        sites = None
-                if "E-value =" in line:
-                    try:
-                        evalue = line.split("E-value =", 1)[1].split()[0]
-                    except IndexError:
-                        evalue = None
-                motifs.append({"motif_name": motif_name, "sites": sites, "evalue": evalue})
-                if len(motifs) >= 100:
-                    break
-            summary.update(
-                {
-                    "kind": "motif",
-                    "motif_source": "meme_txt",
-                    "motif_count": len(motifs),
-                    "top_motifs": motifs,
-                }
-            )
-            if motifs:
-                top = motifs[0]
-                summary["findings"].append(
-                    f"motif 结果检测到 {top['motif_name']}，sites={top.get('sites')}, E-value={top.get('evalue')}"
-                )
-            return summary
-
-        if lower_name.endswith("diffpeak.readme.txt"):
-            summary.update(
-                {
-                    "kind": "diff",
-                    "diff_source": "readme",
-                    "mentions_mval": "mval" in preview.lower(),
-                    "mentions_padj": "padj" in preview.lower(),
-                    "mentions_up_down_threshold": "change" in preview.lower() and "up" in preview.lower() and "down" in preview.lower(),
-                }
-            )
-            if summary["mentions_up_down_threshold"]:
-                summary["findings"].append("差异峰 readme 明确给出了 up/down 判定规则")
-            return summary
-
-        if "golist.readme" in lower_name or "pathwaylist.readme" in lower_name:
-            enrichment_kind = "go" if "golist" in lower_name else "pathway"
-            summary.update(
-                {
-                    "kind": "diff",
-                    "diff_source": f"{enrichment_kind}_readme",
-                    "mentions_enrichment": True,
-                    "mentions_adjusted_pvalue": "p.adjust" in preview.lower() or "qvalue" in preview.lower(),
-                }
-            )
-            summary["findings"].append(f"差异分析包含 {enrichment_kind.upper()} 富集结果说明")
-            return summary
-
-        if "diff" in lower_name or "deg" in lower_name:
-            up_count = sum(1 for line in lines if "up" in line.lower())
-            down_count = sum(1 for line in lines if "down" in line.lower())
-            summary.update(
-                {
-                    "kind": "diff",
-                    "line_count": len(lines),
-                    "up_mentions": up_count,
-                    "down_mentions": down_count,
-                }
-            )
-            if up_count or down_count:
-                summary["findings"].append(f"差异分析证据中包含 up={up_count}, down={down_count} 的文本线索")
-            return summary
-
-        if "motif" in lower_name or "homer" in lower_name or "meme" in lower_name:
-            motif_lines = [line for line in lines if any(token in line.lower() for token in ("motif", "p-value", "target"))]
-            summary.update(
-                {
-                    "kind": "motif",
-                    "line_count": len(lines),
-                    "motif_hits": motif_lines[:5],
-                }
-            )
-            if motif_lines:
-                summary["findings"].append("motif 结果文件中检测到候选 motif 线索")
-            return summary
-
-        if "igv" in lower_name or lower_name.endswith((".bw", ".bigwig", ".bedgraph")):
-            summary.update({"kind": "igv", "line_count": len(lines)})
-            summary["findings"].append("检测到可视化轨道相关文件，可用于后续 IGV 复核")
-            return summary
-
-        summary.update({"kind": "text", "line_count": len(lines)})
-        return summary
 
     @staticmethod
     def _format_value(value: Any, digits: int = 2) -> str:
@@ -4842,7 +1756,7 @@ class ProjectAnalysisService:
         normalized = (question or "").strip().lower()
         primary_type = question_types[0] if question_types else ""
         return primary_type in {"diagnostic", "overview"} or any(
-            term in normalized for term in cls.INTERNAL_WORKFLOW_TERMS
+            term in normalized for term in INTERNAL_WORKFLOW_TERMS
         )
 
     @classmethod
@@ -4865,7 +1779,7 @@ class ProjectAnalysisService:
             snippet = read_text_snippet(path, max_lines=160, max_chars=min(5000, remaining)).strip()
             if not snippet:
                 continue
-            relative = cls._relative_path(root, path)
+            relative = project_context_builder_service.relative_path(root, path)
             block = f"[private workflow source: {relative}]\n{snippet}"
             blocks.append(block)
             used_chars += len(block)
@@ -5078,7 +1992,7 @@ class ProjectAnalysisService:
             str(root),
         )
         context_started_at = perf_counter()
-        project_context = cls._build_cached_project_context(root, include_html_body=include_html_body)
+        project_context = project_parse_cache.build_cached_project_context(root, include_html_body=include_html_body)
         internal_workflow_context = cls._build_internal_workflow_context(
             root,
             question,
@@ -5092,7 +2006,7 @@ class ProjectAnalysisService:
             include_html_body,
             (perf_counter() - context_started_at) * 1000,
         )
-        project_version = cls._build_project_version(root, project_context)
+        project_version = project_context_builder_service.build_project_version(root, project_context)
         report_mode = cls._resolve_report_mode(question, question_types, project_context)
         if report_mode == "existing_html_report_summary" and max_evidence_files <= 0:
             evidence_files = []
@@ -5138,19 +2052,19 @@ class ProjectAnalysisService:
             file_summaries = evidence_snapshot.get("file_summaries", []) or []
             evidence_status = evidence_snapshot.get("evidence_status", []) or []
             warnings = evidence_snapshot.get("warnings", []) or []
-            evidence_notes = cls._collect_evidence_notes_from_file_summaries(file_summaries)
+            evidence_notes = project_file_parser_service.collect_evidence_notes_from_file_summaries(file_summaries)
         evidence_files_to_parse = [] if evidence_snapshot is not None else evidence_files
         if evidence_files_to_parse:
             for file_path in evidence_files_to_parse:
-                table_kind = cls._resolve_table_kind(file_path)
-                progress_stage, progress_label = cls._progress_stage_for_evidence(file_path, table_kind)
+                table_kind = project_file_parser_service.resolve_table_kind(file_path)
+                progress_stage, progress_label = project_file_parser_service.progress_stage_for_evidence(file_path, table_kind)
                 publish_project_progress(
                     f"姝ｅ湪璇诲彇 {progress_label}",
                     stage=progress_stage,
                     status="in_progress",
                     detail={"file": str(file_path.relative_to(root))},
                 )
-            max_workers = max(1, min(cls._EVIDENCE_PARSE_WORKERS, len(evidence_files_to_parse)))
+            max_workers = max(1, min(project_parse_cache.EVIDENCE_PARSE_WORKERS, len(evidence_files_to_parse)))
             logger.info(
                 "project_analysis stage=parse_evidence_parallel run_id=%s project=%s workers=%d files=%d",
                 run_id,
@@ -5161,10 +2075,12 @@ class ProjectAnalysisService:
             with ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix="project-evidence") as executor:
                 futures = [
                     executor.submit(
-                        cls._parse_evidence_file,
+                        project_file_parser_service.parse_evidence_file,
                         root=root,
                         file_path=file_path,
                         experiment_design=project_context.get("experiment_design") or {},
+                        cache=project_parse_cache,
+                        summarize_text_fn=project_file_parser_service.summarize_text_evidence,
                     )
                     for file_path in evidence_files_to_parse
                 ]
@@ -5182,7 +2098,7 @@ class ProjectAnalysisService:
                             detail={"file": result["relative"], "error": result["error"]},
                         )
                     else:
-                        cls._apply_parsed_metric_update(parsed_metrics, result.get("parsed_metric_update"))
+                        project_file_parser_service.apply_parsed_metric_update(parsed_metrics, result.get("parsed_metric_update"))
                         file_summaries.append(result["file_summary"])
                         evidence_notes.extend(result.get("findings", []))
                         evidence_status.append(result["evidence_status"])
@@ -5198,8 +2114,8 @@ class ProjectAnalysisService:
             relative = str(file_path.relative_to(root))
             lower_name = file_path.name.lower()
             file_started_at = perf_counter()
-            table_kind = cls._resolve_table_kind(file_path)
-            progress_stage, progress_label = cls._progress_stage_for_evidence(file_path, table_kind)
+            table_kind = project_file_parser_service.resolve_table_kind(file_path)
+            progress_stage, progress_label = project_file_parser_service.progress_stage_for_evidence(file_path, table_kind)
             publish_project_progress(
                 f"正在读取 {progress_label}",
                 stage=progress_stage,
@@ -5207,27 +2123,27 @@ class ProjectAnalysisService:
                 detail={"file": relative},
             )
             try:
-                if table_kind is not None or lower_name in cls.STRUCTURED_TABLE_FILES or table_kind in {
+                if table_kind is not None or lower_name in STRUCTURED_TABLE_FILES or table_kind in {
                     "diff_annotation",
                     "diff_go",
                     "diff_pathway",
                     "diff_table",
                 }:
                     cache_kind = f"table:v2:{table_kind or lower_name}"
-                    cached = cls._get_cached_parse(file_path, cache_kind)
+                    cached = project_parse_cache._get_cached_parse(file_path, cache_kind)
                     if cached is None:
-                        rows = cls._read_correlation_rows(file_path) if table_kind == "correlation" else read_table_rows(file_path)
+                        rows = project_file_parser_service.read_correlation_rows(file_path) if table_kind == "correlation" else read_table_rows(file_path)
                         if table_kind == "qc":
-                            summary = cls._build_qc_summary(rows)
+                            summary = project_file_parser_service.build_qc_summary(rows)
                             metric_payload = {"target": "qc", "value": summary.get("metrics", [])}
                         elif table_kind == "spikein":
-                            summary = cls._build_spikein_summary(rows)
+                            summary = project_file_parser_service.build_spikein_summary(rows)
                             metric_payload = {"target": "spikein", "value": summary.get("metrics", [])}
                         elif table_kind == "alignment":
-                            summary = cls._build_alignment_summary(rows)
+                            summary = project_file_parser_service.build_alignment_summary(rows)
                             metric_payload = {"target": "alignment", "value": summary.get("metrics", [])}
                         elif table_kind == "peak":
-                            summary = cls._build_peak_summary(rows)
+                            summary = project_file_parser_service.build_peak_summary(rows)
                             metric_payload = {
                                 "target": "peak",
                                 "value": {
@@ -5236,19 +2152,19 @@ class ProjectAnalysisService:
                                 },
                             }
                         elif table_kind == "frip":
-                            summary = cls._build_frip_summary(
+                            summary = project_file_parser_service.build_frip_summary(
                                 rows,
                                 source_name=file_path.name,
                             )
                             metric_payload = {"target": "frip", "value": summary.get("metrics", [])}
                         elif table_kind == "correlation":
-                            summary = cls._build_correlation_summary(rows)
+                            summary = project_file_parser_service.build_correlation_summary(rows)
                             metric_payload = {
                                 "target": "correlation",
                                 "value": summary,
                             }
                         elif table_kind == "diff_annotation":
-                            summary = cls._build_diff_annotation_summary(rows)
+                            summary = project_file_parser_service.build_diff_annotation_summary(rows)
                             metric_payload = {
                                 "target": "diff",
                                 "value": {
@@ -5258,7 +2174,7 @@ class ProjectAnalysisService:
                                 },
                             }
                         elif table_kind == "diff_go":
-                            summary = cls._build_enrichment_summary(rows, "GO")
+                            summary = project_file_parser_service.build_enrichment_summary(rows, "GO")
                             metric_payload = {
                                 "target": "diff",
                                 "value": {
@@ -5267,7 +2183,7 @@ class ProjectAnalysisService:
                                 },
                             }
                         elif table_kind == "diff_pathway":
-                            summary = cls._build_enrichment_summary(rows, "Pathway")
+                            summary = project_file_parser_service.build_enrichment_summary(rows, "Pathway")
                             metric_payload = {
                                 "target": "diff",
                                 "value": {
@@ -5276,7 +2192,7 @@ class ProjectAnalysisService:
                                 },
                             }
                         else:
-                            summary = cls._build_enrichment_summary(rows, "DiffTable")
+                            summary = project_file_parser_service.build_enrichment_summary(rows, "DiffTable")
                             metric_payload = {
                                 "target": "diff",
                                 "value": {
@@ -5284,7 +2200,7 @@ class ProjectAnalysisService:
                                     "top_terms": summary.get("top_terms", []),
                                 },
                             }
-                        cached = cls._set_cached_parse(
+                        cached = project_parse_cache._set_cached_parse(
                             file_path,
                             cache_kind,
                             {"summary": summary, "metric_payload": metric_payload},
@@ -5292,7 +2208,7 @@ class ProjectAnalysisService:
                     summary = cached["summary"]
                     metric_payload = cached["metric_payload"]
                     if table_kind == "correlation":
-                        summary = cls._stratify_correlation_summary(
+                        summary = project_file_parser_service.stratify_correlation_summary(
                             summary,
                             project_context.get("experiment_design") or {},
                         )
@@ -5303,7 +2219,7 @@ class ProjectAnalysisService:
                     if metric_payload["target"] == "diff":
                         parsed_metrics.setdefault("diff", []).append(metric_payload["value"])
                     elif metric_payload["target"] == "frip":
-                        parsed_metrics["frip"] = cls._merge_frip_metrics(
+                        parsed_metrics["frip"] = project_file_parser_service.merge_frip_metrics(
                             parsed_metrics.get("frip", []) or [],
                             metric_payload["value"],
                         )
@@ -5327,16 +2243,16 @@ class ProjectAnalysisService:
                     )
                 else:
                     cache_kind = "text_summary"
-                    cached = cls._get_cached_parse(file_path, cache_kind)
+                    cached = project_parse_cache._get_cached_parse(file_path, cache_kind)
                     if cached is None:
                         if file_path.suffix.lower() == ".log":
                             preview = read_log_snippet(file_path)
-                        elif cls._looks_like_text_file(file_path):
+                        elif project_file_parser_service.looks_like_text_file(file_path):
                             preview = read_text_snippet(file_path)
                         else:
                             preview = ""
-                        summary = cls._summarize_text_evidence(file_path, preview)
-                        cached = cls._set_cached_parse(
+                        summary = project_file_parser_service.summarize_text_evidence(file_path, preview)
+                        cached = project_parse_cache._set_cached_parse(
                             file_path,
                             cache_kind,
                             {"preview": preview, "summary": summary},
@@ -5346,7 +2262,7 @@ class ProjectAnalysisService:
                     if summary.get("kind") in {"diff", "motif", "igv"}:
                         payload = {key: value for key, value in summary.items() if key not in {"preview", "findings"}}
                         if summary.get("kind") == "motif":
-                            payload["sample"] = cls._extract_motif_sample_name(file_path)
+                            payload["sample"] = project_file_parser_service.extract_motif_sample_name(file_path)
                         payload["file"] = relative
                         parsed_metrics.setdefault(summary["kind"], []).append(
                             payload
@@ -5406,12 +2322,12 @@ class ProjectAnalysisService:
             )
         automatic_findings = list(dict.fromkeys(evidence_notes))
         if parsed_metrics.get("motif"):
-            motif_summary = cls._aggregate_motif_metrics(parsed_metrics["motif"])
+            motif_summary = project_file_parser_service.aggregate_motif_metrics(parsed_metrics["motif"])
             parsed_metrics["motif_summary"] = motif_summary
             automatic_findings.extend(motif_summary.get("findings", []))
             automatic_findings = list(dict.fromkeys(automatic_findings))
         metric_rule_sources = project_context.get("metric_rule_sources", {}) or {}
-        organelle_semantics = cls._organelle_semantics(project_context)
+        organelle_semantics = project_context_builder_service.organelle_semantics(project_context)
         for item in parsed_metrics.get("alignment", []) or []:
             if isinstance(item, dict):
                 item["organelle_metric_label"] = organelle_semantics["table_label"]
@@ -5594,7 +2510,7 @@ class ProjectAnalysisService:
             project_context=project_context,
             analysis_plan=analysis_plan,
         )
-        cause_graph = cls._build_cause_graph(
+        cause_graph = project_cause_analysis_service.build_cause_graph(
             question=question,
             analysis_plan=analysis_plan,
             evidence_chain=evidence_chain,
@@ -5729,7 +2645,7 @@ class ProjectAnalysisService:
             for _lf in _fallback_logs:
                 try:
                     _snippet = read_log_snippet(_lf)
-                    _log_sum = cls._summarize_text_evidence(_lf, _snippet)
+                    _log_sum = project_file_parser_service.summarize_text_evidence(_lf, _snippet)
                     _rel = str(_lf.relative_to(root)).replace("\\", "/")
                     file_summaries.append({
                         "file": _rel,
@@ -5974,6 +2890,7 @@ class ProjectAnalysisService:
             "claims": claims,
             "validated_claims": validated_claims,
             "claim_validation": claim_validation,
+     
             "claim_layers": claim_layers,
             "anomaly_summary": anomaly_summary,
             "tool_diagnostics": tool_diagnostics,
@@ -5991,3 +2908,7 @@ class ProjectAnalysisService:
             },
             "_internal_workflow_context": internal_workflow_context,
         }
+
+
+# ── Singleton ──────────────────────────────────────────────────────────────────
+project_analysis_service = ProjectAnalysisService()

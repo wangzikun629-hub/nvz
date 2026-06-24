@@ -1,19 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from time import time
 from typing import Any
 from uuid import uuid4
-
-import matplotlib
-
-matplotlib.use("Agg")
-
-import matplotlib.pyplot as plt
-from matplotlib.colors import LinearSegmentedColormap
 
 from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
     find_files,
@@ -38,8 +31,7 @@ class MetricSpec:
 
 
 class ProjectChartService:
-    CHART_ROOT = Path(__file__).resolve().parents[1] / "generated" / "charts"
-    CHART_URL_PREFIX = "/generated/charts"
+    SPEC_ROOT = Path(__file__).resolve().parents[1] / "generated" / "chart_specs"
     SUPPORTED_CHART_TYPES = {"bar", "line", "heatmap"}
     METRICS: tuple[MetricSpec, ...] = (
         MetricSpec(
@@ -156,7 +148,7 @@ class ProjectChartService:
 
     @staticmethod
     def _normalize(value: str) -> str:
-        return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", (value or "").strip().lower())
+        return re.sub(r"[^a-z0-9一-鿿]+", "", (value or "").strip().lower())
 
     @classmethod
     def _resolve_metric(cls, metric: str) -> MetricSpec:
@@ -318,6 +310,7 @@ class ProjectChartService:
 
             labels: list[str] = []
             matrix: list[list[float]] = []
+            skipped = 0
             for row in rows:
                 sample = str(row.get(sample_col, "")).strip()
                 if not sample:
@@ -331,9 +324,13 @@ class ProjectChartService:
                         break
                     values.append(value)
                 if len(values) != len(selected_columns):
+                    skipped += 1
                     continue
                 labels.append(sample)
                 matrix.append(values)
+
+            if skipped:
+                logger.warning("alignment_summary: skipped %d rows with missing values", skipped)
 
             if matrix:
                 flattened = [value for row_values in matrix for value in row_values]
@@ -364,20 +361,12 @@ class ProjectChartService:
                     continue
                 matrix.append([float(value) for value in values if value is not None])
             labels = sample_names or row_names
+            # Validate square matrix
+            n = len(labels)
+            matrix = [row for row in matrix if len(row) == n]
             if labels and matrix:
                 return labels, matrix, path
         raise ValueError("未在项目中找到可用于绘制相关性热图的矩阵文件")
-
-    @staticmethod
-    def _safe_filename(value: str) -> str:
-        return re.sub(r"[^a-zA-Z0-9_.-]+", "_", value).strip("_")[:80] or "chart"
-
-    @classmethod
-    def _output_path(cls, project_id: str, metric: str, chart_type: str) -> tuple[Path, str]:
-        cls.CHART_ROOT.mkdir(parents=True, exist_ok=True)
-        filename = f"{cls._safe_filename(project_id)}_{cls._safe_filename(metric)}_{chart_type}_{int(time())}_{uuid4().hex[:6]}.png"
-        path = cls.CHART_ROOT / filename
-        return path, f"{cls.CHART_URL_PREFIX}/{filename}"
 
     @staticmethod
     def _display_source_path(source_file: Path, root: Path) -> str:
@@ -386,316 +375,30 @@ class ProjectChartService:
         except ValueError:
             return str(source_file)
 
-    @staticmethod
-    def _configure_plot() -> None:
-        plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "Arial Unicode MS", "DejaVu Sans"]
-        plt.rcParams["axes.unicode_minus"] = False
-        plt.rcParams["figure.facecolor"] = "#FFFFFF"
-        plt.rcParams["axes.facecolor"] = "#FFFFFF"
-        plt.rcParams["axes.edgecolor"] = "#D6DEE8"
-        plt.rcParams["axes.labelcolor"] = "#334155"
-        plt.rcParams["xtick.color"] = "#475569"
-        plt.rcParams["ytick.color"] = "#475569"
-        plt.rcParams["text.color"] = "#111827"
-        plt.rcParams["savefig.facecolor"] = "#FFFFFF"
-        plt.rcParams["savefig.bbox"] = "tight"
-        plt.rcParams["font.size"] = 9.5
-
-    @staticmethod
-    def _format_value(value: float) -> str:
-        if abs(value) >= 1000:
-            return f"{value:,.0f}"
-        if abs(value) >= 100:
-            return f"{value:.0f}"
-        if abs(value) >= 10:
-            return f"{value:.1f}"
-        return f"{value:.2f}"
-
-    @staticmethod
-    def _professional_colormap() -> LinearSegmentedColormap:
-        return LinearSegmentedColormap.from_list(
-            "nvz_correlation",
-            ["#2F5597", "#8FB9DA", "#F7F9FC", "#F6B26B", "#B03A2E"],
-            N=256,
-        )
+    # ── Spec 持久化 ────────────────────────────────────────────────────────────
 
     @classmethod
-    def _draw_series_chart(
-        cls,
-        labels: list[str],
-        values: list[float],
-        *,
-        title: str,
-        ylabel: str,
-        chart_type: str,
-        output_path: Path,
-    ) -> None:
-        cls._configure_plot()
-        width = max(6.6, min(11.5, len(labels) * 0.42))
-        fig, ax = plt.subplots(figsize=(width, 4.2))
-        if chart_type == "line":
-            x_values = list(range(len(labels)))
-            ax.plot(
-                x_values,
-                values,
-                marker="o",
-                markersize=5.2,
-                linewidth=2.1,
-                color="#1F5E9C",
-                markerfacecolor="white",
-                markeredgewidth=1.8,
-                markeredgecolor="#1F5E9C",
-            )
-            if values and min(values) >= 0:
-                ax.fill_between(x_values, values, [0] * len(values), color="#1F5E9C", alpha=0.08)
-            for index, value in enumerate(values):
-                ax.annotate(
-                    cls._format_value(value),
-                    (index, value),
-                    textcoords="offset points",
-                    xytext=(0, 8),
-                    ha="center",
-                    fontsize=8,
-                    color="#334155",
-                )
-            ax.set_xticks(x_values)
-            ax.set_xticklabels(labels)
-        else:
-            colors = ["#1F5E9C" if index % 2 == 0 else "#4F8CC9" for index in range(len(values))]
-            bars = ax.bar(labels, values, color=colors, width=0.58, edgecolor="white", linewidth=1.0)
-            max_value = max(values) if values else 0
-            offset = max(max_value * 0.014, 0.01)
-            for bar, value in zip(bars, values):
-                ax.text(
-                    bar.get_x() + bar.get_width() / 2,
-                    bar.get_height() + offset,
-                    cls._format_value(value),
-                    ha="center",
-                    va="bottom",
-                    fontsize=8.5,
-                    color="#334155",
-                )
-        ax.set_title(title, fontsize=12.5, fontweight="bold", color="#111827", pad=12)
-        ax.set_xlabel("Sample", fontsize=9.5, labelpad=7)
-        ax.set_ylabel(ylabel, fontsize=9.5, labelpad=7)
-        ax.tick_params(axis="x", labelrotation=42)
-        for tick in ax.get_xticklabels():
-            tick.set_horizontalalignment("right")
-        ax.grid(axis="y", linestyle="-", linewidth=0.6, color="#E6ECF2")
-        ax.set_axisbelow(True)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color("#D6DEE8")
-        ax.spines["bottom"].set_color("#D6DEE8")
-        if values:
-            ymin, ymax = min(values), max(values)
-            if ymin >= 0:
-                ax.set_ylim(0, ymax * 1.14 if ymax else 1)
-            else:
-                ax.set_ylim(ymin * 1.12, ymax * 1.12)
-        fig.tight_layout(pad=1.0)
-        fig.savefig(output_path, dpi=150)
-        plt.close(fig)
+    def _save_spec(cls, chart_id: str, spec: dict[str, Any]) -> None:
+        """将 Plotly spec 以 JSON 文件形式持久化，供页面重载后重新拉取。"""
+        cls.SPEC_ROOT.mkdir(parents=True, exist_ok=True)
+        path = cls.SPEC_ROOT / f"{chart_id}.json"
+        path.write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
 
     @classmethod
-    def _draw_grouped_bar_chart(
-        cls,
-        labels: list[str],
-        metric_labels: list[str],
-        matrix: list[list[float]],
-        *,
-        title: str,
-        ylabel: str,
-        output_path: Path,
-    ) -> None:
-        cls._configure_plot()
-        sample_count = len(labels)
-        metric_count = len(metric_labels)
-        width = max(7.2, min(12.0, sample_count * max(metric_count, 1) * 0.34))
-        fig, ax = plt.subplots(figsize=(width, 4.8))
-        x_values = list(range(sample_count))
-        group_width = 0.72
-        bar_width = min(0.18, group_width / max(metric_count, 1))
-        colors = ["#1F5E9C", "#4F8CC9", "#D86F45", "#7C6AEB", "#2E8B57", "#B7791F"]
+    def get_chart_spec(cls, chart_id: str) -> dict[str, Any] | None:
+        """根据 chart_id 读取持久化的 Plotly spec；不存在时返回 None。"""
+        # 限制 chart_id 字符，防止路径穿越
+        if not re.fullmatch(r"[a-zA-Z0-9_\-]+", chart_id):
+            return None
+        path = cls.SPEC_ROOT / f"{chart_id}.json"
+        if not path.is_file():
+            return None
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return None
 
-        max_value = max((value for row in matrix for value in row), default=0)
-        label_offset = max(max_value * 0.012, 0.2)
-        for metric_index, metric_label in enumerate(metric_labels):
-            offset = (metric_index - (metric_count - 1) / 2) * bar_width
-            positions = [x + offset for x in x_values]
-            values = [row[metric_index] for row in matrix]
-            bars = ax.bar(
-                positions,
-                values,
-                width=bar_width * 0.92,
-                label=metric_label,
-                color=colors[metric_index % len(colors)],
-                edgecolor="white",
-                linewidth=0.8,
-            )
-            if sample_count <= 6 and metric_count <= 4:
-                for bar, value in zip(bars, values):
-                    ax.text(
-                        bar.get_x() + bar.get_width() / 2,
-                        bar.get_height() + label_offset,
-                        cls._format_value(value),
-                        ha="center",
-                        va="bottom",
-                        fontsize=7.5,
-                        color="#334155",
-                    )
-
-        ax.set_title(title, fontsize=12.5, fontweight="bold", color="#111827", pad=12)
-        ax.set_xlabel("Sample", fontsize=9.5, labelpad=7)
-        ax.set_ylabel(ylabel, fontsize=9.5, labelpad=7)
-        ax.set_xticks(x_values)
-        ax.set_xticklabels(labels, rotation=20, ha="right")
-        ax.grid(axis="y", linestyle="-", linewidth=0.6, color="#E6ECF2")
-        ax.set_axisbelow(True)
-        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=min(metric_count, 4), frameon=False)
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-        ax.spines["left"].set_color("#D6DEE8")
-        ax.spines["bottom"].set_color("#D6DEE8")
-        ax.set_ylim(0, max_value * 1.18 if max_value else 1)
-        fig.tight_layout(pad=1.0)
-        fig.savefig(output_path, dpi=150)
-        plt.close(fig)
-
-    @classmethod
-    def _draw_heatmap(
-        cls,
-        labels: list[str],
-        matrix: list[list[float]],
-        *,
-        title: str,
-        output_path: Path,
-    ) -> None:
-        cls._configure_plot()
-        label_count = max(len(labels), len(matrix))
-        if label_count <= 3:
-            size = 3.75
-        elif label_count <= 8:
-            size = max(4.7, label_count * 0.48)
-        else:
-            size = min(10.0, label_count * 0.40)
-        fig, ax = plt.subplots(figsize=(size + 0.65, size))
-        image = ax.imshow(matrix, cmap=cls._professional_colormap(), vmin=-1, vmax=1, aspect="equal")
-        ax.set_xticks(range(len(labels)))
-        ax.set_yticks(range(len(matrix)))
-        ax.set_xticklabels(labels, rotation=35, ha="right")
-        ax.set_yticklabels(labels[: len(matrix)])
-        ax.set_title(title, fontsize=12.5, fontweight="bold", color="#111827", pad=12)
-        ax.tick_params(axis="both", length=0)
-        ax.set_xticks([x - 0.5 for x in range(1, len(labels))], minor=True)
-        ax.set_yticks([y - 0.5 for y in range(1, len(matrix))], minor=True)
-        ax.grid(which="minor", color="white", linestyle="-", linewidth=1.2)
-        ax.tick_params(which="minor", bottom=False, left=False)
-        for row_index, row in enumerate(matrix):
-            for col_index, value in enumerate(row):
-                if len(labels) > 18:
-                    continue
-                text_color = "white" if abs(value) > 0.72 else "#111827"
-                ax.text(
-                    col_index,
-                    row_index,
-                    f"{value:.2f}",
-                    ha="center",
-                    va="center",
-                    fontsize=8.5 if label_count <= 4 else 7.5,
-                    fontweight="bold" if abs(value) >= 0.9 else "normal",
-                    color=text_color,
-                )
-        for spine in ax.spines.values():
-            spine.set_visible(False)
-        colorbar = fig.colorbar(image, ax=ax, fraction=0.042, pad=0.035, shrink=0.72)
-        colorbar.outline.set_visible(False)
-        colorbar.ax.tick_params(labelsize=8.5, colors="#475569")
-        colorbar.set_label("Spearman correlation", fontsize=9.5, color="#334155")
-        fig.tight_layout(pad=1.0)
-        fig.savefig(output_path, dpi=150)
-        plt.close(fig)
-
-    @classmethod
-    def generate_chart(
-        cls,
-        *,
-        project_id: str,
-        metric: str,
-        chart_type: str | None = None,
-        project_root: str | None = None,
-        samples: list[str] | None = None,
-        title: str | None = None,
-    ) -> dict[str, Any]:
-        spec = cls._resolve_metric(metric)
-        resolved_chart_type = cls._resolve_chart_type(chart_type, spec)
-        root = resolve_project_root(project_id, project_root)
-        output_path, image_url = cls._output_path(project_id, spec.key, resolved_chart_type)
-
-        if spec.key == "alignment_summary":
-            labels, metric_labels, matrix, source_file, source_columns = cls._load_alignment_summary(root, spec, samples)
-            chart_title = title or f"{project_id} AlignmentQC Comparison"
-            cls._draw_grouped_bar_chart(
-                labels,
-                metric_labels,
-                matrix,
-                title=chart_title,
-                ylabel=spec.value_label,
-                output_path=output_path,
-            )
-            data_points = len(labels) * len(metric_labels)
-        elif resolved_chart_type == "heatmap":
-            labels, matrix, source_file = cls._load_correlation_matrix(root, spec)
-            chart_title = title or f"{project_id} {spec.value_label} Heatmap"
-            cls._draw_heatmap(labels, matrix, title=chart_title, output_path=output_path)
-            data_points = len(labels)
-            source_columns = labels
-        else:
-            labels, values, source_file, sample_col, value_col = cls._load_metric_rows(root, spec, samples)
-            chart_title = title or f"{project_id} {spec.key.upper()} by Sample"
-            cls._draw_series_chart(
-                labels,
-                values,
-                title=chart_title,
-                ylabel=spec.value_label,
-                chart_type=resolved_chart_type,
-                output_path=output_path,
-            )
-            data_points = len(values)
-            source_columns = [sample_col, value_col]
-
-        logger.info(
-            "project_chart generated project=%s metric=%s chart_type=%s source=%s output=%s",
-            project_id,
-            spec.key,
-            resolved_chart_type,
-            str(source_file),
-            str(output_path),
-        )
-        return {
-            "success": True,
-            "project_id": project_id,
-            "project_root": str(root),
-            "metric": spec.key,
-            "chart_type": resolved_chart_type,
-            "title": title or "",
-            "image_url": image_url,
-            "image_path": str(output_path),
-            "source_file": cls._display_source_path(source_file, root),
-            "source_columns": source_columns,
-            "data_points": data_points,
-            "artifacts": [
-                {
-                    "type": "image",
-                    "title": title or f"{spec.key.upper()} {resolved_chart_type}",
-                    "url": image_url,
-                }
-            ],
-            "summary": f"已生成 {project_id} 的 {spec.key} {resolved_chart_type} 图。",
-        }
-
-
-    # ── 新增：Plotly spec 生成（LLM 驱动，支持个性化） ──────────────────────────
+    # ── 主入口：Plotly spec 生成 ───────────────────────────────────────────────
 
     @classmethod
     async def generate_chart_spec(
@@ -709,27 +412,20 @@ class ProjectChartService:
         user_request: str = "",
     ) -> dict[str, Any]:
         """
-        提取项目数据后调用 LLM 生成 Plotly JSON spec，返回给前端直接渲染。
-
-        Parameters
-        ----------
-        project_id    : 项目编号
-        metric        : 指标名（同 generate_chart，支持中英文别名）
-        chart_type    : 图类型提示（bar/line/heatmap），可为 None 由 LLM 决定
-        project_root  : 项目根目录（可选，优先级高于自动定位）
-        samples       : 过滤样本列表（可选）
-        user_request  : 用户自然语言需求，如"加一条 0.1 阈值线，柱子用绿色"
+        提取项目数据后调用 LLM 生成 Plotly JSON spec，持久化到文件，返回给前端直接渲染。
 
         Returns
         -------
         dict  —  {
             "success": bool,
+            "chart_id": str,           # 唯一 ID，用于页面重载后重新拉取 spec
             "project_id": str,
             "metric": str,
-            "plotly_spec": {"data": [...], "layout": {...}},
+            "chart_type": str,
+            "plotly_spec": {...},
             "source_file": str,
             "data_points": int,
-            "summary": str,
+            "summary": str,            # 含嵌入式 chart 代码块，可直接写入会话消息
         }
         """
         spec = cls._resolve_metric(metric)
@@ -790,20 +486,32 @@ class ProjectChartService:
         # ── 调用 LLM 生成 Plotly spec ────────────────────────────────────────
         plotly_spec = await chart_spec_service.generate(input_data, user_request)
 
+        # ── 持久化：生成 chart_id，写入 JSON 文件 ─────────────────────────────
+        chart_id = uuid4().hex
+        await asyncio.to_thread(cls._save_spec, chart_id, plotly_spec)
+
         logger.info(
-            "project_chart_spec generated project=%s metric=%s chart_type=%s source=%s",
-            project_id, spec.key, resolved_chart_type, str(source_file),
+            "project_chart_spec generated project=%s metric=%s chart_type=%s chart_id=%s source=%s",
+            project_id, spec.key, resolved_chart_type, chart_id, str(source_file),
+        )
+
+        # summary 内嵌 ```chart 代码块，写入会话消息后页面重载仍可还原图表
+        chart_block = f"```chart\n{chart_id}\n```"
+        summary = (
+            f"已生成 {project_id} 的 {spec.key} 交互图表（数据点：{data_points}）。\n\n"
+            f"{chart_block}"
         )
 
         return {
             "success":     True,
+            "chart_id":    chart_id,
             "project_id":  project_id,
             "metric":      spec.key,
             "chart_type":  resolved_chart_type,
             "plotly_spec": plotly_spec,
             "source_file": cls._display_source_path(source_file, root),
             "data_points": data_points,
-            "summary":     f"已生成 {project_id} 的 {spec.key} 交互图表。",
+            "summary":     summary,
         }
 
 

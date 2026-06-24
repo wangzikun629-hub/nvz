@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { User, Service, Position, ChatDotRound } from '@element-plus/icons-vue'
 import { marked } from 'marked'
@@ -163,6 +163,96 @@ import {
   getSessionMessages,
   streamQueryKnowledge
 } from '@/api/knowledge'
+
+// ── Plotly 动态加载 ───────────────────────────────────────────────────────────
+let _plotlyReady = null
+function loadPlotly() {
+  if (_plotlyReady) return _plotlyReady
+  _plotlyReady = new Promise((resolve, reject) => {
+    if (window.Plotly) { resolve(window.Plotly); return }
+    const s = document.createElement('script')
+    s.src = 'https://cdn.plot.ly/plotly-2.35.2.min.js'
+    s.onload = () => resolve(window.Plotly)
+    s.onerror = () => reject(new Error('Plotly CDN 加载失败'))
+    document.head.appendChild(s)
+  })
+  return _plotlyReady
+}
+
+// ── chart_id → plotly_spec 运行时缓存（避免当次会话重复请求） ────────────────
+const chartSpecCache = new Map()
+
+async function fetchChartSpec(chartId) {
+  if (chartSpecCache.has(chartId)) return chartSpecCache.get(chartId)
+  const authToken = localStorage.getItem('kp_auth_token') || ''
+  const userId    = localStorage.getItem('kp_user_id') || ''
+  const res = await fetch(`/api/project_chart_spec/${chartId}`, {
+    headers: {
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      ...(userId    ? { 'X-User-Id': userId }                  : {}),
+    }
+  })
+  if (!res.ok) return null
+  const data = await res.json()
+  const spec = data?.plotly_spec || null
+  if (spec) chartSpecCache.set(chartId, spec)
+  return spec
+}
+
+// ── 渲染页面内所有 .plotly-chart 占位 div ─────────────────────────────────────
+async function renderPlotlyCharts() {
+  await nextTick()
+  const containers = document.querySelectorAll('.plotly-chart[data-chart-id]')
+  if (!containers.length) return
+  let Plotly
+  try { Plotly = await loadPlotly() } catch { return }
+  for (const el of containers) {
+    if (el.dataset.rendered) continue
+    const chartId = el.dataset.chartId
+    const spec = await fetchChartSpec(chartId)
+    if (!spec) continue
+    try {
+      Plotly.react(el, spec.data || [], spec.layout || {}, { responsive: true, displayModeBar: true })
+      el.dataset.rendered = '1'
+    } catch { /* ignore individual render errors */ }
+  }
+}
+
+// 立即渲染某个 chartId（CHART_SPEC SSE 到达时调用，spec 已在缓存中）
+async function renderChartById(chartId) {
+  await nextTick()
+  const containers = document.querySelectorAll(`.plotly-chart[data-chart-id="${chartId}"]`)
+  if (!containers.length) return
+  let Plotly
+  try { Plotly = await loadPlotly() } catch { return }
+  const spec = chartSpecCache.get(chartId)
+  if (!spec) return
+  for (const el of containers) {
+    try {
+      Plotly.react(el, spec.data || [], spec.layout || {}, { responsive: true, displayModeBar: true })
+      el.dataset.rendered = '1'
+    } catch { /* ignore */ }
+  }
+}
+
+// ── marked 自定义渲染：```chart\nchart_id\n``` → 占位 div ─────────────────────
+marked.use({
+  renderer: {
+    code(code, lang) {
+      if (lang === 'chart') {
+        const chartId = (code || '').trim()
+        if (chartId) {
+          return (
+            `<div class="plotly-chart" data-chart-id="${chartId}" ` +
+            `style="min-height:360px;width:100%;border-radius:6px;background:#fff;"` +
+            `><em style="color:#8b949e;font-style:normal;font-size:12px;">图表加载中…</em></div>`
+          )
+        }
+      }
+      return false // 其他代码块走默认渲染
+    }
+  }
+})
 
 const STORAGE_USER_KEY = 'kefu.chat.user_id'
 const STORAGE_SESSION_KEY = 'kefu.chat.session_id'
@@ -395,12 +485,24 @@ async function runQuestion(question, projectId = null) {
           assistantMessage.loading = false
           assistantMessage.content = answerBuffer
           assistantMessage.statusText = ''
+          scrollToBottom()
+        } else if (kind === 'chart_spec') {
+          // 解析 {chart_id, spec}，写入缓存并触发渲染
+          try {
+            const payload = JSON.parse(text)
+            const chartId = payload?.chart_id
+            const spec    = payload?.spec
+            if (chartId && spec) {
+              chartSpecCache.set(chartId, spec)
+              renderChartById(chartId)
+            }
+          } catch { /* ignore malformed */ }
         } else if (kind === 'PROCESS' || kind === 'THINKING') {
           if (!answerBuffer) {
             applyProcessPacket(assistantMessage, text)
           }
+          scrollToBottom()
         }
-        scrollToBottom()
       }
     })
 
@@ -450,9 +552,16 @@ async function confirmProjectCandidate(candidate) {
   await runQuestion(confirmText, candidate.project_id)
 }
 
+// 每当 messages 列表更新（含页面重载后从服务端加载历史），扫描并渲染遗漏的图表
+watch(messages, () => {
+  renderPlotlyCharts()
+}, { deep: false })
+
 onMounted(async () => {
   try {
     await Promise.all([refreshProjectContext(), refreshSessionMessages()])
+    // refreshSessionMessages 完成后主动渲染一次（解决重载丢图问题）
+    renderPlotlyCharts()
   } catch (error) {
     console.error(error)
   }
@@ -709,6 +818,22 @@ onMounted(async () => {
   margin-top: 8px;
   color: #8b949e;
   font-size: 11px;
+}
+
+// Plotly 图表容器样式
+:deep(.plotly-chart) {
+  margin-top: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+
+  // 覆盖 Plotly 默认 modebar 背景，使其在深色界面中可见
+  .modebar {
+    background: transparent !important;
+  }
+  .modebar-btn path {
+    fill: #475569 !important;
+  }
 }
 
 .input-area {

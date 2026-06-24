@@ -504,21 +504,26 @@ class MultiAgentService:
             user_request=user_query,   # 把完整用户需求传给 LLM，支持个性化
         )
 
+        chart_id = str(chart_result.get("chart_id") or "")
         plotly_spec = chart_result.get("plotly_spec", {})
         source_file = str(chart_result.get("source_file") or "")
         metric = str(chart_result.get("metric") or "")
         data_points = chart_result.get("data_points", 0)
 
-        answer_text = "\n".join([
+        # ```chart 代码块写入会话消息，页面重载后前端凭 chart_id 重新拉取 spec
+        chart_block = f"```chart\n{chart_id}\n```" if chart_id else ""
+        answer_text = "\n".join(filter(None, [
             "## 交互图表已生成",
             "",
             f"项目：`{project_id}`　指标：`{metric}`　数据点：{data_points}",
             f"来源文件：{source_file}",
             "",
             "> 图表已在下方渲染，支持悬停查看数值、缩放、平移。",
-        ])
+            "",
+            chart_block,
+        ]))
 
-        return answer_text, plotly_spec
+        return answer_text, plotly_spec, chart_id
 
     @classmethod
     async def _prepare_task_context(cls, request: ChatMessageRequest):
@@ -1038,8 +1043,9 @@ class MultiAgentService:
             route_name = "chart" if chart_request else ("fast_rag" if use_fast_rag else ("business" if direct_business_route else ("force_consult" if force_consult_route else "agent")))
 
             chart_plotly_spec: dict | None = None
+            _chart_id_non_stream: str = ""
             if chart_request:
-                answer_text, chart_plotly_spec = await cls._run_project_chart_route(
+                answer_text, chart_plotly_spec, _chart_id_non_stream = await cls._run_project_chart_route(
                     user_query=effective_query,
                     project_id=resolved_project_id,
                     project_root=resolved_project_root,
@@ -1224,8 +1230,9 @@ class MultiAgentService:
                 _chart_error: str | None = None
                 answer_text = ""
                 plotly_spec = None
+                _chart_id = ""
                 try:
-                    answer_text, plotly_spec = await cls._run_project_chart_route(
+                    answer_text, plotly_spec, _chart_id = await cls._run_project_chart_route(
                         user_query=effective_query,
                         project_id=resolved_project_id,
                         project_root=resolved_project_root,
@@ -1270,9 +1277,10 @@ class MultiAgentService:
                     ).model_dump_json() + "\n\n"
                     await asyncio.sleep(0)
                 # 再推 Plotly spec（前端识别 kind=chart_spec 后渲染交互图）
+                # 携带 chart_id，前端缓存后可直接渲染，页面重载时凭 chart_id 重新拉取
                 if plotly_spec:
                     yield "data: " + ResponseFactory.build_text(
-                        json.dumps(plotly_spec, ensure_ascii=False),
+                        json.dumps({"chart_id": _chart_id, "spec": plotly_spec}, ensure_ascii=False),
                         ContentKind.CHART_SPEC,
                     ).model_dump_json() + "\n\n"
                 yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"

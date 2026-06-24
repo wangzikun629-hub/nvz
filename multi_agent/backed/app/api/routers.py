@@ -288,25 +288,16 @@ async def project_analyze(request: ProjectAnalyzeRequest, auth_user: dict = Depe
     }
 
 
-@router.post("/api/project_chart", summary="Generate project chart (static PNG, legacy)")
-def project_chart(request: ProjectChartRequest, auth_user: dict = Depends(_require_auth_user)):
-    request.user_id = _resolve_user_id(auth_user)
-    try:
-        return project_chart_service.generate_chart(
-            project_id=request.project_id,
-            project_root=request.project_root,
-            metric=request.metric,
-            chart_type=request.chart_type,
-            samples=request.samples,
-            title=request.title,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except FileNotFoundError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.exception("project_chart failed project=%s metric=%s", request.project_id, request.metric)
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+@router.get("/api/project_chart_spec/{chart_id}", summary="Get persisted Plotly chart spec by chart_id")
+def get_chart_spec(chart_id: str, auth_user: dict = Depends(_require_auth_user)):
+    """
+    页面重载时前端凭 chart_id 重新拉取 Plotly spec，无需重新生成。
+    chart_id 由 POST /api/project_chart_spec 写入文件，此接口读取该文件。
+    """
+    spec = project_chart_service.get_chart_spec(chart_id)
+    if spec is None:
+        raise HTTPException(status_code=404, detail=f"chart_id {chart_id!r} 不存在或已过期")
+    return {"chart_id": chart_id, "plotly_spec": spec}
 
 
 @router.post("/api/project_chart_spec", summary="Generate interactive Plotly chart spec (LLM-driven)")

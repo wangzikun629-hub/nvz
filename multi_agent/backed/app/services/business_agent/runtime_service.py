@@ -264,19 +264,24 @@ class BusinessAgentRuntimeService:
 
     @staticmethod
     def _build_chart_answer(chart_result: dict[str, Any]) -> str:
-        title = str(chart_result.get("title") or "").strip()
-        if not title:
-            title = f"{chart_result.get('metric', '')} {chart_result.get('chart_type', '')}".strip()
-        image_url = str(chart_result.get("image_url") or "")
+        chart_id = str(chart_result.get("chart_id") or "")
+        metric = str(chart_result.get("metric") or "")
+        project_id = str(chart_result.get("project_id") or "")
+        data_points = chart_result.get("data_points", 0)
+        source_file = str(chart_result.get("source_file") or "")
+        # ```chart 代码块：页面重载后前端凭 chart_id 重新拉取 spec 渲染
+        chart_block = f"```chart\n{chart_id}\n```" if chart_id else ""
         source_columns = chart_result.get("source_columns") or []
         source_columns_text = "、".join(str(item) for item in source_columns[:8]) if isinstance(source_columns, list) else str(source_columns)
         lines = [
-            "## 图表已生成",
+            "## 交互图表已生成",
             "",
-            f"项目：`{chart_result.get('project_id', '')}`",
-            f"指标：`{chart_result.get('metric', '')}`",
+            f"项目：`{project_id}`　指标：`{metric}`　数据点：{data_points}",
+            f"来源文件：{source_file}",
             "",
-            f"![{title}]({image_url})",
+            "> 图表已在下方渲染，支持悬停查看数值、缩放、平移。",
+            "",
+            chart_block,
             "",
             "## 数据来源",
             f"- 图类型：{chart_result.get('chart_type', '')}",
@@ -504,19 +509,17 @@ class BusinessAgentRuntimeService:
             status="in_progress",
             detail={"metric": metric},
         )
-        chart_result = await asyncio.to_thread(
-            project_chart_service.generate_chart,
+        chart_result = await project_chart_service.generate_chart_spec(
             project_id=workspace.project_id,
             project_root=str(workspace.project_root),
             metric=metric,
             chart_type=chart_type,
             samples=[],
-            title=None,
         )
         business_progress_service.report(
             workspace,
             stage="generate_chart",
-            message="图表已生成",
+            message="交互图表已生成",
             status="completed",
             detail={"metric": chart_result.get("metric"), "chart_type": chart_result.get("chart_type")},
         )
@@ -1114,95 +1117,17 @@ class BusinessAgentRuntimeService:
 
     @staticmethod
     def _should_retrieve_knowledge(question: str, analysis_result: dict[str, Any]) -> tuple[bool, str]:
+        # 硬排除：分析超时或已有 HTML 报告摘要模式，跳过检索
         if analysis_result.get("analysis_status") == "timeout":
             return False, "project_analysis_timeout"
         if analysis_result.get("report_mode") == "existing_html_report_summary":
             return False, "existing_html_report_summary"
-
-        question_type = str(analysis_result.get("question_type") or "").strip().lower()
-        question_tags = {str(item).strip().lower() for item in (analysis_result.get("question_tags") or []) if item}
-        normalized_question = " ".join((question or "").split()).strip().lower()
-        has_project_evidence = bool(
-            analysis_result.get("evidence_chain")
-            or analysis_result.get("tool_diagnostics")
-            or analysis_result.get("evidence_request_status")
-        )
-        explicit_knowledge_terms = (
-            "什么是",
-            "什么意思",
-            "定义",
-            "原理",
-            "背景",
-            "通用",
-            "行业",
-            "文献",
-            "知识库",
-            "阈值",
-            "标准",
-            "sop",
-            "公式",
-            "怎么计算",
-            "如何计算",
-        )
-        needs_reference_knowledge = any(term in normalized_question for term in explicit_knowledge_terms)
-        if has_project_evidence and not needs_reference_knowledge:
-            return False, "project_evidence_sufficient"
-        broad_project_terms = (
-            "分析一下",
-            "分析下",
-            "总结一下",
-            "整体分析",
-            "项目分析",
-            "这个项目",
-            "该项目",
-            "项目整体",
-            "整体质量",
-        )
-        knowledge_terms = (
-            "什么是",
-            "什么意思",
-            "如何理解",
-            "怎么理解",
-            "解释",
-            "解读",
-            "为什么",
-            "原因",
-            "异常",
-            "偏高",
-            "偏低",
-            "不正常",
-            "怎么处理",
-            "怎么办",
-            "frip",
-            "peak",
-            "tss",
-            "motif",
-            "dup",
-            "duplicate",
-            "mapping",
-            "unique",
-            "spike",
-            "q30",
-            "adapter",
-            "线粒体",
-            "接头",
-            "重复率",
-            "比对率",
-        )
-
-        if needs_reference_knowledge:
-            return True, "explicit_reference_knowledge_question"
-        if any(term in normalized_question for term in knowledge_terms):
-            return True, "question_requires_metric_or_abnormal_explanation"
-        if question_type in {"diagnostic", "qc", "frip", "peak", "motif", "igv", "alignment", "spikein"}:
-            return True, f"question_type={question_type}"
-        if question_tags & {"diagnostic", "qc", "frip", "peak", "motif", "igv", "alignment", "spikein"}:
-            return True, "question_tags_require_knowledge"
-        if question_type == "overview" and any(term in normalized_question for term in broad_project_terms):
-            return False, "broad_project_overview"
-        if question_type == "overview":
-            return False, "overview_without_specific_metric"
-        return False, "no_knowledge_trigger"
+        # 知识库未配置时跳过，避免无意义的网络请求
+        from multi_agent.backed.app.config.settings import settings as _settings
+        if not _settings.KNOWLEDGE_BASE_URL:
+            return False, "knowledge_base_not_configured"
+        # 其余所有项目问题均检索知识库（检索已在并行阶段提前发起，此处无额外延迟）
+        return True, "always_retrieve"
 
     @staticmethod
     def _build_project_analysis_timeout_result(
