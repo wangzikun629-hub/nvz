@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,6 +22,7 @@ from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
     resolve_project_root,
 )
 from multi_agent.backed.app.infrastructure.logging.logger import logger
+from multi_agent.backed.app.services.chart_spec_service import chart_spec_service
 
 
 @dataclass(frozen=True)
@@ -690,6 +692,118 @@ class ProjectChartService:
                 }
             ],
             "summary": f"已生成 {project_id} 的 {spec.key} {resolved_chart_type} 图。",
+        }
+
+
+    # ── 新增：Plotly spec 生成（LLM 驱动，支持个性化） ──────────────────────────
+
+    @classmethod
+    async def generate_chart_spec(
+        cls,
+        *,
+        project_id: str,
+        metric: str,
+        chart_type: str | None = None,
+        project_root: str | None = None,
+        samples: list[str] | None = None,
+        user_request: str = "",
+    ) -> dict[str, Any]:
+        """
+        提取项目数据后调用 LLM 生成 Plotly JSON spec，返回给前端直接渲染。
+
+        Parameters
+        ----------
+        project_id    : 项目编号
+        metric        : 指标名（同 generate_chart，支持中英文别名）
+        chart_type    : 图类型提示（bar/line/heatmap），可为 None 由 LLM 决定
+        project_root  : 项目根目录（可选，优先级高于自动定位）
+        samples       : 过滤样本列表（可选）
+        user_request  : 用户自然语言需求，如"加一条 0.1 阈值线，柱子用绿色"
+
+        Returns
+        -------
+        dict  —  {
+            "success": bool,
+            "project_id": str,
+            "metric": str,
+            "plotly_spec": {"data": [...], "layout": {...}},
+            "source_file": str,
+            "data_points": int,
+            "summary": str,
+        }
+        """
+        spec = cls._resolve_metric(metric)
+        resolved_chart_type = cls._resolve_chart_type(chart_type, spec)
+        root = resolve_project_root(project_id, project_root)
+
+        # ── 提取数据（同步文件 I/O，用 asyncio.to_thread 避免阻塞事件循环） ──
+        def _extract_data() -> tuple[dict[str, Any], int, Path]:
+            if spec.key == "alignment_summary":
+                lbs, mlbs, mat, src, _ = cls._load_alignment_summary(root, spec, samples)
+                idata: dict[str, Any] = {
+                    "metric":          spec.key,
+                    "chart_type_hint": "grouped_bar",
+                    "project_id":      project_id,
+                    "data": {
+                        "labels":        lbs,
+                        "values":        None,
+                        "ylabel":        spec.value_label,
+                        "metric_labels": mlbs,
+                        "matrix":        mat,
+                    },
+                }
+                return idata, len(lbs) * len(mlbs), src
+
+            if resolved_chart_type == "heatmap":
+                lbs, mat, src = cls._load_correlation_matrix(root, spec)
+                idata = {
+                    "metric":          spec.key,
+                    "chart_type_hint": "heatmap",
+                    "project_id":      project_id,
+                    "data": {
+                        "labels":        lbs,
+                        "values":        None,
+                        "ylabel":        spec.value_label,
+                        "metric_labels": None,
+                        "matrix":        mat,
+                    },
+                }
+                return idata, len(lbs), src
+
+            lbs, vals, src, _, _ = cls._load_metric_rows(root, spec, samples)
+            idata = {
+                "metric":          spec.key,
+                "chart_type_hint": resolved_chart_type,
+                "project_id":      project_id,
+                "data": {
+                    "labels":        lbs,
+                    "values":        vals,
+                    "ylabel":        spec.value_label,
+                    "metric_labels": None,
+                    "matrix":        None,
+                },
+            }
+            return idata, len(vals), src
+
+        input_data, data_points, source_file = await asyncio.to_thread(_extract_data)
+
+        # ── 调用 LLM 生成 Plotly spec ────────────────────────────────────────
+        plotly_spec = await chart_spec_service.generate(input_data, user_request)
+
+        logger.info(
+            "project_chart_spec generated project=%s metric=%s chart_type=%s source=%s",
+            project_id, spec.key, resolved_chart_type, str(source_file),
+        )
+
+        return {
+            "success":     True,
+            "project_id":  project_id,
+            "metric":      spec.key,
+            "chart_type":  resolved_chart_type,
+            "plotly_spec": plotly_spec,
+            "source_file": cls._display_source_path(source_file, root),
+            "data_points": data_points,
+            "summary":     f"已生成 {project_id} 的 {spec.key} 交互图表。",
         }
 
 

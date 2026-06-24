@@ -286,6 +286,17 @@
                 ></div>
               </div>
             </template>
+
+            <template v-else-if="item.type === 'chart'">
+              <div class="message-card chart-card">
+                <div class="message-label"><span>交互图表</span></div>
+                <div
+                  :id="`plotly-${item.id}`"
+                  class="plotly-container"
+                  style="width:100%;min-height:380px;"
+                ></div>
+              </div>
+            </template>
           </article>
         </section>
 
@@ -349,7 +360,7 @@
 </template>
 
 <script>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { marked } from 'marked'
 
 marked.setOptions({ breaks: true, gfm: true })
@@ -1537,6 +1548,23 @@ export default {
         return
       }
 
+      // ── Plotly 交互图 spec ────────────────────────────────────────────────
+      if (normalizedKind === 'chart_spec') {
+        try {
+          const spec = JSON.parse(text)
+          const chartId = `chart_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+          chatMessages.value.push({
+            id: chartId,
+            type: 'chart',
+            spec,
+          })
+          scheduleVisibleSessionPersist(sessionId)
+        } catch (e) {
+          console.warn('chart_spec parse error', e)
+        }
+        return
+      }
+
       const safeText = sanitizeDisplayText(text)
       const last = chatMessages.value.filter((item) => item.type === 'process').at(-1)
       if (last) {
@@ -1570,6 +1598,17 @@ export default {
         }),
         signal: abortController.value.signal,
       })
+
+      if (!response.ok) {
+        let detail = `请求失败（${response.status}）`
+        try {
+          const err = await response.json()
+          detail = err?.detail || detail
+        } catch (_) {
+          detail = (await response.text()) || detail
+        }
+        throw new Error(detail)
+      }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
@@ -1693,6 +1732,39 @@ export default {
         startAiReportPolling()
       }
     })
+
+    // ── Plotly 图表渲染 ───────────────────────────────────────────────────────
+    // 监听 chatMessages，当出现 type==='chart' 的新消息时，
+    // 等 DOM 就绪后调用 window.Plotly.react() 渲染交互图。
+    watch(
+      () => chatMessages.value.filter((m) => m.type === 'chart').map((m) => m.id),
+      async (chartIds) => {
+        if (!chartIds.length || !window.Plotly) return
+        await nextTick()
+        for (const id of chartIds) {
+          const el = document.getElementById(`plotly-${id}`)
+          if (!el || el.dataset.plotlyRendered) continue
+          const msg = chatMessages.value.find((m) => m.id === id)
+          if (!msg?.spec) continue
+          try {
+            await window.Plotly.react(
+              el,
+              msg.spec.data || [],
+              {
+                ...msg.spec.layout,
+                autosize: true,
+                font: { family: 'Arial, sans-serif', color: '#334155' },
+              },
+              { responsive: true, displaylogo: false, modeBarButtonsToRemove: ['sendDataToCloud'] },
+            )
+            el.dataset.plotlyRendered = '1'
+          } catch (e) {
+            console.warn('Plotly render error', e)
+          }
+        }
+      },
+      { deep: false },
+    )
 
     onBeforeUnmount(() => {
       if (selectedSessionId.value && chatMessages.value.length) {
@@ -2807,6 +2879,28 @@ export default {
   width: 100%;
   max-width: 100%;
   background: rgba(15, 23, 42, 0.58);
+}
+
+/* ── 交互图表卡片 ── */
+.message-card.chart-card {
+  width: 100%;
+  max-width: 100%;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 16px 18px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.message-card.chart-card .message-label span {
+  color: #1F5E9C;
+}
+
+.plotly-container {
+  width: 100%;
+  min-height: 380px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .message-label {

@@ -483,23 +483,42 @@ class MultiAgentService:
         user_query: str,
         project_id: str | None,
         project_root: str | None,
-    ) -> str:
+    ) -> tuple[str, dict]:
+        """
+        返回 (answer_text, plotly_spec)。
+        - answer_text：文字说明，流式推送给前端作为 ANSWER 事件
+        - plotly_spec：Plotly JSON spec，作为 CHART_SPEC 事件推送，前端用 Plotly.js 渲染
+        """
         chart_request = cls._extract_chart_request(user_query)
         if not chart_request:
             raise ValueError("未能识别要绘制的指标，请明确指定 q30、frip、peak、adapter、mapping、duplicate、chrMT/Pt 或 correlation。")
         if not project_id:
             raise ValueError("当前没有识别到项目，请先指定项目或绑定项目后再画图。")
 
-        chart_result = await asyncio.to_thread(
-            project_chart_service.generate_chart,
+        chart_result = await project_chart_service.generate_chart_spec(
             project_id=project_id,
             project_root=project_root,
             metric=str(chart_request["metric"]),
             chart_type=chart_request.get("chart_type"),
             samples=chart_request.get("samples") or [],
-            title=None,
+            user_request=user_query,   # 把完整用户需求传给 LLM，支持个性化
         )
-        return cls._build_chart_answer(chart_result)
+
+        plotly_spec = chart_result.get("plotly_spec", {})
+        source_file = str(chart_result.get("source_file") or "")
+        metric = str(chart_result.get("metric") or "")
+        data_points = chart_result.get("data_points", 0)
+
+        answer_text = "\n".join([
+            "## 交互图表已生成",
+            "",
+            f"项目：`{project_id}`　指标：`{metric}`　数据点：{data_points}",
+            f"来源文件：{source_file}",
+            "",
+            "> 图表已在下方渲染，支持悬停查看数值、缩放、平移。",
+        ])
+
+        return answer_text, plotly_spec
 
     @classmethod
     async def _prepare_task_context(cls, request: ChatMessageRequest):
@@ -1018,8 +1037,9 @@ class MultiAgentService:
             )
             route_name = "chart" if chart_request else ("fast_rag" if use_fast_rag else ("business" if direct_business_route else ("force_consult" if force_consult_route else "agent")))
 
+            chart_plotly_spec: dict | None = None
             if chart_request:
-                answer_text = await cls._run_project_chart_route(
+                answer_text, chart_plotly_spec = await cls._run_project_chart_route(
                     user_query=effective_query,
                     project_id=resolved_project_id,
                     project_root=resolved_project_root,
@@ -1064,7 +1084,7 @@ class MultiAgentService:
             sources, retrieved_docs = cls._build_retrieval_summary(get_round_retrieval_trace())
             project_analysis_result = get_round_project_analysis_result()
             await cls._sync_pending_followup_action(user_id, session_id, project_analysis_result)
-            return {
+            result = {
                 "answer": answer,
                 "sources": sources,
                 "retrieved_docs": retrieved_docs,
@@ -1074,6 +1094,9 @@ class MultiAgentService:
                     project_analysis_result=project_analysis_result,
                 ),
             }
+            if chart_plotly_spec:
+                result["plotly_spec"] = chart_plotly_spec
+            return result
         finally:
             reset_round_knowledge_cache(cache_token)
             reset_round_technical_cache(technical_cache_token)
@@ -1190,31 +1213,42 @@ class MultiAgentService:
                             "type": "project_stage",
                             "stage": "generate_chart",
                             "status": "in_progress",
-                            "text": "正在生成图表",
+                            "text": "正在生成交互图表",
                             "detail": {"metric": str(chart_request.get("metric") or "")},
                         },
                         ensure_ascii=False,
                     ),
                     ContentKind.PROCESS,
                 ).model_dump_json() + "\n\n"
-                answer_text = await cls._run_project_chart_route(
-                    user_query=effective_query,
-                    project_id=resolved_project_id,
-                    project_root=resolved_project_root,
-                )
-                yield "data: " + ResponseFactory.build_text(
-                    json.dumps(
-                        {
-                            "type": "project_stage",
-                            "stage": "generate_chart",
-                            "status": "completed",
-                            "text": "图表已生成",
-                            "detail": {"metric": str(chart_request.get("metric") or "")},
-                        },
-                        ensure_ascii=False,
-                    ),
-                    ContentKind.PROCESS,
-                ).model_dump_json() + "\n\n"
+                # ── 图表生成（用 try/finally 保证 stage 事件一定发出） ────────
+                _chart_error: str | None = None
+                answer_text = ""
+                plotly_spec = None
+                try:
+                    answer_text, plotly_spec = await cls._run_project_chart_route(
+                        user_query=effective_query,
+                        project_id=resolved_project_id,
+                        project_root=resolved_project_root,
+                    )
+                except Exception as _exc:
+                    _chart_error = str(_exc)
+                    logger.error("chart_route error: %s", _chart_error, exc_info=True)
+                    answer_text = f"图表生成失败：{_chart_error}"
+                finally:
+                    # 无论成功/失败，都发 completed 让前端阶段结束
+                    yield "data: " + ResponseFactory.build_text(
+                        json.dumps(
+                            {
+                                "type": "project_stage",
+                                "stage": "generate_chart",
+                                "status": "completed" if not _chart_error else "error",
+                                "text": "交互图表已生成" if not _chart_error else f"生成失败：{_chart_error}",
+                                "detail": {"metric": str(chart_request.get("metric") or "")},
+                            },
+                            ensure_ascii=False,
+                        ),
+                        ContentKind.PROCESS,
+                    ).model_dump_json() + "\n\n"
                 yield "data: " + ResponseFactory.build_text(
                     json.dumps(
                         {
@@ -1228,12 +1262,19 @@ class MultiAgentService:
                     ),
                     ContentKind.PROCESS,
                 ).model_dump_json() + "\n\n"
+                # 先推文字说明
                 for answer_chunk in cls._iter_answer_chunks(answer_text):
                     yield "data: " + ResponseFactory.build_text(
                         answer_chunk,
                         ContentKind.ANSWER,
                     ).model_dump_json() + "\n\n"
                     await asyncio.sleep(0)
+                # 再推 Plotly spec（前端识别 kind=chart_spec 后渲染交互图）
+                if plotly_spec:
+                    yield "data: " + ResponseFactory.build_text(
+                        json.dumps(plotly_spec, ensure_ascii=False),
+                        ContentKind.CHART_SPEC,
+                    ).model_dump_json() + "\n\n"
                 yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
             elif use_fast_rag:
                 yield "data: " + ResponseFactory.build_text(

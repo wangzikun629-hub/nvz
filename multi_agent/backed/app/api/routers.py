@@ -288,7 +288,7 @@ async def project_analyze(request: ProjectAnalyzeRequest, auth_user: dict = Depe
     }
 
 
-@router.post("/api/project_chart", summary="Generate project chart")
+@router.post("/api/project_chart", summary="Generate project chart (static PNG, legacy)")
 def project_chart(request: ProjectChartRequest, auth_user: dict = Depends(_require_auth_user)):
     request.user_id = _resolve_user_id(auth_user)
     try:
@@ -306,6 +306,31 @@ def project_chart(request: ProjectChartRequest, auth_user: dict = Depends(_requi
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("project_chart failed project=%s metric=%s", request.project_id, request.metric)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@router.post("/api/project_chart_spec", summary="Generate interactive Plotly chart spec (LLM-driven)")
+async def project_chart_spec(request: ProjectChartRequest, auth_user: dict = Depends(_require_auth_user)):
+    """
+    返回 Plotly JSON spec，前端用 Plotly.js 直接渲染交互图。
+    user_request 字段传入个性化需求，如"加一条 0.1 阈值线，柱子用绿色"。
+    """
+    request.user_id = _resolve_user_id(auth_user)
+    try:
+        return await project_chart_service.generate_chart_spec(
+            project_id=request.project_id,
+            project_root=request.project_root,
+            metric=request.metric,
+            chart_type=request.chart_type,
+            samples=request.samples,
+            user_request=request.user_request,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("project_chart_spec failed project=%s metric=%s", request.project_id, request.metric)
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 

@@ -77,6 +77,10 @@ class ProjectChartRequest(BaseModel):
     session_id: str = Field(default="default_project_session", description="Project analysis session ID")
     samples: list[str] = Field(default_factory=list, description="Optional sample names to include")
     title: Optional[str] = Field(default=None, description="Optional chart title")
+    user_request: str = Field(
+        default="",
+        description="用户个性化需求描述，如'加一条 0.1 阈值线，柱子用绿色'",
+    )
 
 
 class ProjectIdentifyRequest(BaseModel):

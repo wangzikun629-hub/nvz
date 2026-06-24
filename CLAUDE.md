@@ -2,113 +2,44 @@
 
 ## 项目概述
 
-生物信息学多智能体分析平台。用多智能体架构对 CUT&Tag / ChIP-seq / CUT&RUN / ATAC-seq 测序项目进行 QC 分析、问题诊断和专业回答。
+生物信息学多智能体问答平台，支持 CUT&Tag / ChIP-seq / CUT&RUN / ATAC-seq 测序项目的 QC 分析、问题诊断与专业回答。
 
-核心能力：
-- 读取 SFTP 服务器或本地目录的项目结果文件（multiqc、比对统计、peak calling 结果等）
-- 自动提取 FRiP、mapping rate、duplicate rate、NRF、PBC、spike-in 等关键指标
-- 以结构化 evidence_card 为唯一真值源，输出可溯源的事实回答
-- 通过 fact_packet / reasoning_packet 分离事实层与解释层
-- 支持多轮对话、会话记忆、项目绑定与跨项目对比
-- 提供 AI 辅助图表生成、项目报告总结与诊断建议
+核心能力：从 SFTP / 本地目录读取项目结果文件，自动提取 FRiP、mapping rate、duplicate rate、NRF/PBC、spike-in 等关键指标，以 `evidence_card` 为唯一真值源，通过 `fact_packet / reasoning_packet` 分离事实层与解释层，输出可溯源的中文回答。支持多轮对话、会话记忆、项目绑定、跨项目对比与图表生成。
 
 ---
 
 ## 技术栈
 
-| 层次 | 技术 / 框架 | 用途 |
+| 层次 | 技术 | 用途 |
 |---|---|---|
-| 后端运行时 | Python 3.11+ | 主语言 |
-| Web 框架 | FastAPI + Uvicorn | HTTP / SSE 流式 API |
+| 后端 | Python 3.11 + FastAPI + Uvicorn | HTTP / SSE 流式 API |
 | 多智能体 | OpenAI Agents SDK | Agent / Runner / function_tool |
-| 大语言模型 | Qwen3-32B（硅基流动 / 阿里百炼） | 推理主模型 |
-| 配置管理 | pydantic-settings | .env 与环境变量统一管理 |
+| 大模型 | Qwen3-32B（硅基流动 / 阿里百炼） | 推理主模型 |
 | 联网搜索 | DashScope MCP（通义千问） | 技术智能体联网搜索 |
-| 数据库 | MySQL（aiomysql 连接池） | 会话、记忆持久化 |
-| 前端 | Vue.js（knowlege_platform_ui） | 可视化问答界面 |
-
----
-
-## 目录结构
-
-```
-multi_agent/
-  backed/
-    app/
-      api/              FastAPI 入口（main.py）、路由（routers.py）
-      config/           settings.py（pydantic-settings）
-      infrastructure/   AI 客户端、数据库、MCP 工具
-        ai/             openai_client.py、prompt_loader.py
-        database/       database_pool.py（aiomysql）
-        tools/
-          local/        project_reader.py（本地/SFTP 文件读取）
-                        knowledge_base.py（RAG 知识库查询）
-          mcp/          mcp_manager.py、mcp_servers.py（联网搜索 MCP）
-      multi_agent/      智能体定义
-        orchestrator_agent.py   主调度智能体
-        technical_agent.py      技术专家智能体（联网 + 知识库）
-        business_agent.py       项目分析业务智能体
-        agent_factory.py        工具注册 & ContextVar 上下文管理
-      services/         核心业务逻辑
-        project_analysis_service.py           主分析引擎（5000+ 行）
-        project_analysis_workflow_service.py  分析工作流编排
-        question_router_service.py            问题路由与意图识别
-        project_chart_service.py              图表生成
-        session_service.py                    会话管理
-        project_memory_service.py             项目记忆管理
-        business_agent/                       业务智能体子服务
-          metric_schema_service.py            指标 schema 与 verifier_contract
-          evidence_card_service.py            evidence_card 构建与 fact_packet 组装
-          fact_verification_service.py        结构化事实校验（packet-first）
-          answer_quality_service.py           回答质量评分（packet-first）
-          response_service.py                 渲染层
-          claim_service.py                    validated_claims 构建
-          assay_analysis_service.py           实验类型分析
-          experiment_design_service.py        实验设计解析
-      tests/            runtime 评测脚本
-      harness/          离线回归评测套件
-        run_harness.py                        harness 入口
-        cases/                                JSON 用例文件
-        runners/                              各 suite runner
-        evaluators/                           断言评估器
-      schemas/          Pydantic 请求/响应模型（request.py、response.py）
-      repositories/     数据库 Repository 层
-      prompts/          Agent 提示词（.md 格式）
-    knowledge/          RAG 知识库服务
-  front/
-    knowlege_platform_ui/  Vue.js 前端
-    agent_web_ui/           Agent 调试 Web UI
-```
+| 数据库 | MySQL + aiomysql | 会话与记忆持久化 |
+| 配置 | pydantic-settings | .env 统一管理 |
+| 前端 | Vue.js | 可视化问答界面 |
 
 ---
 
 ## 常用命令
 
-所有命令在 `D:\nvz\kefu` 下运行，使用 `.\venv\Scripts\python.exe`。
+工作目录：`D:\nvz\kefu`，解释器：`.\venv\Scripts\python.exe`
 
-**启动后端服务**
 ```powershell
+# 启动后端（监听 0.0.0.0:8000，自动建立 MCP 连接）
 .\venv\Scripts\python.exe -m multi_agent.backed.app.api.main
-```
-默认监听 `0.0.0.0:8000`，启动时自动建立 MCP 连接（通义千问联网搜索）。
 
-**runtime 质量评测（项目3，round2）**
-```powershell
+# runtime 质量评测（主要基准）
 .\venv\Scripts\python.exe multi_agent/backed/app/tests/evaluate_runtime_project3_quality_round2.py
-```
 
-**离线 harness 回归（全套件）**
-```powershell
+# 离线 harness 全套件
 .\venv\Scripts\python.exe -m multi_agent.backed.app.harness.run_harness --suite project_analysis --offline
-```
 
-**运行单个 harness 用例**
-```powershell
+# 单用例
 .\venv\Scripts\python.exe -m multi_agent.backed.app.harness.run_harness --suite business_agent --case business_adapter_e2e --offline
-```
 
-**指定本地项目目录**
-```powershell
+# 指定本地项目目录
 .\venv\Scripts\python.exe -m multi_agent.backed.app.harness.run_harness --suite project_analysis --project-root "VZ20260427001=D:\data\VZ20260427001" --offline
 ```
 
@@ -116,161 +47,126 @@ multi_agent/
 
 ## 环境配置
 
-`.env` 位于 `multi_agent/backed/app/.env`，关键字段：
+`.env` 路径：`multi_agent/backed/app/.env`
 
-```
+```ini
 APP_ENV=development
-APP_API_KEY=               # 生产环境 API 认证密钥（空则跳过认证）
+APP_API_KEY=               # 生产必填，空则跳过认证
 CORS_ALLOW_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
 
 SF_API_KEY=                # 硅基流动
 SF_BASE_URL=
 AL_BAILIAN_API_KEY=        # 阿里百炼
 AL_BAILIAN_BASE_URL=
-DASHSCOPE_API_KEY=         # 通义千问 DashScope（MCP 联网搜索）
+DASHSCOPE_API_KEY=         # 通义千问（MCP 联网搜索）
 MAIN_MODEL_NAME=Qwen/Qwen3-32B
 
-PROJECT_BASE_DIRS=         # 本地项目根目录，分号分隔；或 SFTP URL
+PROJECT_BASE_DIRS=         # 本地路径（分号分隔）或 sftp://user@host:22/path/
 PROJECT_SFTP_CACHE_DIR=
-PROJECT_SFTP_OFFLINE=0     # 1=只用缓存，0=实时
+PROJECT_SFTP_OFFLINE=0     # 1=只用缓存
 
 MYSQL_HOST=localhost
 MYSQL_DATABASE=its_db
-KNOWLEDGE_BASE_URL=        # RAG 知识库服务 URL
+KNOWLEDGE_BASE_URL=        # RAG 知识库服务地址
 ```
 
-**生产环境额外要求：**
-- `APP_API_KEY` 必须非空
-- `CORS_ALLOW_ORIGINS` 必须列出明确域名，不可使用 `*`
-- 须配置至少一个 AI 服务（硅基流动或阿里百炼）
+生产要求：`APP_API_KEY` 非空；`CORS_ALLOW_ORIGINS` 使用明确域名；至少配置一个 AI 服务。
 
 ---
 
 ## API 接口
 
-### 主要端点
+认证：`X-Api-Key` 请求头（HMAC `compare_digest`）
 
 | 端点 | 方法 | 描述 |
 |---|---|---|
-| `/chat/message` | POST | 主对话接口，SSE 流式返回，支持项目问答与通用问答 |
-| `/chat/compat` | POST | 兼容接口，`question`/`query` 字段均可接受 |
-| `/project/analyze` | POST | 直接触发项目分析，指定 `project_id`/`project_root` |
-| `/project/chart` | POST | 生成指定指标的可视化图表（bar/line/heatmap） |
-| `/project/context` | GET | 获取当前会话绑定的项目上下文状态 |
-| `/session/history` | POST | 获取指定会话的历史对话记录 |
-| `/generated/charts/{file}` | GET | 静态文件服务，返回已生成的图表文件 |
+| `/chat/message` | POST | 主对话，SSE 流式，支持 `mode` 参数 |
+| `/chat/compat` | POST | 兼容接口，`question`/`query` 均可 |
+| `/project/analyze` | POST | 直接触发分析，指定 `project_id`/`project_root` |
+| `/project/chart` | POST | 生成可视化图表（bar/line/heatmap） |
+| `/project/context` | GET | 获取会话绑定的项目上下文 |
+| `/session/history` | POST | 获取会话历史 |
+| `/generated/charts/{file}` | GET | 静态图表文件 |
 
-### 执行模式（`mode` 参数）
-
-| mode | 描述 |
-|---|---|
-| `auto` | 自动路由：QuestionRouterService 识别意图后选择最优路径（默认） |
-| `agent` | 强制走多智能体分析流水线，适合项目 QC 深度问答 |
-| `fast_rag` | 快速 RAG 模式，直接从知识库检索，跳过 Agent 推理 |
-
-### 认证
-
-生产环境通过 `X-Api-Key` 请求头认证（HMAC `compare_digest` 常数时间比较）。
+`mode` 参数：`auto`（默认，路由器自动选择）/ `agent`（强制多智能体）/ `fast_rag`（跳过推理直接检索）
 
 ---
 
 ## 多智能体架构
 
-### 请求生命周期
-
 ```
 POST /chat/message
   └─► QuestionRouterService（意图识别）
-        ├─► 项目 QC 问答  → execute_project_business_analysis()
-        │     └─► Orchestrator Agent
-        │           └─► project_analysis_workflow_service
-        │                 ├─► project_reader（文件读取）
-        │                 ├─► evidence_card_service（build_cards → build_fact_packet）
-        │                 ├─► evidence_reasoning_service（build reasoning_packet）
-        │                 └─► response_service.render_from_packet() → SSE 流式输出
-        ├─► 技术问答      → Technical Agent（query_knowledge + MCP 联网搜索）
+        ├─► 项目 QC 问答  → Orchestrator Agent
+        │     └─► project_analysis_workflow_service
+        │           ├─► project_reader（文件读取）
+        │           ├─► evidence_card_service（build_cards → build_fact_packet）
+        │           ├─► evidence_reasoning_service（build_reasoning_packet）
+        │           └─► response_service.render_from_packet() → SSE
+        ├─► 技术问答      → Technical Agent（query_knowledge + MCP 联网）
         ├─► 图表请求      → project_chart_service
         └─► 产品使用      → fast_rag / 直接回答
 ```
 
-### 三类智能体
-
-| 智能体 | 名称 | 工具 | 职责 |
-|---|---|---|---|
-| Orchestrator | 主调度智能体 | 所有 function_tool | 意图理解、任务分发、结果聚合 |
-| Technical | 技术专家智能体 | `query_knowledge` + MCP 联网搜索 | 回答生物信息学原理、方法、文献问题 |
-| Business | 项目分析业务智能体 | 无（由 orchestrator 调用） | 解读 fact_packet，输出中文可读结论 |
+| 智能体 | 工具 | 职责 |
+|---|---|---|
+| Orchestrator | 所有 function_tool | 意图理解、任务分发、结果聚合 |
+| Technical | `query_knowledge` + MCP | 生物信息学原理、方法、文献问题 |
+| Business | 无（由 orchestrator 调用） | 解读 fact_packet，输出中文结论 |
 
 ---
 
 ## 核心架构：事实契约（Fact Contract）
 
-### 唯一真值源
+**数据流（唯一真值源）：**
 
 ```
-evidence_chain（原始文件解析结果）
-  └─► evidence_card_service.build_cards()
-        └─► evidence_cards（canonical，带 schema_version）
-              └─► evidence_card_service.build_fact_packet()
-                    └─► fact_packet（唯一真值源）
-                          └─► response_service.render_from_packet()
-                                └─► Markdown 回答（渲染层，不重新决定事实）
+原始文件
+  → evidence_chain
+  → evidence_card_service.build_cards()  →  evidence_cards（canonical）
+  → evidence_card_service.build_fact_packet()  →  fact_packet  ← 唯一真值源
+  → response_service.render_from_packet()  →  Markdown 输出（渲染层不决定事实）
 ```
 
-`fact_packet` 结构：
+**fact_packet 关键字段：**
 ```python
 {
-  "question": str,
-  "project_id": str,
+  "question": str, "project_id": str,
   "direct_conclusions": [{"claim", "evidence_ids", "causal_level", "confidence"}],
   "project_evidence": [{"evidence_id", "metric_id", "sample", "value",
                         "source_file", "source_field", "numerator_value",
-                        "denominator_value", "threshold_verified", ...}],
+                        "denominator_value", "threshold_verified"}],
   "validated_observations": [...],
-  "threshold_status": {
-    "has_unverified_thresholds": bool,
-    "statement": str,
-  }
+  "threshold_status": {"has_unverified_thresholds": bool, "statement": str}
 }
 ```
 
-`reasoning_packet` 结构（解释层，不等于项目已证实事实）：
-```python
-{
-  "possible_causes": [...],
-  "ranked_causes": [...],
-  "hypothesis_comparison": [...],
-  "verification_plan": [...],
-  "evidence_against": [...],
-}
-```
+**reasoning_packet 字段**（解释层，非已证实事实）：`possible_causes` / `ranked_causes` / `hypothesis_comparison` / `verification_plan` / `evidence_against`
 
-### verifier_contract 分类
+### verifier_contract
 
-| contract | 适用指标 | 校验方式 |
+| contract | 指标 | 校验方式 |
 |---|---|---|
-| `strict_formula_recalculation` | frip_ratio, mapping_rate_percent, unique_mapping_rate_percent, correlation | 分子/分母重算，范围检查 |
+| `strict_formula_recalculation` | frip_ratio, mapping_rate_percent, unique_mapping_rate_percent, correlation | 分子/分母重算 + 范围检查 |
 | `citation_only` | adapter_percent, duplicate_rate_percent | 只引用，不重算 |
-| `display_value_only` | clean_read_retention_percent, peak_count, sequencing_depth | 只展示 |
+| `display_value_only` | clean_read_retention_percent, peak_count, sequencing_depth 等 | 只展示 |
 | `non_numeric_design_status` | control_binding_status | 定性，不做数值校验 |
 
-### 服务职责分工
+### 服务职责边界
 
-| 服务 | 职责 | 禁止 |
+| 服务 | 做什么 | 不做什么 |
 |---|---|---|
-| `project_analysis_service` | 文件读取、evidence_chain 解析、evidence_cards 组装、fact_packet 与 reasoning_packet 生成 | 不做最终事实判定 |
-| `metric_schema_service` | 维护指标规范定义、contract、单位、值域、公式 | 不解析文件 |
-| `evidence_card_service` | evidence_chain 归一化 → evidence_card；`build_fact_packet()` 组装唯一真值源 | 不评估回答质量 |
-| `fact_verification_service` | `verify_fact_packet()`（结构校验）+ `verify_render_alignment()`（弱文本校验） | 不从文本反向猜事实（仅 fallback） |
-| `answer_quality_service` | `evaluate_packet()`（packet 打分） | 不用文本启发式替代结构分数（仅 fallback） |
-| `response_service` | `render_from_packet()` → Markdown；固定输出结构 | 不重新决定什么是事实 |
-| `question_router_service` | 意图识别与路由分发 | 不执行分析 |
+| `project_analysis_service` | 文件读取、evidence_chain 解析、组装 cards/packets | 不做最终事实判定 |
+| `metric_schema_service` | 维护指标规范（contract/单位/值域/公式） | 不解析文件 |
+| `evidence_card_service` | evidence_chain → evidence_card；`build_fact_packet()` | 不评估回答质量 |
+| `fact_verification_service` | `verify_fact_packet()` + `verify_render_alignment()` | 不从文本反向猜事实 |
+| `answer_quality_service` | `evaluate_packet()` 打分 | 不用文本启发式替代结构分数 |
+| `response_service` | `render_from_packet()` → Markdown | 不重新决定事实 |
+| `question_router_service` | 意图识别与路由 | 不执行分析 |
 
 ---
 
 ## 指标体系
-
-`MetricSchemaService` 维护所有受支持指标的规范定义。
 
 | metric_id | 中文名 | 单位 | 适用实验 | contract |
 |---|---|---|---|---|
@@ -290,72 +186,230 @@ evidence_chain（原始文件解析结果）
 
 ---
 
-## 项目文件读取机制
+## 文件读取机制
 
-### 数据源
+**数据源**（`PROJECT_BASE_DIRS` 分号分隔）：本地路径（如 `Y:\Result\`）或 SFTP URL（Paramiko 连接，缓存至 `app/.project_sftp_cache/`）
 
-通过 `PROJECT_BASE_DIRS` 配置（分号分隔），支持两类数据源：
-- **本地路径**：如 `Y:\Result\`，适合开发环境和已挂载网络磁盘
-- **SFTP URL**：如 `sftp://user@host:22/path/`，通过 Paramiko 连接，结果缓存于 `app/.project_sftp_cache/`
+**扫描限制**：最大 1,200 文件 / 220 目录 / 4 秒超时，以根目录 mtime 为缓存失效键
 
-### 文件索引与缓存
-
-`project_reader.py` 实现多层缓存，以根目录 mtime 为失效键。扫描硬限制：
-- 最大 1,200 个文件、220 个目录
-- 扫描超时 4 秒
-
-### 支持的证据文件类型
-
-- MultiQC HTML/JSON 报告
-- 比对统计：bowtie2 / samtools flagstat / picard MarkDuplicates / ENCODE NRF·PBC
-- Peak 文件：`*.narrowPeak`、`*.broadPeak`
-- FRiP 统计文件（featureCounts 输出或自定义汇总）
-- Spike-in 归一化统计（scaling factor、spike mapped reads）
-- 样本相关性矩阵（Spearman / Pearson）
+**支持的证据文件**：MultiQC HTML/JSON、bowtie2/flagstat/picard/ENCODE NRF·PBC 比对统计、`*.narrowPeak` / `*.broadPeak`、FRiP 汇总、Spike-in scaling factor、Spearman/Pearson 相关矩阵
 
 ---
 
-## 会话与记忆机制
+## 会话与记忆
 
-每个 `(user_id, session_id)` 组合维护独立的：
-- **会话历史**（`session_repository`）：对话轮次、摘要
-- **项目上下文状态**（`project_session_state_service`）：当前绑定项目、是否锁定、最近问题列表
-- **项目记忆**（`project_memory_repository`）：AI 生成的项目报告总结缓存
-- **用户记忆**（`user_memories/`）：跨会话偏好与经验积累
+每个 `(user_id, session_id)` 独立维护：会话历史（`session_repository`）、项目上下文绑定（`project_session_state_service`）、项目报告摘要缓存（`project_memory_repository`）、跨会话用户记忆（`user_memories/`）。
 
-**项目绑定机制**：当问题中明确提及某个项目（如 `VZ20260427001`），系统自动将当前会话"锁定"到该项目，后续问题无需重复指定。切换项目时，API 通过 SSE 事件（`project_bound` / `project_changed`）通知前端。用户可主动"清空项目"解除绑定。
+**项目绑定**：问题中出现项目号（如 `VZ20260427001`）时自动锁定，后续无需重复指定；切换时通过 SSE 事件（`project_bound` / `project_changed`）通知前端。
 
 ---
 
 ## 评测体系
 
-### 两套分数必须分开报告
+**两套分数严格分开报告：**
 
 | 类型 | 脚本 | 用途 |
 |---|---|---|
-| `runtime_integrated_score` | `evaluate_runtime_project3_quality_round2.py` | 评估真实产品最终输出，是主要基准 |
-| `offline_generation_score` | `evaluate_project3_quality.py` | 分析生成器行为，辅助调试 |
+| `runtime_integrated_score` | `evaluate_runtime_project3_quality_round2.py` | 真实产品输出，**主要基准** |
+| `offline_generation_score` | `evaluate_project3_quality.py` | 生成器行为分析，辅助调试 |
 
-### 评分维度（evaluate_packet）
+**evaluate_packet 评分维度：**
 
 | 维度 | 满分 | 来源 |
 |---|---|---|
 | `fact_correctness` | 30 | `verify_fact_packet` 严重问题数 |
 | `evidence_coverage` | 20 | `project_evidence` 条目数 |
-| `unsupported_conclusion_control` | 15 | `direct_conclusions` 是否存在无依据结论 |
+| `unsupported_conclusion_control` | 15 | `direct_conclusions` 无依据结论数 |
 | `unit_accuracy` | 15 | `unit_error_count` |
 | `experimental_design_discipline` | 10 | `sample_role_conflict_count` |
 | `integration_depth` | 10 | `possible_causes` + `verification_plan` 条目数 |
 | `hypothesis_discrimination` | 10 | `hypothesis_comparison` 数量 |
 | 其余（causal/complexity/assay/matrix） | 30 | 混合 |
 
-### Harness 测试套件
+**Harness 测试套件**（数据写入 `app/harness/.runtime/`，不污染生产库）：
 
-| suite | 描述 |
+| suite | 验证内容 |
 |---|---|
-| `project_analysis` | 端到端项目分析，验证 fact_packet 生成与指标提取 |
-| `business_agent` | 业务智能体，验证 reasoning_packet 与回答渲染 |
-| `question_router` | 意图路由，验证路由精度与意图标签准确性 |
+| `project_analysis` | fact_packet 生成与指标提取 |
+| `business_agent` | reasoning_packet 与回答渲染 |
+| `question_router` | 路由精度与意图标签准确性 |
 
-Harness 运行数据写入 `app/harness/.runtime/`，不污染生产数据库。
+---
+
+## 完整代码结构
+
+```
+multi_agent/
+├── backed/
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── main.py                          # FastAPI 应用入口，启动 MCP 连接
+│   │   │   ├── routers.py                       # 主路由注册（chat/project/session）
+│   │   │   ├── admin_router.py                  # 管理后台路由
+│   │   │   └── auth_router.py                   # 认证路由
+│   │   ├── config/
+│   │   │   ├── settings.py                      # pydantic-settings 配置
+│   │   │   └── test_settings.py
+│   │   ├── infrastructure/
+│   │   │   ├── ai/
+│   │   │   │   ├── openai_client.py             # OpenAI 兼容客户端（Qwen）
+│   │   │   │   └── prompt_loader.py             # 提示词加载器
+│   │   │   ├── auth/
+│   │   │   │   └── token_utils.py
+│   │   │   ├── database/
+│   │   │   │   └── database_pool.py             # aiomysql 连接池
+│   │   │   ├── logging/
+│   │   │   │   └── logger.py
+│   │   │   ├── tools/
+│   │   │   │   ├── local/
+│   │   │   │   │   ├── project_reader.py        # 本地/SFTP 文件读取 + 多层缓存
+│   │   │   │   │   └── knowledge_base.py        # RAG 知识库查询
+│   │   │   │   └── mcp/
+│   │   │   │       ├── mcp_manager.py           # MCP 连接管理
+│   │   │   │       ├── mcp_pool.py              # MCP 连接池
+│   │   │   │       └── mcp_servers.py           # 服务器定义（DashScope 联网）
+│   │   │   └── async_lock_manager.py
+│   │   ├── multi_agent/
+│   │   │   ├── orchestrator_agent.py            # 主调度智能体
+│   │   │   ├── technical_agent.py               # 技术专家智能体
+│   │   │   ├── business_agent.py                # 项目分析业务智能体
+│   │   │   ├── agent_factory.py                 # 工具注册 + ContextVar 上下文
+│   │   │   └── project_progress.py              # 分析进度追踪
+│   │   ├── services/
+│   │   │   ├── project_analysis_service.py      # 主分析引擎（5000+ 行）
+│   │   │   ├── project_analysis_workflow_service.py  # 分析工作流编排
+│   │   │   ├── project_analysis_verifier_service.py
+│   │   │   ├── question_router_service.py       # 意图识别与路由
+│   │   │   ├── project_chart_service.py         # 图表生成
+│   │   │   ├── project_comparison_service.py    # 跨项目对比
+│   │   │   ├── project_context_intent_service.py
+│   │   │   ├── project_cuttag_diagnostic_service.py
+│   │   │   ├── project_expert_tool_service.py
+│   │   │   ├── project_locator_service.py       # 项目目录定位
+│   │   │   ├── project_memory_service.py        # 项目记忆管理
+│   │   │   ├── project_session_state_service.py # 会话项目绑定状态
+│   │   │   ├── session_service.py               # 会话管理
+│   │   │   ├── stream_response_service.py       # SSE 流式输出
+│   │   │   ├── agent_service.py
+│   │   │   ├── followup_intent_service.py
+│   │   │   ├── rag_fast_service.py              # fast_rag 直接检索
+│   │   │   └── business_agent/                  # 业务智能体子服务
+│   │   │       ├── metric_schema_service.py     # 指标 schema + verifier_contract
+│   │   │       ├── evidence_card_service.py     # evidence_card + fact_packet 组装
+│   │   │       ├── evidence_reasoning_service.py  # reasoning_packet 构建
+│   │   │       ├── evidence_catalog_service.py
+│   │   │       ├── fact_verification_service.py # 结构化事实校验
+│   │   │       ├── answer_quality_service.py    # packet 质量评分
+│   │   │       ├── response_service.py          # render_from_packet() → Markdown
+│   │   │       ├── claim_service.py             # validated_claims 构建
+│   │   │       ├── assay_analysis_service.py    # 实验类型分析
+│   │   │       ├── experiment_design_service.py # 实验设计解析
+│   │   │       ├── analysis_planner_service.py
+│   │   │       ├── answer_cache_service.py
+│   │   │       ├── background_task_service.py
+│   │   │       ├── bio_skill_reference_service.py
+│   │   │       ├── concurrency_service.py
+│   │   │       ├── data_analysis_service.py
+│   │   │       ├── experience_service.py
+│   │   │       ├── harness_guard_service.py
+│   │   │       ├── knowledge_service.py
+│   │   │       ├── planning_service.py
+│   │   │       ├── progress_service.py
+│   │   │       ├── project_snapshot_service.py
+│   │   │       ├── read_lineage_service.py
+│   │   │       ├── runtime_service.py
+│   │   │       ├── semantic_guard_service.py
+│   │   │       ├── tool_registry_service.py
+│   │   │       ├── user_assertion_service.py
+│   │   │       └── workspace.py
+│   │   ├── schemas/
+│   │   │   ├── request.py                       # Pydantic 请求模型
+│   │   │   └── response.py                      # Pydantic 响应模型
+│   │   ├── repositories/
+│   │   │   ├── session_repository.py
+│   │   │   ├── project_memory_repository.py
+│   │   │   ├── project_report_cache_repository.py
+│   │   │   ├── project_state_repository.py
+│   │   │   ├── user_repository.py
+│   │   │   └── auth_session_repository.py
+│   │   ├── prompts/                             # Agent 提示词（.md）
+│   │   │   ├── orchestrator_v1.md
+│   │   │   ├── project_business_agent.md
+│   │   │   ├── technical_agent.md
+│   │   │   └── comprehensive_service_agent.md
+│   │   ├── tests/                               # runtime 评测脚本
+│   │   │   ├── evaluate_runtime_project3_quality_round2.py  ← 主要基准
+│   │   │   ├── evaluate_project3_quality.py
+│   │   │   ├── evaluate_runtime_project1/2/3_quality.py
+│   │   │   ├── deep_evaluation_report*.py
+│   │   │   └── test_*.py
+│   │   ├── harness/                             # 离线回归评测套件
+│   │   │   ├── run_harness.py                   # 入口
+│   │   │   ├── cases/
+│   │   │   │   ├── project_analysis/            # 11 个 JSON 用例
+│   │   │   │   ├── business_agent/              # 11 个 JSON 用例
+│   │   │   │   └── question_router/             # core_intents.json
+│   │   │   ├── runners/
+│   │   │   │   ├── project_analysis_runner.py
+│   │   │   │   ├── business_agent_runner.py
+│   │   │   │   └── question_router_runner.py
+│   │   │   ├── evaluators/
+│   │   │   │   └── assertions.py
+│   │   │   ├── expert_eval/                     # 专家评估数据集
+│   │   │   │   ├── evaluator.py
+│   │   │   │   ├── cases.jsonl
+│   │   │   │   └── dataset_manifest.json
+│   │   │   ├── reports/                         # 历史运行报告（JSON）
+│   │   │   ├── .runtime/                        # harness 运行时数据（不污染生产库）
+│   │   │   └── model_comparison.py
+│   │   └── utils/
+│   │       ├── response_util.py
+│   │       ├── retry_util.py
+│   │       └── text_util.py
+│   └── knowledge/                               # RAG 知识库服务（独立部署）
+│       ├── api/
+│       │   ├── main.py
+│       │   └── routers.py
+│       ├── config/
+│       │   └── settings.py
+│       ├── repositories/
+│       │   ├── catalog_repository.py
+│       │   ├── file_repository.py
+│       │   └── vector_store_repository.py
+│       ├── schemas/
+│       │   └── schema.py
+│       ├── cli/
+│       │   └── upload_cli.py
+│       └── data/
+│           ├── catalog/
+│           │   └── knowledge_catalog.json
+│           └── crawl/                           # 生信知识文档（.md）
+│               ├── CUTTag_ATAC_FAQ_知识库.md
+│               ├── FastQC_结果解读.md
+│               ├── Spike-in校准.md
+│               └── ...
+└── front/
+    ├── knowlege_platform_ui/                    # 主前端（Vue.js）
+    │   └── src/
+    │       ├── api/
+    │       │   ├── request.js                   # Axios 封装
+    │       │   ├── auth.js
+    │       │   ├── admin.js
+    │       │   └── knowledge.js
+    │       ├── views/
+    │       │   ├── Chat.vue                     # 主问答界面
+    │       │   ├── KbChat.vue                   # 知识库问答
+    │       │   ├── Knowledge.vue                # 知识库管理
+    │       │   ├── Login.vue
+    │       │   └── admin/
+    │       │       └── AdminDashboard.vue
+    │       ├── layout/
+    │       │   └── index.vue
+    │       ├── router/
+    │       │   └── index.js
+    │       └── App.vue
+    └── agent_web_ui/                            # Agent 调试 Web UI（轻量单页）
+        └── src/
+            └── App.vue
+```
 

@@ -7,9 +7,10 @@ class ContentKind(str, Enum):
     """
     内容语义分类：用于前端区分 UI 渲染逻辑。
     """
-    THINKING = 'THINKING'  # 思考/推理内容 (渲染在折叠区域)
-    PROCESS = 'PROCESS'    # 系统流程/工具调用 (渲染在折叠区域)
-    ANSWER = 'ANSWER'      # 最终回答 (渲染在主聊天气泡)
+    THINKING = 'THINKING'      # 思考/推理内容 (渲染在折叠区域)
+    PROCESS = 'PROCESS'        # 系统流程/工具调用 (渲染在折叠区域)
+    ANSWER = 'ANSWER'          # 最终回答 (渲染在主聊天气泡)
+    CHART_SPEC = 'chart_spec'  # Plotly 交互图 spec（text 字段为 JSON 字符串）
 
 
 class StreamStatus(str, Enum):
