@@ -46,7 +46,9 @@ IngestionProcessor = ingestion_module.IngestionProcessor
 
 
 def _build_processor() -> IngestionProcessor:
-    return IngestionProcessor.__new__(IngestionProcessor)
+    processor = IngestionProcessor.__new__(IngestionProcessor)
+    processor.mineru_enabled = False
+    return processor
 
 
 def _install_fake_pypdf_loader(monkeypatch, documents=None, error=None):
@@ -173,6 +175,28 @@ class IngestionProcessorPdfTests(unittest.TestCase):
         result = processor._normalize_markdown_with_ai("sample.pdf", "raw content")
 
         self.assertEqual(result, "raw content")
+
+    def test_convert_pptx_to_markdown_uses_mineru_when_enabled(self):
+        processor = _build_processor()
+        processor.mineru_enabled = True
+        processor._convert_document_to_markdown_via_mineru = lambda file_path: f"mineru:{file_path}"
+        processor._convert_unstructured_to_markdown = lambda file_path: self.fail("unstructured should not be used")
+
+        markdown = processor._convert_file_to_markdown("deck.pptx")
+
+        self.assertEqual(markdown, "mineru:deck.pptx")
+
+    def test_convert_pptx_to_markdown_falls_back_to_unstructured_when_mineru_fails(self):
+        processor = _build_processor()
+        processor.mineru_enabled = True
+        processor._convert_document_to_markdown_via_mineru = lambda file_path: (_ for _ in ()).throw(
+            RuntimeError("mineru failed")
+        )
+        processor._convert_unstructured_to_markdown = lambda file_path: f"unstructured:{file_path}"
+
+        markdown = processor._convert_file_to_markdown("deck.pptx")
+
+        self.assertEqual(markdown, "unstructured:deck.pptx")
 
 
 if __name__ == "__main__":

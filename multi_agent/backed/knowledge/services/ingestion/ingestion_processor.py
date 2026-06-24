@@ -166,7 +166,10 @@ class IngestionProcessor:
         if extension == ".pdf":
             return self._convert_pdf_to_markdown(file_path)
 
-        if extension in {".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".epub", ".odt"}:
+        if extension in {".ppt", ".pptx"}:
+            return self._convert_presentation_to_markdown(file_path)
+
+        if extension in {".doc", ".docx", ".xls", ".xlsx", ".epub", ".odt"}:
             return self._convert_unstructured_to_markdown(file_path)
 
         raise ValueError(
@@ -217,7 +220,7 @@ class IngestionProcessor:
         if self.mineru_enabled:
             try:
                 logger.info("PDF parsing route=mineru file=%s", file_path)
-                return self._convert_pdf_to_markdown_via_mineru(file_path)
+                return self._convert_document_to_markdown_via_mineru(file_path)
             except Exception as exc:
                 logger.warning("MinerU PDF parsing failed for %s, fallback to local parser: %s", file_path, str(exc))
 
@@ -246,7 +249,21 @@ class IngestionProcessor:
             "(for example, it may be scanned or image-based). Please convert it to DOCX or a text-based PDF and upload again."
         )
 
+    def _convert_presentation_to_markdown(self, file_path: str) -> str:
+        if self.mineru_enabled:
+            try:
+                logger.info("presentation parsing route=mineru file=%s", file_path)
+                return self._convert_document_to_markdown_via_mineru(file_path)
+            except Exception as exc:
+                logger.warning("MinerU presentation parsing failed for %s, fallback to unstructured: %s", file_path, str(exc))
+
+        logger.info("presentation parsing route=unstructured file=%s", file_path)
+        return self._convert_unstructured_to_markdown(file_path)
+
     def _convert_pdf_to_markdown_via_mineru(self, file_path: str) -> str:
+        return self._convert_document_to_markdown_via_mineru(file_path)
+
+    def _convert_document_to_markdown_via_mineru(self, file_path: str) -> str:
         headers = {
             "Authorization": f"Bearer {settings.MINERU_API_TOKEN}",
             "Content-Type": "application/json",
@@ -274,12 +291,12 @@ class IngestionProcessor:
             raise RuntimeError("MinerU upload init returned empty file_urls or batch_id")
         logger.info("MinerU upload initialized file=%s batch_id=%s model_version=%s", file_path, batch_id, settings.MINERU_MODEL_VERSION)
 
-        with open(file_path, "rb") as pdf_file:
+        with open(file_path, "rb") as document_file:
             with requests.Session() as session:
                 session.trust_env = False
                 put_response = session.put(
                     file_urls[0],
-                    data=pdf_file.read(),
+                    data=document_file.read(),
                     timeout=60,
                 )
         put_response.raise_for_status()
