@@ -156,7 +156,12 @@ POST /chat/message
 
 | 服务 | 做什么 | 不做什么 |
 |---|---|---|
-| `project_analysis_service` | 文件读取、evidence_chain 解析、组装 cards/packets | 不做最终事实判定 |
+| `project_analysis_service` | `analyze()` 主流程、evidence_chain 构建、诊断汇总、报告渲染 | 不做最终事实判定 |
+| `project_file_parser_service` | 各类表格 parser（QC/alignment/FRiP/correlation 等）、`parse_evidence_file` | 不决定 evidence_chain 结构 |
+| `project_context_builder_service` | samplelist/config/workflow/HTML 上下文解析 | 不做指标计算 |
+| `project_cause_analysis_service` | 因果图构建、假说排名、竞争假说对比 | 不做事实校验 |
+| `project_parse_cache` | 文件解析结果缓存、项目上下文 TTL 缓存 | 不做业务逻辑 |
+| `project_analysis_constants` | 规则字典（PROFESSIONAL_RULES 等）、文件名提示映射 | 不含可执行逻辑 |
 | `metric_schema_service` | 维护指标规范（contract/单位/值域/公式） | 不解析文件 |
 | `evidence_card_service` | evidence_chain → evidence_card；`build_fact_packet()` | 不评估回答质量 |
 | `fact_verification_service` | `verify_fact_packet()` + `verify_render_alignment()` | 不从文本反向猜事实 |
@@ -276,7 +281,12 @@ multi_agent/
 │   │   │   ├── agent_factory.py                 # 工具注册 + ContextVar 上下文
 │   │   │   └── project_progress.py              # 分析进度追踪
 │   │   ├── services/
-│   │   │   ├── project_analysis_service.py      # 主分析引擎（5000+ 行）
+│   │   │   ├── project_analysis_service.py          # 主分析引擎：analyze() 主流程 + evidence chain（~2900 行）
+│   │   │   ├── project_analysis_constants.py         # 规则字典与常量（PROFESSIONAL_RULES / QUESTION_FILE_HINTS 等）
+│   │   │   ├── project_parse_cache.py                # 文件解析缓存 + 项目上下文缓存（TTL + in-flight 去重）
+│   │   │   ├── project_file_parser_service.py        # 各类表格 parser（build_*_summary / parse_evidence_file）
+│   │   │   ├── project_context_builder_service.py    # 项目上下文构建（samplelist/config/workflow/HTML 报告）
+│   │   │   ├── project_cause_analysis_service.py     # 因果图 + 假说排名（build_cause_graph / rank_candidate_causes）
 │   │   │   ├── project_analysis_workflow_service.py  # 分析工作流编排
 │   │   │   ├── project_analysis_verifier_service.py
 │   │   │   ├── question_router_service.py       # 意图识别与路由

@@ -77,7 +77,15 @@ from multi_agent.backed.app.services.project_analysis_constants import (
     INTERNAL_WORKFLOW_TERMS,
 )
 from multi_agent.backed.app.services.project_parse_cache import project_parse_cache
-from multi_agent.backed.app.services.project_file_parser_service import project_file_parser_service
+from multi_agent.backed.app.services.project_file_parser_service import (
+    project_file_parser_service,
+    resolve_table_kind,
+    progress_stage_for_evidence,
+    safe_float,
+    read_correlation_rows,
+    looks_like_text_file,
+    extract_motif_sample_name,
+)
 from multi_agent.backed.app.services.project_context_builder_service import project_context_builder_service
 from multi_agent.backed.app.services.project_cause_analysis_service import project_cause_analysis_service
 
@@ -172,6 +180,49 @@ class ProjectAnalysisService:
     def _has_diagnostic_signal(cls, normalized_question: str) -> bool:
         return any(token in normalized_question for token in DIAGNOSTIC_TERMS)
 
+    # 各实验类型对应的标准指标集（与 AssayAnalysisService.PROFILES 保持一致）
+    _ASSAY_DEFAULT_METRICS: dict[str, list[str]] = {
+        "cuttag": [
+            "sequencing_depth", "mapping_rate_percent", "mt_rate_percent",
+            "nrf", "pbc1", "pbc2", "peak_count", "frip_ratio", "correlation",
+        ],
+        "chipseq": [
+            "sequencing_depth", "mapping_rate_percent", "duplicate_rate_percent",
+            "peak_count", "frip_ratio", "correlation",
+        ],
+        "cutrun": [
+            "sequencing_depth", "mapping_rate_percent", "mt_rate_percent",
+            "nrf", "pbc1", "pbc2", "peak_count", "frip_ratio", "correlation",
+        ],
+        "atacseq": [
+            "sequencing_depth", "mapping_rate_percent", "mt_rate_percent",
+            "duplicate_rate_percent", "tss_enrichment", "fragment_size",
+            "peak_count", "frip_ratio", "correlation",
+        ],
+        "rnaseq": [
+            "sequencing_depth", "mapping_rate_percent", "unique_mapping_rate_percent",
+            "duplicate_rate_percent", "mrna_ratio_percent", "rrna_ratio_percent",
+            "detected_gene_count", "correlation",
+        ],
+        "generic": [
+            "sequencing_depth", "mapping_rate_percent",
+        ],
+    }
+
+    @classmethod
+    def _detect_assay_early(cls, project_context: dict[str, Any]) -> str:
+        """在读取证据文件之前，从 config 字段快速推断实验类型。
+
+        使用与 AssayAnalysisService._assay() 完全相同的字段和规则，
+        确保早期检测结果与后续完整 assay_profile 一致。
+        """
+        config = project_context.get("config") or {}
+        assay_raw = " ".join(
+            str(config.get(key) or "")
+            for key in ("assay", "project_type", "Sequencing", "library_type")
+        )
+        return assay_analysis_service._assay(assay_raw)
+
     @classmethod
     def _select_evidence_files(
         cls,
@@ -180,6 +231,7 @@ class ProjectAnalysisService:
         max_evidence_files: int,
         planning_hints: dict[str, Any] | None = None,
         evidence_catalog: dict[str, Any] | None = None,
+        assay_type: str = "generic",
     ) -> list[Path]:
         # Pipeline failure questions: ONLY read log files, skip all QC evidence.
         if "pipeline_failure" in question_types:
@@ -233,6 +285,12 @@ class ProjectAnalysisService:
             }
             for question_type in question_types:
                 target_metrics.extend(metric_by_question_type.get(question_type, []))
+            # 若 question_type 也没命中具体指标（如 overview / diagnostic），
+            # 使用早期检测到的实验类型标准指标集作为兜底，确保读到正确的文件。
+            if not target_metrics:
+                target_metrics = list(
+                    cls._ASSAY_DEFAULT_METRICS.get(assay_type, cls._ASSAY_DEFAULT_METRICS["generic"])
+                )
         if evidence_catalog and target_metrics:
             ordered.extend(
                 evidence_catalog_service.paths_for_metrics(
@@ -536,8 +594,8 @@ class ProjectAnalysisService:
 
         for field, label, formatter, higher_is_worse, lower_is_worse in metric_specs:
             sample_value_raw = focus_row.get(field)
-            sample_value = project_file_parser_service.safe_float(sample_value_raw)
-            peer_values = [project_file_parser_service.safe_float(item.get(field)) for item in peer_rows]
+            sample_value = safe_float(sample_value_raw)
+            peer_values = [safe_float(item.get(field)) for item in peer_rows]
             peer_values = [value for value in peer_values if value is not None]
             peer_min, peer_max = cls._peer_range(peer_values)
             if formatter is cls._format_percent:
@@ -602,7 +660,7 @@ class ProjectAnalysisService:
         for severity in ("critical", "warning"):
             threshold = rule.get(severity) or {}
             op = threshold.get("op")
-            threshold_value = project_file_parser_service.safe_float(threshold.get("value"))
+            threshold_value = safe_float(threshold.get("value"))
             if threshold_value is None:
                 continue
             if op == ">" and value > threshold_value:
@@ -674,7 +732,7 @@ class ProjectAnalysisService:
         has_structured_threshold = any(
             isinstance(threshold_rule.get(level), dict)
             and threshold_rule[level].get("op") in {"<", ">"}
-            and project_file_parser_service.safe_float(threshold_rule[level].get("value")) is not None
+            and safe_float(threshold_rule[level].get("value")) is not None
             for level in ("warning", "critical")
         )
         threshold_verified = (
@@ -802,7 +860,7 @@ class ProjectAnalysisService:
                     metric_key="sequencing_depth",
                     category="ReadsQC",
                     sample=sample,
-                    value=project_file_parser_service.safe_float(item.get("clean_read_count")),
+                    value=safe_float(item.get("clean_read_count")),
                     source_file=qc_source,
                     source_field="Total Clean Reads",
                     rule_source=metric_rule_sources.get("sequencing_depth"),
@@ -814,7 +872,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="ReadsQC",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get(key)),
+                        value=safe_float(item.get(key)),
                         source_file=qc_source,
                         rule_source=metric_rule_sources.get(key),
                     )
@@ -825,7 +883,7 @@ class ProjectAnalysisService:
                         metric_key="clean_read_retention_percent",
                         category="ReadsQC",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get("clean_read_retention_percent")),
+                        value=safe_float(item.get("clean_read_retention_percent")),
                         source_file=qc_source,
                         source_field="Clean Reads",
                         rule_source=metric_rule_sources.get("clean_read_retention_percent"),
@@ -838,7 +896,7 @@ class ProjectAnalysisService:
                         metric_key="duplicate_rate_percent",
                         category="ReadsQC",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get("duplicate_rate_percent")),
+                        value=safe_float(item.get("duplicate_rate_percent")),
                         source_file=qc_source,
                         source_field="Dup(%)",
                         rule_source=metric_rule_sources.get("duplicate_rate_percent"),
@@ -861,7 +919,7 @@ class ProjectAnalysisService:
                             metric_key=key,
                             category="RNAseqReadsClass",
                             sample=sample,
-                            value=project_file_parser_service.safe_float(item.get(key)),
+                            value=safe_float(item.get(key)),
                             source_file=rnaseq_reads_class_source,
                             source_field=source_field,
                             rule_source=metric_rule_sources.get(key),
@@ -877,7 +935,7 @@ class ProjectAnalysisService:
                         metric_key="detected_gene_count",
                         category="RNAseqGeneExp",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get("detected_gene_count")),
+                        value=safe_float(item.get("detected_gene_count")),
                         source_file=rnaseq_gene_exp_source,
                         source_field="Sum.",
                         rule_source=metric_rule_sources.get("detected_gene_count"),
@@ -901,7 +959,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="AlignmentQC",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get(key)),
+                        value=safe_float(item.get(key)),
                         source_file=alignment_source,
                         source_field=source_fields.get(key),
                         rule_source=metric_rule_sources.get(key),
@@ -926,7 +984,7 @@ class ProjectAnalysisService:
                         metric_key=key,
                         category="SpikeIn",
                         sample=sample,
-                        value=project_file_parser_service.safe_float(item.get(source_key)),
+                        value=safe_float(item.get(source_key)),
                         source_file=spikein_source,
                         source_field=field,
                         rule_source=metric_rule_sources.get(key),
@@ -940,7 +998,7 @@ class ProjectAnalysisService:
                 metric_key="frip_ratio",
                 category="CrossFRiP" if item.get("comparison_type") == "cross_frip" else "FRiP",
                 sample=f"{sample} against {peak_set}" if peak_set != sample else sample,
-                value=project_file_parser_service.safe_float(item.get("frip_ratio")),
+                value=safe_float(item.get("frip_ratio")),
                 source_file=frip_source,
                 source_field=item.get("source_field") or "percent",
                 rule_source=metric_rule_sources.get("frip_ratio"),
@@ -962,8 +1020,8 @@ class ProjectAnalysisService:
                     )
                     if peak_set != sample
                     else "self",
-                    "numerator_value": project_file_parser_service.safe_float(item.get("reads_in_peaks")),
-                    "denominator_value": project_file_parser_service.safe_float(item.get("mapped_reads")),
+                    "numerator_value": safe_float(item.get("reads_in_peaks")),
+                    "denominator_value": safe_float(item.get("mapped_reads")),
                 }
             )
             chain.append(entry)
@@ -975,7 +1033,7 @@ class ProjectAnalysisService:
                 metric_key="correlation",
                 category="Correlation",
                 sample=f"{pair.get('left')} vs {pair.get('right')}",
-                value=project_file_parser_service.safe_float(pair.get("value")),
+                value=safe_float(pair.get("value")),
                 source_file=correlation_source,
                 source_field="spearman correlation",
                 rule_source=metric_rule_sources.get("correlation"),
@@ -2006,6 +2064,14 @@ class ProjectAnalysisService:
             include_html_body,
             (perf_counter() - context_started_at) * 1000,
         )
+        # 在读取证据文件之前，从 config 快速确定实验类型，用于指导文件选择和指标优先级。
+        early_assay = cls._detect_assay_early(project_context)
+        logger.info(
+            "project_analysis stage=early_assay_detect run_id=%s project=%s assay=%s",
+            run_id,
+            project_id,
+            early_assay,
+        )
         project_version = project_context_builder_service.build_project_version(root, project_context)
         report_mode = cls._resolve_report_mode(question, question_types, project_context)
         if report_mode == "existing_html_report_summary" and max_evidence_files <= 0:
@@ -2018,6 +2084,7 @@ class ProjectAnalysisService:
                 max_evidence_files,
                 planning_hints=planning_hints,
                 evidence_catalog=project_context.get("evidence_catalog") or {},
+                assay_type=early_assay,
             )
             logger.info(
                 "project_analysis stage=select_evidence run_id=%s project=%s evidence=%d duration_ms=%.2f",
@@ -2056,15 +2123,15 @@ class ProjectAnalysisService:
         evidence_files_to_parse = [] if evidence_snapshot is not None else evidence_files
         if evidence_files_to_parse:
             for file_path in evidence_files_to_parse:
-                table_kind = project_file_parser_service.resolve_table_kind(file_path)
-                progress_stage, progress_label = project_file_parser_service.progress_stage_for_evidence(file_path, table_kind)
+                table_kind = resolve_table_kind(file_path)
+                progress_stage, progress_label = progress_stage_for_evidence(file_path, table_kind)
                 publish_project_progress(
                     f"姝ｅ湪璇诲彇 {progress_label}",
                     stage=progress_stage,
                     status="in_progress",
                     detail={"file": str(file_path.relative_to(root))},
                 )
-            max_workers = max(1, min(project_parse_cache.EVIDENCE_PARSE_WORKERS, len(evidence_files_to_parse)))
+            max_workers = max(1, min(project_parse_cache._EVIDENCE_PARSE_WORKERS, len(evidence_files_to_parse)))
             logger.info(
                 "project_analysis stage=parse_evidence_parallel run_id=%s project=%s workers=%d files=%d",
                 run_id,
@@ -2114,8 +2181,8 @@ class ProjectAnalysisService:
             relative = str(file_path.relative_to(root))
             lower_name = file_path.name.lower()
             file_started_at = perf_counter()
-            table_kind = project_file_parser_service.resolve_table_kind(file_path)
-            progress_stage, progress_label = project_file_parser_service.progress_stage_for_evidence(file_path, table_kind)
+            table_kind = resolve_table_kind(file_path)
+            progress_stage, progress_label = progress_stage_for_evidence(file_path, table_kind)
             publish_project_progress(
                 f"正在读取 {progress_label}",
                 stage=progress_stage,
@@ -2132,7 +2199,7 @@ class ProjectAnalysisService:
                     cache_kind = f"table:v2:{table_kind or lower_name}"
                     cached = project_parse_cache._get_cached_parse(file_path, cache_kind)
                     if cached is None:
-                        rows = project_file_parser_service.read_correlation_rows(file_path) if table_kind == "correlation" else read_table_rows(file_path)
+                        rows = read_correlation_rows(file_path) if table_kind == "correlation" else read_table_rows(file_path)
                         if table_kind == "qc":
                             summary = project_file_parser_service.build_qc_summary(rows)
                             metric_payload = {"target": "qc", "value": summary.get("metrics", [])}
@@ -2247,7 +2314,7 @@ class ProjectAnalysisService:
                     if cached is None:
                         if file_path.suffix.lower() == ".log":
                             preview = read_log_snippet(file_path)
-                        elif project_file_parser_service.looks_like_text_file(file_path):
+                        elif looks_like_text_file(file_path):
                             preview = read_text_snippet(file_path)
                         else:
                             preview = ""
@@ -2262,7 +2329,7 @@ class ProjectAnalysisService:
                     if summary.get("kind") in {"diff", "motif", "igv"}:
                         payload = {key: value for key, value in summary.items() if key not in {"preview", "findings"}}
                         if summary.get("kind") == "motif":
-                            payload["sample"] = project_file_parser_service.extract_motif_sample_name(file_path)
+                            payload["sample"] = extract_motif_sample_name(file_path)
                         payload["file"] = relative
                         parsed_metrics.setdefault(summary["kind"], []).append(
                             payload
@@ -2761,6 +2828,7 @@ class ProjectAnalysisService:
             "invalid_claim_count": claim_validation.get("invalid_claim_count", 0),
             "evidence_conflict_count": len(evidence_conflicts),
             "experiment_design_warning_count": len(experiment_design.get("warnings", []) or []),
+            "early_assay": early_assay,
             "assay_missing_evidence_count": len(assay_profile.get("missing_evidence", []) or []),
             "analysis_cache": evidence_snapshot_status,
             "snapshot": {
@@ -2890,7 +2958,7 @@ class ProjectAnalysisService:
             "claims": claims,
             "validated_claims": validated_claims,
             "claim_validation": claim_validation,
-     
+
             "claim_layers": claim_layers,
             "anomaly_summary": anomaly_summary,
             "tool_diagnostics": tool_diagnostics,
