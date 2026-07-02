@@ -41,21 +41,26 @@ class QuestionRouterService:
         "trimming", "macs", "bowtie", "比对参数", "峰值参数",
     )
     EXPLAIN_TERMS = ("是什么", "代表什么", "什么意思", "解释", "定义")
-    CHART_TERMS = (
-        "画图",
-        "画个图",
-        "画一下",
-        "做个图",
-        "出个图",
-        "图表",
-        "对比图",
-        "热图",
-        "heatmap",
-        "散点图",
-        "柱状图",
-        "折线图",
-        "可视化",
-    )
+    # 强画图词：明确动作动词，直接触发（不受负面语境过滤影响）
+    CHART_STRONG_TERMS = frozenset((
+        "画", "画出", "画图", "画个图", "画一下", "画一个",
+        "绘图", "绘制", "作图", "做个图", "出图", "出个图",
+        "生成图", "可视化", "visualize",
+    ))
+    # 弱画图词：图表名词，需同时不含描述性语境才触发
+    # 删除了 "热图"/"图表" ——在描述场景极易误触发，改为只作指标别名
+    CHART_WEAK_TERMS = frozenset((
+        "对比图", "比较图", "散点图", "柱状图", "折线图",
+        "heatmap", "chart", "plot",
+    ))
+    CHART_TERMS = tuple(CHART_STRONG_TERMS | CHART_WEAK_TERMS)  # 向后兼容
+    # 描述性语境词：出现时说明用户在描述/解读已有图，而非请求生图
+    # "里" 单字：弱词与"里"同现时，通常是 "heatmap里..."/"图里..." 描述性表达
+    CHART_NEGATIVE_CONTEXT = frozenset((
+        "看到", "看见", "里面", "里", "图里", "图中", "图上",
+        "观察到", "显示", "解读", "什么意思", "怎么看", "如何看",
+        "说明什么", "表示什么", "代表什么",
+    ))
     REPORT_TERMS = ("ai报告总结", "报告总结", "总结报告", "生成报告", "汇总报告")
     DIAGNOSTIC_TERMS = ("为什么", "原因", "异常", "偏高", "偏低", "不对", "排查", "诊断", "继续排查", "报错", "错误", "日志", "错误日志", "log文件")
     PRODUCT_TERMS = ("产品怎么用", "产品使用", "怎么使用", "功能介绍", "使用说明")
@@ -127,7 +132,13 @@ class QuestionRouterService:
                 "report_summary_term",
             )
 
-        if any(token in normalized for token in self.CHART_TERMS):
+        _has_strong_chart = any(token in normalized for token in self.CHART_STRONG_TERMS)
+        _has_weak_chart   = any(token in normalized for token in self.CHART_WEAK_TERMS)
+        _is_chart_request = _has_strong_chart or (
+            _has_weak_chart
+            and not any(neg in normalized for neg in self.CHART_NEGATIVE_CONTEXT)
+        )
+        if _is_chart_request:
             return QuestionRoute(
                 "chart_request",
                 "chart",

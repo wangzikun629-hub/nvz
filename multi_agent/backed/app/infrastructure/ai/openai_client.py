@@ -1,7 +1,7 @@
 import logging
 
 from agents import OpenAIChatCompletionsModel
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, OpenAI
 from multi_agent.backed.app.config.settings import settings
 
 _logger = logging.getLogger(__name__)
@@ -28,6 +28,45 @@ if not REPORT_SUMMARY_CLIENT_CONFIGURED:
         "generate_existing_html_report_answer 将直接抛出 RuntimeError，"
         "调用方会 fallback 到规则提取版本。请在 .env 中配置相关字段。"
     )
+
+# Phase 1：文件发现探索 agent 专用配置（project_analysis_agent_upgrade_plan.md）。
+# 该 agent 从同步调用链（project_analysis_service._select_evidence_files）触发，
+# 因此使用同步 OpenAI 客户端，不复用上面几个 AsyncOpenAI 客户端。
+EXPLORATION_MODEL_NAME = settings.EXPLORATION_MODEL_NAME
+EXPLORATION_API_KEY = settings.EXPLORATION_API_KEY
+EXPLORATION_BASE_URL = settings.EXPLORATION_BASE_URL
+EXPLORATION_CLIENT_CONFIGURED: bool = bool(EXPLORATION_API_KEY and EXPLORATION_BASE_URL and EXPLORATION_MODEL_NAME)
+
+if not EXPLORATION_CLIENT_CONFIGURED:
+    _logger.info(
+        "文件发现探索 agent 未配置模型（EXPLORATION_MODEL_NAME/API_KEY/BASE_URL 任一为空），"
+        "project_file_discovery_service 将只使用启发式 detection_signature 匹配，不调用模型。"
+    )
+
+exploration_model_client = OpenAI(
+    base_url=EXPLORATION_BASE_URL or "http://placeholder",
+    api_key=EXPLORATION_API_KEY or "unconfigured",
+)
+
+# Phase 1.1：代码语义解析 agent 专用配置（project_analysis_agent_upgrade_plan.md 2.1/3 节）。
+# 同样从同步调用链触发，使用同步 OpenAI 客户端。
+CODE_SEMANTICS_MODEL_NAME = settings.CODE_SEMANTICS_MODEL_NAME
+CODE_SEMANTICS_API_KEY = settings.CODE_SEMANTICS_API_KEY
+CODE_SEMANTICS_BASE_URL = settings.CODE_SEMANTICS_BASE_URL
+CODE_SEMANTICS_CLIENT_CONFIGURED: bool = bool(
+    CODE_SEMANTICS_API_KEY and CODE_SEMANTICS_BASE_URL and CODE_SEMANTICS_MODEL_NAME
+)
+
+if not CODE_SEMANTICS_CLIENT_CONFIGURED:
+    _logger.info(
+        "代码语义解析 agent 未配置模型（CODE_SEMANTICS_MODEL_NAME/API_KEY/BASE_URL 任一为空），"
+        "project_code_semantics_service 将只使用静态规则提取，不调用模型。"
+    )
+
+code_semantics_model_client = OpenAI(
+    base_url=CODE_SEMANTICS_BASE_URL or "http://placeholder",
+    api_key=CODE_SEMANTICS_API_KEY or "unconfigured",
+)
 
 # 创建模型客户端
 # 主模型客户端(协调Agent使用)

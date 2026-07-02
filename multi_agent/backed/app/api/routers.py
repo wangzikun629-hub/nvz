@@ -21,6 +21,7 @@ from multi_agent.backed.app.schemas.request import (
 )
 from multi_agent.backed.app.services.agent_service import MultiAgentService
 from multi_agent.backed.app.services.project_chart_service import project_chart_service
+from multi_agent.backed.app.services.r_chart_service import r_chart_service
 from multi_agent.backed.app.services.project_session_state_service import (
     project_session_state_service,
 )
@@ -300,11 +301,17 @@ def get_chart_spec(chart_id: str, auth_user: dict = Depends(_require_auth_user))
     return {"chart_id": chart_id, "plotly_spec": spec}
 
 
-@router.post("/api/project_chart_spec", summary="Generate interactive Plotly chart spec (LLM-driven)")
+@router.get("/api/r_chart/health", summary="Check R Plumber chart service status")
+async def r_chart_health(auth_user: dict = Depends(_require_auth_user)):
+    """检查 R Plumber 图表微服务（端口 8889）是否在线。"""
+    return await r_chart_service.health_check()
+
+
+@router.post("/api/project_chart_spec", summary="Generate interactive Plotly chart spec (R-driven)")
 async def project_chart_spec(request: ProjectChartRequest, auth_user: dict = Depends(_require_auth_user)):
     """
-    返回 Plotly JSON spec，前端用 Plotly.js 直接渲染交互图。
-    user_request 字段传入个性化需求，如"加一条 0.1 阈值线，柱子用绿色"。
+    调用 R Plumber 微服务生成 Plotly JSON spec，前端用 Plotly.js 直接渲染。
+    R Plumber 不可用时自动降级为内置 Python spec。
     """
     request.user_id = _resolve_user_id(auth_user)
     try:
@@ -312,9 +319,11 @@ async def project_chart_spec(request: ProjectChartRequest, auth_user: dict = Dep
             project_id=request.project_id,
             project_root=request.project_root,
             metric=request.metric,
+            metric2=request.metric2,
             chart_type=request.chart_type,
             samples=request.samples,
             user_request=request.user_request,
+            use_codegen=request.use_codegen,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

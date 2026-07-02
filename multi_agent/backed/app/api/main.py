@@ -11,6 +11,18 @@ from multi_agent.backed.app.config.settings import settings
 from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.infrastructure.tools.mcp.mcp_manager import mcp_connect, mcp_cleanup
 from multi_agent.backed.app.repositories import auth_session_repository, user_repository
+from multi_agent.backed.app.repositories import (
+    kanban_rd_repository,
+    kanban_cs_repository,
+    kanban_alias_repository,
+    kanban_custom_column_repository,
+)
+from multi_agent.backed.app.repositories import (
+    blessed_formula_repository,
+    candidate_metric_repository,
+)
+from multi_agent.backed.app.api.kanban_rd_router import router as kanban_rd_router
+from multi_agent.backed.app.api.kanban_cs_router import router as kanban_cs_router
 
 
 @asynccontextmanager
@@ -31,6 +43,44 @@ async def lifespan(app: FastAPI):
         logger.info("users 表就绪")
     except Exception as e:
         logger.error(f"users 表初始化失败: {str(e)}")
+
+    logger.info("初始化看板表...")
+    try:
+        kanban_rd_repository.ensure_table()
+        kanban_cs_repository.ensure_table()
+        kanban_alias_repository.ensure_table()
+        kanban_custom_column_repository.ensure_table()
+        logger.info("看板表就绪")
+    except Exception as e:
+        logger.error(f"看板表初始化失败: {str(e)}")
+
+    # code review 修复（Critical#2）：这两张表此前只能靠手动执行
+    # migrations/002_blessed_formula_and_candidate_metrics.sql 创建；如果忘记跑，代码会
+    # 静默降级成单进程 JSON 存储（只打一行 warning log，容易被忽略），恰好悄悄违反了
+    # #1（多 worker 一致性）想解决的问题。现在和 users/看板表一样，在启动时自动
+    # CREATE TABLE IF NOT EXISTS，幂等、不影响已存在的表。
+    logger.info("初始化候选指标 / 脚本公式祝福表...")
+    try:
+        candidate_metric_repository.ensure_table()
+        blessed_formula_repository.ensure_table()
+        logger.info("候选指标 / 脚本公式祝福表就绪")
+    except Exception as e:
+        logger.error(f"候选指标 / 脚本公式祝福表初始化失败: {str(e)}")
+
+    # project_analysis_phase1.5_auto_promotion_revision.md §5/§9：多 worker 部署下，
+    # register_metric() 维护的运行时指标注册表只是内存投影，权威真值源是 MySQL 里的
+    # blessed_formula_map。每个 worker 进程启动时都要从这张表重建，而不是依赖某个 worker
+    # 自己积累的内存历史——否则 worker A 转正的指标，worker B 永远看不到。
+    logger.info("从 blessed_formula_map 重建候选指标注册表...")
+    try:
+        from multi_agent.backed.app.services.business_agent.script_formula_promotion_service import (
+            rebuild_registry_from_blessed_map,
+        )
+
+        added = rebuild_registry_from_blessed_map()
+        logger.info("候选指标注册表重建完成，新增 %d 条", added)
+    except Exception as e:
+        logger.error(f"候选指标注册表重建失败: {str(e)}")
 
     logger.info("应用启动，建立MCP连接...")
     try:
@@ -74,6 +124,9 @@ def create_fast_api() -> FastAPI:
     app.include_router(admin_router)
     app.include_router(admin_router, prefix="/api")
     app.include_router(router=router)
+    # 看板路由（与业务路由同级，同样受 X-Api-Key 保护，见 routers._require_api_key）
+    app.include_router(kanban_rd_router)
+    app.include_router(kanban_cs_router)
 
     chart_dir = Path(__file__).resolve().parents[1] / "generated" / "charts"
     chart_dir.mkdir(parents=True, exist_ok=True)

@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import os
 import re
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
+from multi_agent.backed.app.config.settings import settings
 from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.multi_agent.project_progress import publish_project_progress
 from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
@@ -69,6 +72,7 @@ from multi_agent.backed.app.services.project_analysis_constants import (
     TABLE_PRIORITY,
     STRUCTURED_TABLE_FILES,
     PROFESSIONAL_RULES,
+    RNASEQ_SEMANTIC_OVERRIDES,
     QUESTION_FILE_HINTS,
     TARGET_METRIC_FILE_HINTS,
     SECONDARY_TEXT_HINTS,
@@ -88,9 +92,23 @@ from multi_agent.backed.app.services.project_file_parser_service import (
 )
 from multi_agent.backed.app.services.project_context_builder_service import project_context_builder_service
 from multi_agent.backed.app.services.project_cause_analysis_service import project_cause_analysis_service
+from multi_agent.backed.app.services.project_file_discovery_service import (
+    discover_file_role_assignments,
+    to_candidate_paths,
+)
 
 
 class ProjectAnalysisService:
+    # Phase 1 文件发现探索（含代码语义解析 agent 的模型增强分支）内部串联了多次
+    # 同步模型调用，理论最坏耗时可能远超 analyze_project_data 整体 25s 预算
+    # （PROJECT_ANALYSIS_TIMEOUT_SECONDS，见 business_agent/runtime_service.py）。
+    # 这里单独给它一个更短的硬预算，超时即放弃候选、回退到关键词命中的证据，
+    # 而不是拖累整个分析阶段一起超时。可通过环境变量覆盖，便于线上按需调整。
+    _FILE_DISCOVERY_BUDGET_SECONDS = float(
+        os.environ.get("PROJECT_FILE_DISCOVERY_BUDGET_SECONDS")
+        or getattr(settings, "FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS", 8.0)
+    )
+
     @classmethod
     def classify_question(cls, question: str) -> str:
         return cls._infer_question_types(question)[0]
@@ -202,7 +220,7 @@ class ProjectAnalysisService:
         "rnaseq": [
             "sequencing_depth", "mapping_rate_percent", "unique_mapping_rate_percent",
             "duplicate_rate_percent", "mrna_ratio_percent", "rrna_ratio_percent",
-            "detected_gene_count", "correlation",
+            "silva_total_ratio_percent", "detected_gene_count", "correlation",
         ],
         "generic": [
             "sequencing_depth", "mapping_rate_percent",
@@ -232,6 +250,7 @@ class ProjectAnalysisService:
         planning_hints: dict[str, Any] | None = None,
         evidence_catalog: dict[str, Any] | None = None,
         assay_type: str = "generic",
+        question: str = "",
     ) -> list[Path]:
         # Pipeline failure questions: ONLY read log files, skip all QC evidence.
         if "pipeline_failure" in question_types:
@@ -291,19 +310,56 @@ class ProjectAnalysisService:
                 target_metrics = list(
                     cls._ASSAY_DEFAULT_METRICS.get(assay_type, cls._ASSAY_DEFAULT_METRICS["generic"])
                 )
+        # 2026-07-02 修复：question_type 分类表 / assay 默认指标集都是有限枚举，问题里
+        # 直接点名一个不在这两张表里的已注册指标（比如 RNA-seq 的 Silva_total_ratio）时，
+        # 上面两条路径永远凑不出这个指标，导致该指标既不会被当作目标、也不会触发下面
+        # Phase 1 的文件发现探索兜底（探索只在 unresolved_metrics 非空时才跑），
+        # 表现为该指标对应的证据文件完全不会被读取。这里把问题文本里字面提及的、
+        # 已在 metric_schema_service 注册的指标补进 target_metrics（去重），
+        # 不影响已有 question_type/assay 命中的指标，纯增量。
+        literal_metrics = [
+            metric_schema_service.canonical_id(metric_id)
+            for metric_id in metric_schema_service.detect_metrics_in_text(question)
+        ]
+        for metric_id in literal_metrics:
+            if metric_id not in target_metrics:
+                target_metrics.append(metric_id)
+        # 逐指标记录"关键词命中的候选文件里，有没有至少一个能被 resolve_table_kind
+        # 识别的真实证据文件"，而不是只看 `ordered` 整体是否为空——避免像 SilvaBlast
+        # 这类目录级关键词子串命中了不相关文件（如原始 blast 明细）时，把这个"假命中"
+        # 当成"该指标已有证据"，从而挡住下面 Phase 1 探索 agent 对这个指标的兜底
+        # （详见 docs/project_analysis_agent_upgrade_plan.md 待办第 1 点）。
+        metrics_with_parseable_evidence: set[str] = set()
+
+        def _mark_if_parseable(metric_id: str, path: Path) -> None:
+            if not metric_id:
+                return
+            try:
+                if resolve_table_kind(path) is not None:
+                    metrics_with_parseable_evidence.add(metric_id)
+            except Exception:
+                pass
+
         if evidence_catalog and target_metrics:
-            ordered.extend(
-                evidence_catalog_service.paths_for_metrics(
+            for metric in target_metrics:
+                canonical_metric = metric_schema_service.canonical_id(metric)
+                catalog_paths = evidence_catalog_service.paths_for_metrics(
                     project_root,
                     evidence_catalog,
-                    target_metrics,
+                    [metric],
                     limit=max(4, min(max_evidence_files, 20)),
                 )
-            )
+                for path in catalog_paths:
+                    _mark_if_parseable(canonical_metric, path)
+                ordered.extend(catalog_paths)
         for metric in analysis_plan.get("target_metrics", []) or []:
             normalized_metric = str(metric or "").strip().lower()
+            canonical_metric = metric_schema_service.canonical_id(metric)
             for hint in TARGET_METRIC_FILE_HINTS.get(normalized_metric, ()):
-                ordered.extend(find_files(project_root, [hint], limit=2))
+                hint_paths = find_files(project_root, [hint], limit=2)
+                for path in hint_paths:
+                    _mark_if_parseable(canonical_metric, path)
+                ordered.extend(hint_paths)
         prioritized_hints = [
             str(item).strip()
             for item in (planning_hints or {}).get("prioritized_evidence_hints", [])
@@ -317,6 +373,71 @@ class ProjectAnalysisService:
         for question_type, hints in SECONDARY_TEXT_HINTS.items():
             if question_type in question_types:
                 ordered.extend(find_files(project_root, hints, limit=2))
+
+        # Phase 1（project_analysis_agent_upgrade_plan.md 3 节）：文件发现探索兜底。
+        # 关键约束（2026-07-01 修订）：按目标指标逐个判断——只有当 evidence_catalog /
+        # TARGET_METRIC_FILE_HINTS 都没有为这个指标命中任何"能被 resolve_table_kind
+        # 识别"的候选文件时，才对这个指标触发探索；不再要求全局 `ordered` 整体为空，
+        # 因为 QUESTION_FILE_HINTS/SECONDARY_TEXT_HINTS/prioritized_hints 是按问题类型
+        # 而非按指标匹配的宽泛关键词，它们命中的无关文件不应该阻止其他指标去探索。
+        # 已调好的项目类型/指标只要关键词命中了真正可解析的文件，行为和之前完全一致。
+        # 探索产出仅是候选路径，是否真正生成 evidence_card 仍由下游既有的 parser +
+        # strict_formula_recalculation 校验决定，这里不做也不能做真值判断。
+        # 2026-07-02 修订：只对"注册表里确实有 schema"的指标触发探索。像
+        # `Silva_total_ratio(%)` 这种完全没登记的新指标，metric_schema_service.get()
+        # 返回空 schema，_heuristic_match 里 tokens 必然为空、直接 continue，纯属
+        # 陪跑；但 discover_file_role_assignments 内部的代码语义解析 agent
+        # （analyze_project_workflow_scripts）不看 target_metrics，只要 unresolved_metrics
+        # 非空就会对项目里最多 6 个 SOP 脚本逐个跑一遍，静态提取无结果时还会顺带触发一次
+        # 模型调用——对完全未注册的指标这一整套探索没有任何收益，纯粹浪费
+        # `analyze_project_data` 的 25s 预算（详见 docs/project_analysis_agent_upgrade_plan.md
+        # "Silva_total_ratio 排查暴露的两个真实 bug" 待办第 3 点的后续修复记录）。
+        unresolved_metrics = [
+            metric for metric in target_metrics
+            if metric_schema_service.canonical_id(metric) not in metrics_with_parseable_evidence
+            and metric_schema_service.get(metric)
+        ]
+        if unresolved_metrics and "pipeline_failure" not in question_types:
+            try:
+                # 硬预算兜底：discover_file_role_assignments 内部串联了代码语义解析
+                # agent（最多 6 个脚本 × 25s 模型超时）+ 文件发现 agent（20s 模型超时），
+                # 理论最坏耗时远超 analyze_project_data 整体 25s 的预算。这里单独包一层
+                # 更短的硬超时，让它在预算耗尽前主动放弃并回退到"无候选"，而不是拖着
+                # 外层 asyncio.wait_for 一起超时（那样线程还会在后台空跑到自己的超时
+                # 才结束，白白占用资源）。
+                # 注意：不能用 `with ThreadPoolExecutor(...) as executor:`——上下文管理器
+                # 退出时会调用 `shutdown(wait=True)`，即使 future.result() 已经因超时
+                # 提前放弃等待，`with` 块本身还是会在这里重新阻塞到线程跑完，等于白做。
+                # 必须手动创建 executor，并在拿到（或放弃等待）结果后用
+                # `shutdown(wait=False)` 不阻塞地丢开这个线程，让它自己在后台跑完/超时。
+                _fd_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="file-discovery")
+                _fd_future = _fd_executor.submit(
+                    discover_file_role_assignments,
+                    project_root,
+                    unresolved_metrics,
+                    exclude_paths=set(),
+                )
+                try:
+                    assignments = _fd_future.result(timeout=cls._FILE_DISCOVERY_BUDGET_SECONDS)
+                except FuturesTimeoutError:
+                    assignments = []
+                    logger.warning(
+                        "project_analysis stage=file_discovery status=budget_exceeded root=%s "
+                        "budget_seconds=%.1f unresolved_metrics=%s",
+                        str(project_root),
+                        cls._FILE_DISCOVERY_BUDGET_SECONDS,
+                        unresolved_metrics,
+                    )
+                finally:
+                    _fd_executor.shutdown(wait=False)
+                ordered.extend(to_candidate_paths(assignments))
+            except Exception:
+                logger.warning(
+                    "project_analysis stage=file_discovery status=failed root=%s",
+                    str(project_root),
+                    exc_info=True,
+                )
+
         if "log" in question_types or "diagnostic" in question_types:
             ordered.extend(find_log_files(project_root, limit=5))
         for name in TABLE_PRIORITY:
@@ -335,6 +456,43 @@ class ProjectAnalysisService:
             if len(unique) >= max_evidence_files:
                 break
         return unique
+
+    @staticmethod
+    def _explain_pipeline_error_line(error_line: str) -> str:
+        raw = error_line or ""
+        normalized = (error_line or "").lower()
+        if project_file_parser_service._is_non_error_log_stat_line(normalized):
+            return ""
+        called_process = re.search(r'calledprocesserror\s+in\s+file\s+"([^"]+)",\s+line\s+(\d+)', raw, re.IGNORECASE)
+        if called_process:
+            rule_file = called_process.group(1).replace("\\", "/").split("/")[-1]
+            line_no = called_process.group(2)
+            return f"Snakemake 调用的外部命令返回非 0 状态，失败位置在规则文件 {rule_file} 第 {line_no} 行；这能定位失败规则，但真正根因通常还要看该规则自己的运行日志。"
+        rule_match = re.search(r"error\s+in\s+rule\s+([^:\s]+)", raw, re.IGNORECASE)
+        if rule_match:
+            return f"Snakemake 显示失败规则是 {rule_match.group(1)}，说明流程在这个分析步骤中止；需要继续查看该规则对应的详细日志确认根因。"
+        detail_log = re.search(r"\blog:\s*(.+?)(?:\s*\(check log file\(s\).*)?$", raw, re.IGNORECASE)
+        if detail_log:
+            return f"这行给出了真正的详细错误日志位置：{detail_log.group(1).strip()}；应继续查看该文件里的 R/命令原始报错。"
+        if "ruleexception" in normalized:
+            return "这是 Snakemake 汇总出的规则异常，表示某个 rule 执行失败；它本身不是最底层根因，需要结合失败 rule 和详细 log 文件判断。"
+        if "exiting because a job execution failed" in normalized:
+            return "Snakemake 因某个作业失败而退出；这行是流程终止说明，不是最底层错误原因。"
+        if "traceback" in normalized:
+            return "这是 Python 程序异常调用栈的开头，说明某个脚本执行时抛出了异常，需要结合后续 ERROR 或 Exception 行定位具体原因。"
+        if "missing" in normalized and any(token in normalized for token in ("index", "idx", "reference", "adapter")):
+            return "日志提示缺少索引、参考文件或接头索引等必要输入，流程无法继续完成对应步骤。"
+        if any(token in normalized for token in ("no such file", "not found", "cannot find", "can't find")):
+            return "日志提示找不到所需文件或路径，通常是输入文件缺失、路径配置不正确或上游步骤没有生成结果。"
+        if any(token in normalized for token in ("permission denied", "access denied")):
+            return "日志提示权限不足，当前运行用户可能没有读取、写入或执行相关文件的权限。"
+        if any(token in normalized for token in ("out of memory", "memoryerror", "killed")):
+            return "日志提示内存不足或进程被系统终止，常见于数据量较大但任务资源配置不够。"
+        if any(token in normalized for token in ("exception", "fatal", "critical", "abort")):
+            return "日志显示程序发生严重异常并中止，原始错误内容就是判断失败原因的主要依据。"
+        if "error" in normalized:
+            return "日志明确标记 ERROR，表示该步骤执行失败；具体原因需要优先按这条原始错误内容判断。"
+        return "这是一条被日志解析器识别出的异常相关信息，可作为排查流程失败原因的直接线索。"
 
     @classmethod
     def _analyze_pipeline_failure_logs(
@@ -379,9 +537,11 @@ class ProjectAnalysisService:
                     }
                 )
                 for error_line in (summary.get("error_lines") or [])[:5]:
+                    error_text = str(error_line)
                     direct_conclusions.append(
                         {
-                            "claim": f"[{log_file.name}] {str(error_line)[:400]}",
+                            "claim": f"[{log_file.name}] {error_text[:400]}",
+                            "explanation": cls._explain_pipeline_error_line(error_text),
                             "evidence_ids": [],
                             "causal_level": "pipeline_error",
                             "confidence": "direct_log_evidence",
@@ -445,7 +605,9 @@ class ProjectAnalysisService:
         ]
         report_lines.extend(f"- {item['claim']}" for item in direct_conclusions)
         if fact_packet["pipeline_errors_found"]:
-            report_lines.append("解释：日志中直接出现上述错误行，项目失败原因优先以这些日志错误为准。")
+            report_lines.append("解释：")
+            for item in direct_conclusions:
+                report_lines.append(f"- {item['claim']}：{item.get('explanation') or cls._explain_pipeline_error_line(str(item.get('claim') or ''))}")
         elif log_files:
             report_lines.append("解释：已读取 .log，但未发现明显错误行。")
         else:
@@ -466,7 +628,7 @@ class ProjectAnalysisService:
 
         return {
             "run_id": run_id,
-            "project_version": f"pipeline-log-v1:{hashlib.sha1(str(root).encode('utf-8', errors='ignore')).hexdigest()[:16]}",
+            "project_version": f"pipeline-log-v2:{hashlib.sha1(str(root).encode('utf-8', errors='ignore')).hexdigest()[:16]}",
             "trace": trace,
             "project_id": project_id,
             "project_root": str(root),
@@ -701,6 +863,7 @@ class ProjectAnalysisService:
         source_field: str | None = None,
         rule_source: dict[str, Any] | None = None,
         semantic_overrides: dict[str, Any] | None = None,
+        trust_level_override: str | None = None,
     ) -> dict[str, Any]:
         rule = dict(PROFESSIONAL_RULES.get(metric_key, {}))
         schema = metric_schema_service.get(metric_key)
@@ -711,6 +874,10 @@ class ProjectAnalysisService:
             rule.setdefault("denominator", schema.get("denominator", ""))
         if semantic_overrides:
             rule.update(semantic_overrides)
+            # None 值表示"移除该阈值"（如 RNA-seq unique_mapping 无数值阈值）
+            for _k in ("warning", "critical"):
+                if rule.get(_k) is None:
+                    rule.pop(_k, None)
         source_payload = rule_source or {
             "source_level": "not_found_in_project",
             "formula": "",
@@ -781,6 +948,21 @@ class ProjectAnalysisService:
         else:
             evidence_grade = "data_observed_with_unverified_formula_and_threshold"
             conclusion_strength = "screening_signal_only"
+
+        # project_analysis_phase1.5_auto_promotion_revision.md §10：trust_level 是独立于
+        # evidence_grade/conclusion_strength 的信任分级，专供 answer_quality_service 的
+        # evidence_coverage 按权重计分（而不是像原来那样按条目数一视同仁）。默认从既有的
+        # formula_verified/category 派生；`trust_level_override` 用于脚本公式转正命中时
+        # （见 project_file_parser_service._apply_script_formula_trust_upgrade）显式升级为
+        # "recalculated"，即使这条证据本身来自字段发现层猜测的列名。
+        if trust_level_override:
+            trust_level = trust_level_override
+        elif formula_verified:
+            trust_level = "recalculated"
+        elif category == "FieldDiscovery":
+            trust_level = "screening_signal"
+        else:
+            trust_level = "display_only"
         return {
             "category": category,
             "metric_key": metric_key,
@@ -828,9 +1010,30 @@ class ProjectAnalysisService:
             "metric_confidence": source_payload.get("confidence", 0.35),
             "evidence_grade": evidence_grade,
             "conclusion_strength": conclusion_strength,
+            "trust_level": trust_level,
             "interpretation": rule.get("interpretation", ""),
             "downstream_impact": rule.get("downstream_impact", ""),
         }
+
+    @classmethod
+    def _safe_list_exploratory_observations(cls, project_id: str) -> list[dict[str, Any]]:
+        """Phase 1.5：候选指标队列的影子层观测，供 reasoning_packet.exploratory_observations 用。
+
+        任何异常都不能影响主分析流程，静默降级为空列表。
+        """
+        try:
+            from multi_agent.backed.app.services.business_agent.candidate_metric_service import (
+                list_exploratory_observations,
+            )
+
+            return list_exploratory_observations(project_id)
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "project_analysis stage=exploratory_observations status=failed project=%s",
+                project_id,
+                exc_info=True,
+            )
+            return []
 
     @classmethod
     def _build_evidence_chain(
@@ -845,6 +1048,8 @@ class ProjectAnalysisService:
         qc_source = cls._source_file_for_metric(file_summaries, "readsqc.xls", "statistic_reads.xls")
         alignment_source = cls._source_file_for_metric(file_summaries, "alignmentqc.xls", "aligentqc.xls")
         spikein_source = cls._source_file_for_metric(file_summaries, "spikein")
+        # 根据 project_context 提前检测 assay，用于后续 RNA-seq 语义覆盖
+        _assay_early = cls._detect_assay_early(project_context or {})
         frip_source = cls._source_file_for_metric(file_summaries, "frip")
         correlation_source = cls._source_file_for_metric(
             file_summaries, "spearman_corr_readcounts.tab", "correlation_summary"
@@ -926,6 +1131,23 @@ class ProjectAnalysisService:
                         )
                     )
 
+        # ── RNA-seq Silva rRNA 污染 (SilvaBlast/<sample>.stat.xls) ─────────
+        silva_source = cls._source_file_for_metric(file_summaries, "silva", ".stat.xls")
+        for item in parsed_metrics.get("rnaseq_silva", []) or []:
+            sample = item.get("sample") or "-"
+            if item.get("silva_total_ratio_percent") is not None:
+                chain.append(
+                    cls._build_rule_entry(
+                        metric_key="silva_total_ratio_percent",
+                        category="RNAseqSilva",
+                        sample=sample,
+                        value=safe_float(item.get("silva_total_ratio_percent")),
+                        source_file=silva_source,
+                        source_field="Silva_total_ratio(%)",
+                        rule_source=metric_rule_sources.get("silva_total_ratio_percent"),
+                    )
+                )
+
         # ── RNA-seq 基因表达分布 (Samples.ExpRange.xls) ───────────────────
         for item in parsed_metrics.get("rnaseq_gene_exp", []) or []:
             sample = item.get("sample") or "-"
@@ -954,6 +1176,12 @@ class ProjectAnalysisService:
                 "pbc1",
                 "pbc2",
             ):
+                if key == "mt_rate_percent":
+                    _sem_overrides = organelle_semantics
+                elif _assay_early == "rnaseq" and key in RNASEQ_SEMANTIC_OVERRIDES:
+                    _sem_overrides = RNASEQ_SEMANTIC_OVERRIDES[key]
+                else:
+                    _sem_overrides = None
                 chain.append(
                     cls._build_rule_entry(
                         metric_key=key,
@@ -963,7 +1191,7 @@ class ProjectAnalysisService:
                         source_file=alignment_source,
                         source_field=source_fields.get(key),
                         rule_source=metric_rule_sources.get(key),
-                        semantic_overrides=organelle_semantics if key == "mt_rate_percent" else None,
+                        semantic_overrides=_sem_overrides,
                     )
                 )
 
@@ -1053,6 +1281,29 @@ class ProjectAnalysisService:
                     }
                 )
             chain.append(entry)
+
+        # Phase 1.2（project_analysis_agent_upgrade_plan.md）：字段发现层产出，见
+        # project_field_discovery_service.discover_and_extract()。这里的每一条都已经过
+        # metric_schema_service.normalize() 的自洽/重算校验；没有 rule_source 时
+        # _build_rule_entry() 会按现有约定把它标注为 formula/threshold 均未经项目脚本确认
+        # （professional_default_unverified + screening_signal_only），与其他缺少
+        # workflow-code 佐证的指标一致，不冒充"项目已验证"结论，也不带额外的"探索性"标记。
+        for item in parsed_metrics.get("field_discovery", []) or []:
+            metric_key = str(item.get("metric_id") or "").strip()
+            if not metric_key:
+                continue
+            chain.append(
+                cls._build_rule_entry(
+                    metric_key=metric_key,
+                    category="FieldDiscovery",
+                    sample=str(item.get("sample") or "-"),
+                    value=safe_float(item.get("value")),
+                    source_file=str(item.get("source_file") or ""),
+                    source_field=str(item.get("display_field") or metric_key),
+                    rule_source=metric_rule_sources.get(metric_key),
+                    trust_level_override=item.get("trust_level"),
+                )
+            )
 
         severity_rank = {"critical": 0, "warning": 1, "unknown": 2, "normal": 3}
         return sorted(chain, key=lambda item: (severity_rank.get(item.get("severity", "normal"), 9), item.get("sample", "")))
@@ -2018,6 +2269,26 @@ class ProjectAnalysisService:
         analysis_plan = copy.deepcopy(
             (planning_hints or {}).get("analysis_plan") or {}
         )
+        # 2026-07-02 修复：`_select_evidence_files` 里加的问题文本字面提及指标检测
+        # （metric_schema_service.detect_metrics_in_text）只影响它自己局部的
+        # target_metrics 变量，用来决定"读哪些候选文件"；但真正把文件内容解析成
+        # evidence_card 的 parse_evidence_file 调用（下面 _parse_evidence_files 里）
+        # 读的是 analysis_plan["target_metrics"]，是完全独立的另一份数据——只做文件
+        # 选择侧的检测，转置表这类文件虽然会被选中读取，但因为 target_metrics 传给
+        # parser 时还是空的，解析器不知道要找哪个指标，产出 0 张 evidence_card。
+        # 这里把检测结果直接写回 analysis_plan，让文件选择和实际解析用同一份
+        # target_metrics，避免同一个检测结果要维护两份。只在指标不存在时追加，
+        # 不覆盖 planning_hints 显式传入的 analysis_plan。
+        literal_metrics = [
+            metric_schema_service.canonical_id(metric_id)
+            for metric_id in metric_schema_service.detect_metrics_in_text(question)
+        ]
+        if literal_metrics:
+            existing_target_metrics = list(analysis_plan.get("target_metrics") or [])
+            for metric_id in literal_metrics:
+                if metric_id not in existing_target_metrics:
+                    existing_target_metrics.append(metric_id)
+            analysis_plan["target_metrics"] = existing_target_metrics
         question_types = cls._infer_question_types(question)
         question_type = question_types[0]
         # For pipeline_failure questions, ensure log files are in the local cache.
@@ -2085,6 +2356,7 @@ class ProjectAnalysisService:
                 planning_hints=planning_hints,
                 evidence_catalog=project_context.get("evidence_catalog") or {},
                 assay_type=early_assay,
+                question=question,
             )
             logger.info(
                 "project_analysis stage=select_evidence run_id=%s project=%s evidence=%d duration_ms=%.2f",
@@ -2148,6 +2420,8 @@ class ProjectAnalysisService:
                         experiment_design=project_context.get("experiment_design") or {},
                         cache=project_parse_cache,
                         summarize_text_fn=project_file_parser_service.summarize_text_evidence,
+                        target_metrics=list(analysis_plan.get("target_metrics", []) or []),
+                        project_id=project_id,
                     )
                     for file_path in evidence_files_to_parse
                 ]
@@ -2230,6 +2504,16 @@ class ProjectAnalysisService:
                                 "target": "correlation",
                                 "value": summary,
                             }
+                        elif table_kind == "rnaseq_reads_class":
+                            summary = project_file_parser_service.build_rnaseq_reads_class_summary(rows)
+                            metric_payload = {"target": "rnaseq_reads_class", "value": summary.get("metrics", [])}
+                        elif table_kind == "rnaseq_gene_exp":
+                            summary = project_file_parser_service.build_rnaseq_gene_exp_summary(rows)
+                            metric_payload = {"target": "rnaseq_gene_exp", "value": summary.get("metrics", [])}
+                        elif table_kind == "rnaseq_silva":
+                            silva_sample = re.sub(r"\.stat\.xls$", "", file_path.name, flags=re.IGNORECASE)
+                            summary = project_file_parser_service.build_rnaseq_silva_summary(rows, sample=silva_sample)
+                            metric_payload = {"target": "rnaseq_silva", "value": summary.get("metrics", []), "mode": "merge_silva"}
                         elif table_kind == "diff_annotation":
                             summary = project_file_parser_service.build_diff_annotation_summary(rows)
                             metric_payload = {
@@ -2289,6 +2573,11 @@ class ProjectAnalysisService:
                         parsed_metrics["frip"] = project_file_parser_service.merge_frip_metrics(
                             parsed_metrics.get("frip", []) or [],
                             metric_payload["value"],
+                        )
+                    elif metric_payload.get("mode") == "merge_silva":
+                        parsed_metrics["rnaseq_silva"] = project_file_parser_service.merge_silva_metrics(
+                            parsed_metrics.get("rnaseq_silva", []) or [],
+                            metric_payload["value"] or [],
                         )
                     else:
                         parsed_metrics[metric_payload["target"]] = metric_payload["value"]
@@ -2740,8 +3029,12 @@ class ProjectAnalysisService:
                     continue
                 _fname = str(_fs.get("file", "")).replace("\\", "/").split("/")[-1]
                 for _err in _error_lines[:5]:
+                    _err_text = str(_err)
+                    if project_file_parser_service._is_non_error_log_stat_line(_err_text.lower()):
+                        continue
                     _log_error_conclusions.append({
-                        "claim": f"[{_fname}] {_err[:400]}",
+                        "claim": f"[{_fname}] {_err_text[:400]}",
+                        "explanation": cls._explain_pipeline_error_line(_err_text),
                         "evidence_ids": [],
                         "causal_level": "pipeline_error",
                         "confidence": "direct_log_evidence",
@@ -2756,6 +3049,7 @@ class ProjectAnalysisService:
                 "hypothesis_comparison": [],
                 "verification_plan": [],
                 "evidence_against": [],
+                "exploratory_observations": cls._safe_list_exploratory_observations(project_id),
             }
         else:
             # pipeline_failure 但未找到任何 log 错误行：插入兜底 conclusion 避免 LLM 返回空答案导致 UI 无反应。
@@ -2793,6 +3087,10 @@ class ProjectAnalysisService:
                 "hypothesis_comparison": diagnosis_summary.get("hypothesis_comparison", [])[:4],
                 "verification_plan": diagnosis_summary.get("verification_plan", [])[:6],
                 "evidence_against": diagnosis_summary.get("evidence_against", [])[:6],
+                # Phase 1.5（project_analysis_agent_upgrade_plan.md 2.3 节新增字段）：
+                # 候选指标队列的影子层观测，语义上不是因果解释，独立于上面几个字段，
+                # 不参与 answer_quality_service 的 integration_depth 等打分维度。
+                "exploratory_observations": cls._safe_list_exploratory_observations(project_id),
             }
         analysis_result_layers = {
             "fact_packet": fact_packet,

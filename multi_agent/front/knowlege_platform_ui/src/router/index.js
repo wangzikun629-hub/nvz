@@ -16,14 +16,8 @@ const routes = [
   {
     path: '/',
     component: Layout,
-    redirect: '/knowledge',
+    redirect: '/kb-chat',
     children: [
-      {
-        path: 'knowledge',
-        name: 'Knowledge',
-        component: () => import('@/views/Knowledge.vue'),
-        meta: { title: '知识库', icon: 'Files' }
-      },
       {
         path: 'kb-chat',
         name: 'KbChat',
@@ -39,6 +33,18 @@ const routes = [
         name: 'AdminDashboard',
         component: () => import('@/views/admin/AdminDashboard.vue'),
         meta: { title: '成员管理', icon: 'UserFilled', adminOnly: true }
+      },
+      {
+        path: 'kanban/rd',
+        name: 'RdKanban',
+        component: () => import('@/views/RdKanban.vue'),
+        meta: { title: '研发看板' }
+      },
+      {
+        path: 'kanban/cs',
+        name: 'CsKanban',
+        component: () => import('@/views/CsKanban.vue'),
+        meta: { title: '客户服务看板' }
       }
     ]
   }

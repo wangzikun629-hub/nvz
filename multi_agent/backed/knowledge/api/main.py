@@ -1,10 +1,13 @@
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from multi_agent.backed.knowledge.api.routers import catalog_repository, router
+from multi_agent.backed.knowledge.config.settings import settings
 
 
 logging.basicConfig(level=logging.INFO)
@@ -25,6 +28,16 @@ async def lifespan(app: FastAPI):
 def create_fast_api() -> FastAPI:
     app = FastAPI(title="Knowledge API", lifespan=lifespan)
     app.include_router(router=router)
+
+    # 挂载 page_images 静态文件，供 ParserReview.vue 预览页面图片
+    # 访问路径：/static/data/page_images/{document_id}/page_XXXX.png
+    page_images_dir = settings.PARSER_PAGE_IMAGES_DIR
+    if not os.path.exists(page_images_dir):
+        os.makedirs(page_images_dir, exist_ok=True)
+    # 挂载整个 data 目录，使路径 /static/data/page_images/... 成立
+    data_dir = os.path.dirname(page_images_dir)
+    app.mount("/static/data", StaticFiles(directory=data_dir), name="static_data")
+
     return app
 
 

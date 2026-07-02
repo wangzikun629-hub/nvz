@@ -9,7 +9,7 @@ from multi_agent.backed.app.config.settings import settings
 from multi_agent.backed.app.infrastructure.logging.logger import logger
 
 
-KNOWLEDGE_RETRIEVAL_TIMEOUT_SECONDS = 8.0
+KNOWLEDGE_RETRIEVAL_TIMEOUT_SECONDS = 30.0
 
 knowledge_http_client = httpx.AsyncClient(
     trust_env=False,

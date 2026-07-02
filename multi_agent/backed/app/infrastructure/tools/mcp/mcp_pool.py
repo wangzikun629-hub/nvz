@@ -33,7 +33,7 @@ def _make_mcp_client() -> MCPServerStreamableHttp:
         params={
             "url": f"{settings.DASHSCOPE_BASE_URL}",
             "headers": {
-                "Authorization": f"Bearer {settings.AL_BAILIAN_API_KEY}"
+                "Authorization": f"Bearer {settings.DASHSCOPE_API_KEY}"
             },
             "timeout": 60,
             "sse_read_timeout": 60 * 30,
@@ -71,17 +71,29 @@ class TechnicalAgentPool:
     async def initialize(self) -> None:
         """在 FastAPI lifespan 启动时调用，建立所有连接。"""
         self._queue = asyncio.Queue()
+        connected_count = 0
         for i in range(self._pool_size):
             client = _make_mcp_client()
             agent = _make_technical_agent(client)
             try:
                 await client.connect()
                 logger.info("MCP pool slot %d/%d connected", i + 1, self._pool_size)
+                self._slots.append((client, agent))
+                self._queue.put_nowait((client, agent))
+                connected_count += 1
             except Exception as exc:
                 logger.error("MCP pool slot %d connect failed: %s", i + 1, exc)
-                # 连接失败的槽位仍入队，使用时会触发 fallback
-            self._slots.append((client, agent))
-            self._queue.put_nowait((client, agent))
+                # 连接失败的槽位不入队——is_ready 依赖 queue.empty()，
+                # 破损槽入队会导致 is_ready=True 但实际调用时抛 "Server not initialized"
+                try:
+                    await client.cleanup()
+                except Exception:
+                    pass
+        logger.info(
+            "MCP pool initialized: %d/%d slots ready",
+            connected_count,
+            self._pool_size,
+        )
 
     async def cleanup(self) -> None:
         """在 FastAPI lifespan 关闭时调用，清理所有连接。"""

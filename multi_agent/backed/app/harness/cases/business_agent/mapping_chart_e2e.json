@@ -2,6 +2,8 @@
   "id": "business_mapping_chart_e2e",
   "target": "business_agent",
   "enabled": true,
+  "_comment_requires_binary": "2026-07-02 修订（project_analysis_phase1.5_auto_promotion_revision.md §11 解决方法 2）：本用例依赖本机 Rscript 生成图表；缺少该依赖时属于环境前置缺失，不是代码回归，run_harness.py 会把它标记为 skipped 而不是 fail，避免和真正的回归混在一起。",
+  "requires_binary": "Rscript",
   "project_id": "VZ20260427001",
   "question": "帮我画 T1 和 T2 的 Mapping 对比图",
   "user_id": "harness_user",

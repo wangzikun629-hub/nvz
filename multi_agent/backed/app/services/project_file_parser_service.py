@@ -5,6 +5,8 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any
 
+from multi_agent.backed.app.config.settings import settings
+from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.services.business_agent.metric_schema_service import metric_schema_service
 from multi_agent.backed.app.services.business_agent.experiment_design_service import experiment_design_service
 from multi_agent.backed.app.services.project_analysis_constants import LOG_NAME_TOKENS
@@ -209,6 +211,16 @@ def resolve_table_kind(file_path: Path) -> str | None:
         return "rnaseq_reads_class"
     if lower_name == "samples.exprange.xls":
         return "rnaseq_gene_exp"
+    # SilvaBlast 每样本 rRNA blast 统计：<sample>.stat.xls（排除 seq/species_rank/reads_num/tmp 中间文件）
+    if (
+        "silva" in lower_path
+        and lower_name.endswith(".stat.xls")
+        and not any(
+            token in lower_name
+            for token in (".stat.seq.", "species_rank", "reads_num", ".tmp", "tmp1", "tmp2", "tmp3")
+        )
+    ):
+        return "rnaseq_silva"
     if "final_anno" in lower_name:
         return "diff_annotation"
     if "go_up" in lower_name or "go_down" in lower_name:
@@ -242,6 +254,8 @@ def progress_stage_for_evidence(file_path: Path, table_kind: str | None) -> tupl
         return "read_rnaseq_reads_class", "Reads 组成分析"
     if table_kind == "rnaseq_gene_exp":
         return "read_rnaseq_gene_exp", "基因表达分布"
+    if table_kind == "rnaseq_silva":
+        return "read_rnaseq_silva", "Silva rRNA 污染"
     if table_kind and table_kind.startswith("diff"):
         return "read_diff", "差异分析结果"
     if "readme" in lower_name:
@@ -480,6 +494,64 @@ class ProjectFileParserService:
         return [merged[key] for key in order]
 
     @staticmethod
+    def merge_silva_metrics(
+        existing: list[dict[str, Any]],
+        incoming: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        merged: dict[str, dict[str, Any]] = {}
+        order: list[str] = []
+        for item in [*existing, *incoming]:
+            if not isinstance(item, dict):
+                continue
+            sample = str(item.get("sample") or "")
+            if not sample:
+                continue
+            if sample not in merged:
+                merged[sample] = item
+                order.append(sample)
+            elif merged[sample].get("silva_total_ratio_percent") is None:
+                merged[sample] = item
+        return [merged[sample] for sample in order]
+
+    @classmethod
+    def build_rnaseq_silva_summary(
+        cls, rows: list[dict[str, str]], sample: str = ""
+    ) -> dict[str, Any]:
+        """解析 SilvaBlast <sample>.stat.xls，取 Total 行的 Percentage 作为 Silva_total_ratio(%)。
+
+        文件结构：Species / Count / Percentage 三列，首行 Species=='Total' 汇总本样本
+        比对到 SILVA rRNA 库的 reads 占抽样 reads 的比例（如 6.02%）。样本名由文件名给出。
+        """
+        total_ratio: float | None = None
+        total_count: float | None = None
+        top1_species = ""
+        top1_ratio: float | None = None
+        for row in rows:
+            species = first_nonempty(row, "Species", "species").strip()
+            percentage = first_nonempty(row, "Percentage", "percentage", "Percent")
+            count = first_nonempty(row, "Count", "count", "Reads")
+            if species.lower() == "total":
+                total_ratio = normalize_percent(
+                    percentage, "silva_total_ratio_percent", "Silva_total_ratio(%)"
+                )
+                total_count = parse_numeric(count)
+                continue
+            if species and top1_ratio is None:
+                top1_species = species
+                top1_ratio = parse_numeric(percentage)
+        metric = {
+            "sample": sample,
+            "silva_total_ratio_percent": total_ratio,
+            "silva_total_count": total_count,
+            "silva_top1_species": top1_species,
+            "silva_top1_ratio_percent": top1_ratio,
+        }
+        findings: list[str] = []
+        if total_ratio is not None and total_ratio > 10:
+            findings.append(f"{sample or '样本'} Silva rRNA 占比偏高（{total_ratio:.2f}%）")
+        return {"metrics": [metric], "findings": findings}
+
+    @staticmethod
     def build_peak_summary(rows: list[dict[str, str]]) -> dict[str, Any]:
         counts = {
             row.get("Sample", ""): int(float(row.get("Peaks_number", "0") or 0))
@@ -705,6 +777,8 @@ class ProjectFileParserService:
         experiment_design: dict[str, Any],
         cache: Any,  # ProjectParseCache instance
         summarize_text_fn: Any,  # callable(file_path, preview) -> dict
+        target_metrics: list[str] | None = None,
+        project_id: str = "",
     ) -> dict[str, Any]:
         from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
             read_log_snippet,
@@ -739,6 +813,10 @@ class ProjectFileParserService:
                     elif table_kind == "rnaseq_gene_exp":
                         summary = cls.build_rnaseq_gene_exp_summary(rows)
                         metric_payload = {"target": "rnaseq_gene_exp", "value": summary.get("metrics", []), "mode": "replace"}
+                    elif table_kind == "rnaseq_silva":
+                        silva_sample = re.sub(r"\.stat\.xls$", "", file_path.name, flags=re.IGNORECASE)
+                        summary = cls.build_rnaseq_silva_summary(rows, sample=silva_sample)
+                        metric_payload = {"target": "rnaseq_silva", "value": summary.get("metrics", []), "mode": "merge_silva"}
                     elif table_kind == "rnaseq_correlation":
                         summary = cls.build_correlation_summary(rows)
                         metric_payload = {"target": "correlation", "value": summary, "mode": "replace"}
@@ -811,6 +889,119 @@ class ProjectFileParserService:
                     "findings": summary.get("findings", []),
                 }
 
+            # Phase 1.2（project_analysis_agent_upgrade_plan.md）：字段发现层兜底。
+            # resolve_table_kind() 认不出的表格文件此前直接落入纯文本摘要分支，一个指标都
+            # 提取不出来；这里补一次"猜字段映射 + 重算校验"，只有通过 metric_schema_service
+            # 自洽/重算校验的值才会被采信，不影响上面已识别文件类型的既有 11 个 build_*_summary
+            # 路径。target_metrics 为空（默认值，兼容旧调用方）时行为与改造前完全一致。
+            if target_metrics and file_path.suffix.lower() in {".xls", ".csv", ".tab", ".tsv"}:
+                try:
+                    from multi_agent.backed.app.services.project_field_discovery_service import (
+                        discover_and_extract,
+                    )
+                    from multi_agent.backed.app.services.project_code_semantics_service import (
+                        analyze_project_workflow_scripts,
+                    )
+                    from multi_agent.backed.app.services.business_agent.assay_analysis_service import (
+                        assay_analysis_service,
+                    )
+
+                    # 尽力而为地把 assay 传下去，让 formula_hint 按 assay 过滤/降级
+                    # （见 project_code_semantics_service._filter_hints_by_assay）。
+                    # detect_assay() 识别不出具体 assay 时返回 "generic"——这里要转成
+                    # None，表示"不确定，不做过滤"，而不是当成一个真实存在、
+                    # 谁都不适用的 assay 名字去过滤掉所有变体。
+                    detected_assay = assay_analysis_service.detect_assay(
+                        str(experiment_design.get("config_assay") or "")
+                    )
+                    assay = detected_assay if detected_assay != "generic" else None
+                    # project_analysis_phase1.5_auto_promotion_revision.md §13 解决方法 2：
+                    # 每个同步阶段设独立硬子预算。analyze_project_workflow_scripts 内部的模型
+                    # 分支已经改成短同步等待+后台完成回调（见 project_code_semantics_service.py
+                    # 顶部注释），本身不再是无界阻塞；这里再加一层软性预算兜底——万一静态提取
+                    # 本身在异常大的脚本/文件上变慢，也不放任单个文件的字段发现无限占用
+                    # analyze_project_data 的整体预算，超时直接跳过这一步，降级为"没有字段
+                    # 发现证据"，不影响其它已识别文件类型的证据继续正常产出。
+                    _field_discovery_started_at = perf_counter()
+                    formula_hints = analyze_project_workflow_scripts(root, assay=assay)
+                    _stage_budget = float(getattr(settings, "FIELD_DISCOVERY_STAGE_TIMEOUT_SECONDS", 6.0))
+                    if perf_counter() - _field_discovery_started_at > _stage_budget:
+                        logger.warning(
+                            "project_file_parser stage=field_discovery status=budget_exceeded "
+                            "file=%s budget_seconds=%.1f elapsed_seconds=%.2f",
+                            relative,
+                            _stage_budget,
+                            perf_counter() - _field_discovery_started_at,
+                        )
+                        field_discovery_hits = []
+                    else:
+                        field_discovery_hits = discover_and_extract(
+                            file_path, target_metrics, formula_hints=formula_hints
+                        )
+                    for hit in field_discovery_hits:
+                        hit["source_file"] = relative
+
+                    # project_analysis_phase1.5_auto_promotion_revision.md 第一部分 + §10：
+                    # 字段发现层猜出来的值默认只能拿到 "screening_signal" trust_level（见
+                    # evidence_card_service / answer_quality_service 的信任分级）。如果这条
+                    # 命中的指标在项目实际使用的 SOP 脚本里能找到对应的 formula_hint（即
+                    # Phase 1.1 代码语义解析层确实读到了这段公式，而不是纯靠列名猜的），就
+                    # 尝试把它推进脚本公式转正流程——命中即可把这条证据的 trust_level 升级为
+                    # "recalculated"，不再是"未核实公式"。任何异常都不能影响字段发现主流程。
+                    cls._apply_script_formula_trust_upgrade(field_discovery_hits, formula_hints)
+                except Exception:  # noqa: BLE001
+                    field_discovery_hits = []
+
+                # Phase 1.5：候选指标队列——完全独立的副作用，只记录观测，不影响本次
+                # parsed_metrics/evidence_chain。任何异常都不能影响文件解析主流程。
+                try:
+                    from multi_agent.backed.app.services.project_field_discovery_service import (
+                        discover_novel_metric_candidates,
+                    )
+                    from multi_agent.backed.app.services.business_agent.candidate_metric_service import (
+                        record_observation,
+                    )
+
+                    for novel in discover_novel_metric_candidates(file_path):
+                        record_observation(
+                            project_id=project_id,
+                            metric_guess_label=novel["metric_guess_label"],
+                            unit_guess=novel["unit_guess"],
+                            source_file=relative,
+                            numerator_field=novel["numerator_field"],
+                            denominator_field=novel["denominator_field"],
+                            display_field=novel["display_field"],
+                            sample=novel["sample"],
+                            value=novel["value"],
+                        )
+                except Exception:  # noqa: BLE001
+                    logger.warning(
+                        "project_file_parser stage=candidate_metric_observe status=failed file=%s",
+                        relative,
+                        exc_info=True,
+                    )
+                if field_discovery_hits:
+                    return {
+                        "relative": relative,
+                        "progress_stage": p_stage,
+                        "progress_label": p_label,
+                        "file_summary": {
+                            "file": relative,
+                            "type": "field_discovery",
+                            "summary": {"metrics": field_discovery_hits, "findings": []},
+                        },
+                        "evidence_status": {
+                            "file": relative, "status": "ok", "type": "field_discovery",
+                            "duration_ms": round((perf_counter() - file_started_at) * 1000, 2),
+                        },
+                        "parsed_metric_update": {
+                            "target": "field_discovery",
+                            "value": field_discovery_hits,
+                            "mode": "extend",
+                        },
+                        "findings": [],
+                    }
+
             cache_kind = "text_summary"
             cached = cache._get_cached_parse(file_path, cache_kind)
             if cached is None:
@@ -863,6 +1054,82 @@ class ProjectFileParserService:
             }
 
     @classmethod
+    def _apply_script_formula_trust_upgrade(
+        cls,
+        field_discovery_hits: list[dict],
+        formula_hints: list[dict],
+    ) -> None:
+        """给字段发现命中的证据尝试脚本公式转正升级（见调用方注释）。就地修改
+        `field_discovery_hits`：命中就追加 `trust_level="recalculated"` 和
+        `promotion_key`，未命中不做任何改动（沿用默认的 screening_signal 分级）。
+        """
+        if not field_discovery_hits or not formula_hints:
+            return
+        try:
+            from multi_agent.backed.app.services.business_agent.metric_schema_service import (
+                metric_schema_service,
+            )
+            from multi_agent.backed.app.services.business_agent.script_formula_promotion_service import (
+                evaluate_and_maybe_bless,
+            )
+            from multi_agent.backed.app.config.settings import settings
+
+            if not bool(settings.FORMULA_PROMOTION_ENABLED):
+                return
+
+            hints_by_metric: dict[str, list[dict]] = {}
+            for hint in formula_hints:
+                metric_id = metric_schema_service.canonical_id(hint.get("metric_guess"))
+                if metric_id and hint.get("script_path"):
+                    hints_by_metric.setdefault(metric_id, []).append(hint)
+
+            # code review 修复（建议#2）：一个文件里的 field_discovery_hits 通常是"每个
+            # 样本一条"，同一个 metric_id 在同一个文件里会重复出现很多次。之前对每一条 hit
+            # 都单独调一次 evaluate_and_maybe_bless（脚本哈希+一次 DB 往返），10 个样本就是
+            # 10 倍的冗余开销。现在按 metric_id 去重，每个文件里每个指标只评估一次，评估
+            # 结果套用到该指标下的所有 hit。（compute_script_hash 本身也按 mtime 做了缓存，
+            # 这里的去重是在此基础上进一步减少重复的 evaluate_and_maybe_bless/DB 调用次数。）
+            bless_result_by_metric: dict[str, dict] = {}
+            for hit in field_discovery_hits:
+                metric_id = metric_schema_service.canonical_id(hit.get("metric_id"))
+                if metric_id not in bless_result_by_metric:
+                    candidates = hints_by_metric.get(metric_id) or []
+                    if not candidates:
+                        bless_result_by_metric[metric_id] = {}
+                    else:
+                        # 同一指标可能命中多个脚本/多条线索，取置信度最高的一条。
+                        best_hint = max(candidates, key=lambda h: float(h.get("confidence") or 0))
+                        first_hit_with_fields = next(
+                            (
+                                h
+                                for h in field_discovery_hits
+                                if metric_schema_service.canonical_id(h.get("metric_id")) == metric_id
+                            ),
+                            hit,
+                        )
+                        bless_result_by_metric[metric_id] = evaluate_and_maybe_bless(
+                            script_path=best_hint.get("script_path"),
+                            metric_id=metric_id,
+                            formula_variant=best_hint.get("variant_id"),
+                            unknown_variant=bool(best_hint.get("unknown_variant", True)),
+                            discovered_by=str(best_hint.get("discovered_by") or "code_semantics_static"),
+                            numerator_field=str(first_hit_with_fields.get("numerator_field") or ""),
+                            denominator_field=str(first_hit_with_fields.get("denominator_field") or ""),
+                            recalculation_passed=True,  # discover_and_extract 已经过 normalize() 校验
+                            is_new_candidate=False,
+                            target_contract=metric_schema_service.verifier_contract(metric_id),
+                        )
+                result = bless_result_by_metric[metric_id]
+                if result.get("blessed"):
+                    hit["trust_level"] = "recalculated"
+                    hit["promotion_key"] = result.get("promotion_key")
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "project_file_parser stage=script_formula_trust_upgrade status=failed",
+                exc_info=True,
+            )
+
+    @classmethod
     def apply_parsed_metric_update(
         cls,
         parsed_metrics: dict[str, Any],
@@ -878,13 +1145,31 @@ class ProjectFileParserService:
         if mode == "append":
             parsed_metrics.setdefault(target, []).append(value)
             return
+        if mode == "extend":
+            parsed_metrics.setdefault(target, []).extend(value or [])
+            return
         if mode == "merge_frip":
             parsed_metrics["frip"] = cls.merge_frip_metrics(
                 parsed_metrics.get("frip", []) or [],
                 value or [],
             )
             return
+        if mode == "merge_silva":
+            parsed_metrics["rnaseq_silva"] = cls.merge_silva_metrics(
+                parsed_metrics.get("rnaseq_silva", []) or [],
+                value or [],
+            )
+            return
         parsed_metrics[target] = value
+
+    @staticmethod
+    def _is_non_error_log_stat_line(lower_line: str) -> bool:
+        normalized = " ".join((lower_line or "").split())
+        return (
+            "no. of allowed errors" in normalized
+            or "number of allowed errors" in normalized
+            or "length count expect max.err error counts" in normalized
+        )
 
     @classmethod
     def summarize_text_evidence(cls, file_path: Path, preview: str) -> dict[str, Any]:
@@ -901,6 +1186,8 @@ class ProjectFileParserService:
             warning_lines: list[str] = []
             for line in lines:
                 ll = line.lower()
+                if cls._is_non_error_log_stat_line(ll):
+                    continue
                 if any(tok in ll for tok in ("error", "exception", "traceback", "critical", "fatal", "abort", "报错", "错误")):
                     error_lines.append(line)
                 elif any(tok in ll for tok in ("warning", "warn", "警告")):

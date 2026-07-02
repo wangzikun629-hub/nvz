@@ -1,0 +1,71 @@
+{
+  "candidates": {
+    "e_value": {
+      "candidate_key": "e_value",
+      "metric_guess": "e_value",
+      "label": "E_value",
+      "unit_guess": "ratio",
+      "occurrences": [
+        {
+          "project_id": "VZ20260529017",
+          "source_file": "SilvaBlast\\Blast_result\\20260228_4P250908175US293267D1_B_RN419-1000ng-C1_L01.blast.xls",
+          "numerator_field": "Gap",
+          "denominator_field": "Query_length",
+          "display_field": "E_value",
+          "sample": "AE01240702007:9:4P250908175US293267D1:L01:R001C014:0000:1947",
+          "value": 9e-54,
+          "observed_at": "2026-07-01T09:49:43+00:00"
+        },
+        {
+          "project_id": "VZ20260529017",
+          "source_file": "SilvaBlast\\Blast_result\\20260228_4P250908175US293267D1_B_RN419-1000ng-C1_L01.blast.xls",
+          "numerator_field": "Gap",
+          "denominator_field": "Query_length",
+          "display_field": "E_value",
+          "sample": "AE01240702007:9:4P250908175US293267D1:L01:R001C014:0000:1947",
+          "value": 4e-19,
+          "observed_at": "2026-07-01T09:49:43+00:00"
+        },
+        {
+          "project_id": "VZ20260529017",
+          "source_file": "SilvaBlast\\Blast_result\\20260228_4P250908175US293267D1_B_RN419-1000ng-C1_L01.blast.xls",
+          "numerator_field": "Gap",
+          "denominator_field": "Query_length",
+          "display_field": "E_value",
+          "sample": "AE01240702007:9:4P250908175US293267D1:L01:R001C014:0000:3023",
+          "value": 9e-14,
+          "observed_at": "2026-07-01T09:49:43+00:00"
+        },
+        {
+          "project_id": "VZ20260529017",
+          "source_file": "SilvaBlast\\Blast_result\\20260228_4P250908175US293267D1_B_RN419-1000ng-C1_L01.blast.xls",
+          "numerator_field": "Gap",
+          "denominator_field": "Query_length",
+          "display_field": "E_value",
+          "sample": "AE01240702007:9:4P250908175US293267D1:L01:R001C014:0000:3556",
+          "value": 1e-37,
+          "observed_at": "2026-07-01T09:49:43+00:00"
+        },
+        {
+          "project_id": "VZ20260529017",
+          "source_file": "SilvaBlast\\Blast_result\\20260228_4P250908175US293267D1_B_RN419-1000ng-C1_L01.blast.xls",
+          "numerator_field": "Gap",
+          "denominator_field": "Query_length",
+          "display_field": "E_value",
+          "sample": "AE01240702007:9:4P250908175US293267D1:L01:R001C014:0000:3556",
+          "value": 1e-37,
+          "observed_at": "2026-07-01T09:49:43+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-01T09:49:43+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-01T09:49:43+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 5
+    }
+  },
+  "blacklist": []
+}

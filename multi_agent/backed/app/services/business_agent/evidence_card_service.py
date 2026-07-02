@@ -86,6 +86,12 @@ class EvidenceCardService:
                     "processing_phase": card.get("processing_phase"),
                     "threshold_verified": card.get("threshold_verified", False),
                     "conflict_status": card.get("conflict_status", "none"),
+                    # project_analysis_phase1.5_auto_promotion_revision.md §10：未核实值
+                    # （转置表/字段发现猜测等）此前和已重算通过的值在 evidence_coverage
+                    # 打分里权重完全相同，是一处完整性漏洞。trust_level 是这里的信任等级
+                    # 标记：recalculated（过了公式重算或脚本公式转正祝福）/ display_only
+                    # （仅展示，公式未核实）/ screening_signal（字段发现降级猜测）。
+                    "trust_level": card.get("trust_level", "display_only"),
                 }
             )
 
@@ -246,6 +252,29 @@ class EvidenceCardService:
             "expert_tool": item.get("expert_tool", ""),
         }
         conclusion_strength = str(item.get("conclusion_strength") or "direct_observation")
+        # project_analysis_phase1.5_auto_promotion_revision.md §10：trust_level 独立于
+        # conclusion_strength/evidence_grade，专供 evidence_coverage 打分按信任加权。
+        # 大多数证据来自 project_analysis_service._build_rule_entry()，已经显式带
+        # trust_level；这里的推导只是给未经过该函数的旧路径（如手工构造的 evidence_chain
+        # 条目）一个合理默认，不覆盖已有值。
+        trust_level = str(item.get("trust_level") or "").strip()
+        if not trust_level:
+            # 2026-07-02 code review 修复：这里之前写的是
+            # `threshold_verified or evidence_grade in {...}`，把"阈值是否项目验证过"
+            # 和"公式是否重算过"两件不相关的事混到了一起——一条阈值已验证、但公式完全没
+            # 验证的证据（evidence_grade="project_threshold_formula_unverified"）会被
+            # 误判成 recalculated，直接违反了这个字段本来要解决的"未核实值不能和已核实值
+            # 同权重"的目标。trust_level 只能由 evidence_grade（是否 formula_verified）
+            # 决定，和 threshold_verified 无关。
+            if conclusion_strength == "screening_signal_only":
+                trust_level = "screening_signal"
+            elif item.get("evidence_grade") in {
+                "project_formula_and_project_threshold",
+                "project_formula_with_unverified_threshold",
+            }:
+                trust_level = "recalculated"
+            else:
+                trust_level = "display_only"
         allowed = ["report_observed_value", "trace_to_source"]
         if threshold_verified:
             allowed.append("apply_project_verified_threshold")
@@ -295,6 +324,7 @@ class EvidenceCardService:
             "severity": item.get("severity", "unknown"),
             "evidence_grade": item.get("evidence_grade", "direct_project_data"),
             "conclusion_strength": conclusion_strength,
+            "trust_level": trust_level,
             "needs_verification": bool(item.get("needs_verification", False)),
             "allowed_interpretations": allowed,
             "interpretation": item.get("interpretation", ""),

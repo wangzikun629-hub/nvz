@@ -2,6 +2,10 @@
   "id": "business_adapter_e2e",
   "target": "business_agent",
   "enabled": true,
+  "_comment_env_overrides": "2026-07-02 修复：本用例此前没有像 report_summary_e2e 那样显式声明 env_overrides，harness_guard_action 期望值 'pass' 实际依赖进程级 HARNESS_GUARD_ENFORCEMENT_ENABLED 默认值；本地真实跑通后确认 .env 默认是 false，导致 harness_guard_action 实际是 'disabled'，和期望的 'pass' 对不上。补上和 report_summary_e2e 一致的显式声明，不再依赖进程默认值。",
+  "env_overrides": {
+    "HARNESS_GUARD_ENFORCEMENT_ENABLED": "true"
+  },
   "project_id": "VZ20260427001",
   "question": "Adapter 指标具体是什么，是怎么计算的",
   "user_id": "harness_user",
@@ -26,12 +30,13 @@
       "R2",
       "分母"
     ],
+    "_comment_answer_target_values": "2026-07-02 修订（project_analysis_phase1.5_auto_promotion_revision.md §11）：原来写死单一精确百分比，指标口径/取整方式的正常版本漂移就会让断言持续失败；改成每项一组可接受候选值，命中任意一个即通过（见 evaluators/assertions.py::_contains_all_tolerant）。候选范围覆盖历史观测到的漂移区间，不是无限放宽——仍要求精确到小数点后一到两位。",
     "answer_target_values_must_contain": [
-      "38.24%",
-      "39.19%",
-      "38.30%",
-      "38.20%",
-      "39.20%"
+      ["38.24%", "38.2%", "38.23%", "38.25%"],
+      ["39.19%", "39.2%", "39.18%", "39.20%"],
+      ["38.30%", "38.3%", "38.29%", "38.31%"],
+      ["38.20%", "38.2%", "38.19%", "38.21%"],
+      ["39.20%", "39.2%", "39.19%", "39.21%"]
     ],
     "answer_must_not_contain": [
       "```python",

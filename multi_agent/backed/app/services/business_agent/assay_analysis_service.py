@@ -67,6 +67,9 @@ class AssayAnalysisService:
                 "duplicate_rate_percent",
                 "mrna_ratio_percent",
                 "rrna_ratio_percent",
+                "exon_ratio_percent",
+                "intronic_ratio_percent",
+                "intergenic_ratio_percent",
                 "detected_gene_count",
                 "correlation",
             ],
@@ -142,8 +145,14 @@ class AssayAnalysisService:
             specialized_rules.append("atacseq_requires_tss_enrichment_and_nucleosomal_fragment_periodicity")
         if assay == "rnaseq":
             specialized_rules.append("rnaseq_mrna_ratio_below_30pct_indicates_ribosomal_or_genomic_contamination")
+            specialized_rules.append("rnaseq_rrna_ratio_above_30pct_indicates_insufficient_rrna_depletion_or_kit_failure")
             specialized_rules.append("rnaseq_low_mapping_rate_may_reflect_reference_genome_mismatch_or_contamination")
+            specialized_rules.append("rnaseq_unique_mapping_rate_interpretation_depends_on_aligner_multimapping_strategy")
+            specialized_rules.append("rnaseq_high_duplicate_rate_may_be_normal_for_highly_expressed_genes_not_equivalent_to_library_failure")
             specialized_rules.append("rnaseq_detected_gene_count_must_be_interpreted_relative_to_species_and_library_depth")
+            specialized_rules.append("rnaseq_low_exon_ratio_indicates_genomic_dna_contamination_or_rna_degradation")
+            specialized_rules.append("rnaseq_high_intronic_ratio_suggests_premrna_contamination_or_incomplete_splicing")
+            specialized_rules.append("rnaseq_correlation_is_based_on_gene_expression_counts_not_genomic_bins")
         if assay in {"cuttag", "cutrun"}:
             specialized_rules.append("cuttag_cutrun_controls_and_target_class_must_not_share_one_threshold_contract")
         if any("igg" in target.lower() for target in targets):
@@ -174,6 +183,14 @@ class AssayAnalysisService:
             },
         }
 
+    @classmethod
+    def detect_assay(cls, value: str) -> str:
+        """公开版 _assay()，供其他服务（如代码语义解析 agent）复用同一套 assay
+        归一化逻辑，避免各处各写一套关键词判断。识别不出时返回 'generic'，
+        调用方应把它当作"不确定"处理，而不是当成一个真实存在的 assay 类型。
+        """
+        return cls._assay(value)
+
     @staticmethod
     def _assay(value: str) -> str:
         normalized = value.lower().replace("&", "").replace("-", "")
@@ -185,7 +202,7 @@ class AssayAnalysisService:
             return "cutrun"
         if "atacseq" in normalized or "atac" in normalized:
             return "atacseq"
-        if "rnaseq" in normalized or "transcriptome" in normalized:
+        if "rnaseq" in normalized or "transcriptome" in normalized or "mrna" in normalized:
             return "rnaseq"
         return "generic"
 

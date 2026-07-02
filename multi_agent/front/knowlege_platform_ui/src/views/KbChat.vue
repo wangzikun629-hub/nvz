@@ -135,12 +135,13 @@ async function handleSend() {
 
 .chat-box {
   height: 100%;
-  background-color: #161b22;
-  border: 1px solid #30363d;
-  border-radius: 8px;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
 }
 
 .chat-header {
@@ -149,18 +150,18 @@ async function handleSend() {
   align-items: flex-start;
   gap: 16px;
   padding: 16px 20px;
-  border-bottom: 1px solid #30363d;
-  background-color: #0d1117;
+  border-bottom: 1px solid #f1f5f9;
+  background-color: #ffffff;
 
   h2 {
     margin: 0 0 4px;
-    color: #fff;
+    color: #1e293b;
     font-size: 18px;
   }
 
   p {
     margin: 0;
-    color: #8b949e;
+    color: #94a3b8;
     font-size: 12px;
   }
 }
@@ -174,6 +175,7 @@ async function handleSend() {
   flex: 1;
   padding: 20px;
   overflow-y: auto;
+  background-color: #f8fafc;
 
   .empty-state {
     height: 100%;
@@ -181,7 +183,7 @@ async function handleSend() {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    color: #8b949e;
+    color: #94a3b8;
 
     p {
       margin-top: 20px;
@@ -200,7 +202,7 @@ async function handleSend() {
       align-items: flex-end;
 
       .bubble {
-        background-color: #409eff;
+        background-color: #3b82f6;
         color: #fff;
         border-top-right-radius: 0;
       }
@@ -217,10 +219,11 @@ async function handleSend() {
       align-items: flex-start;
 
       .bubble {
-        background-color: #1f242d;
-        color: #c9d1d9;
-        border: 1px solid #30363d;
+        background-color: #ffffff;
+        color: #334155;
+        border: 1px solid #e2e8f0;
         border-top-left-radius: 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
       }
     }
 
@@ -251,7 +254,7 @@ async function handleSend() {
     }
 
     :deep(a) {
-      color: #58a6ff;
+      color: #3b82f6;
       text-decoration: none;
 
       &:hover {
@@ -266,7 +269,8 @@ async function handleSend() {
     }
 
     :deep(code) {
-      background-color: rgba(110, 118, 129, 0.4);
+      background-color: #f1f5f9;
+      color: #e11d48;
       padding: 0.2em 0.4em;
       border-radius: 6px;
       font-family: monospace;
@@ -276,37 +280,37 @@ async function handleSend() {
 
 .input-area {
   padding: 16px 20px;
-  background-color: #0d1117;
-  border-top: 1px solid #30363d;
+  background-color: #ffffff;
+  border-top: 1px solid #f1f5f9;
 }
 
 .input-wrapper {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border: 1px solid #30363d;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   transition: border-color 0.2s;
 
   &:focus-within {
-    border-color: #409eff;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.08);
   }
 
   :deep(.el-textarea__inner) {
-    background-color: #161b22;
+    background-color: #ffffff;
     border: none;
     border-radius: 0;
-    color: #c9d1d9;
+    color: #1e293b;
     box-shadow: none;
     padding: 12px 14px;
     font-size: 14px;
     line-height: 1.6;
     resize: none;
 
-    &:focus {
-      box-shadow: none;
-    }
+    &::placeholder { color: #cbd5e1; }
+    &:focus { box-shadow: none; }
   }
 }
 
@@ -315,13 +319,13 @@ async function handleSend() {
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px 8px 14px;
-  background: #111827;
-  border-top: 1px solid #1e2d40;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
 }
 
 .input-hint {
   font-size: 11px;
-  color: #334155;
+  color: #cbd5e1;
 }
 
 .send-btn {
@@ -339,7 +343,7 @@ async function handleSend() {
     display: inline-block;
     width: 6px;
     height: 6px;
-    background-color: #8b949e;
+    background-color: #94a3b8;
     border-radius: 50%;
     margin: 0 2px;
     animation: bounce 1.4s infinite ease-in-out both;
@@ -351,7 +355,7 @@ async function handleSend() {
   em {
     margin-left: 8px;
     font-style: normal;
-    color: #8b949e;
+    color: #94a3b8;
     font-size: 12px;
   }
 }

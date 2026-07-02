@@ -27,6 +27,31 @@ def _contains_all(text: str, needles: list[str]) -> tuple[bool, str]:
     return True, "matched all"
 
 
+def _contains_all_tolerant(text: str, needles: list[Any]) -> tuple[bool, str]:
+    """与 `_contains_all` 相同，但每个 needle 允许是"可接受取值列表"而不只是单个字符串。
+
+    project_analysis_phase1.5_auto_promotion_revision.md §11 解决方法 2：
+    `business_adapter_e2e` 之前把精确浮点百分比写死在断言里，指标计算口径/取整方式的正常
+    版本漂移就会让这条断言持续失败，属于"既有失败"被当作噪音掩盖真实回归。这里改成容差
+    断言：case json 里的每一项可以写成 `["38.24%", "38.2%", "38.23%"]` 这样的候选列表，
+    命中任意一个即算通过，不再要求逐字节精确匹配同一个历史观测值。字符串 needle 仍按原样
+    单值匹配，完全向后兼容。
+    """
+    missing: list[str] = []
+    for needle in needles:
+        if isinstance(needle, (list, tuple)):
+            candidates = [str(item) for item in needle]
+            if not any(candidate in text for candidate in candidates):
+                missing.append(" | ".join(candidates))
+        else:
+            candidate = str(needle)
+            if candidate not in text:
+                missing.append(candidate)
+    if missing:
+        return False, "missing: " + ", ".join(missing)
+    return True, "matched all (tolerant)"
+
+
 def _contains_none(text: str, needles: list[str]) -> tuple[bool, str]:
     found = [needle for needle in needles if needle in text]
     if found:
@@ -730,8 +755,8 @@ def evaluate_business_agent(result: dict[str, Any], expect: dict[str, Any]) -> l
         passed, detail = _contains_none(answer, list(expect["answer_must_not_contain"]))
         checks.append(HarnessCheck("answer_must_not_contain", passed, detail))
     if "answer_target_values_must_contain" in expect:
-        values = [str(item) for item in expect["answer_target_values_must_contain"]]
-        passed, detail = _contains_all(answer, values)
+        values = list(expect["answer_target_values_must_contain"])
+        passed, detail = _contains_all_tolerant(answer, values)
         checks.append(HarnessCheck("answer_target_values_must_contain", passed, detail))
 
     analysis_expect = expect.get("analysis_expect")

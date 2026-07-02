@@ -155,6 +155,22 @@ class FactVerificationService:
                         "sample": ev.get("sample"),
                     }
                 )
+            # 2026-07-02 止血（truth_layer_recompute_generalization_plan.md §6/§9）：
+            # 诚实失败信号放在这里判定，而不是 normalize() 内部——这里才是真正的
+            # "验证"网关，其它调用 normalize() 的地方（字段发现/文件解析）另有用途，
+            # 不应被这个判定连带影响。声称 strict_formula_recalculation 却没有可重算
+            # 的分子/分母时，追加一条 warning：不计入 unit_errors / severe，不影响
+            # verify_fact_packet 的 passed 判定，但让"引用了展示值、没真正重算过"这件事
+            # 对下游可见，不再像改造前那样彻底沉默。
+            if schema_check.get("recompute_status") in ("inputs_missing", "not_applicable"):
+                issues.append(
+                    {
+                        "rule": "recalculation_inputs_missing",
+                        "severity": "warning",
+                        "metric_id": metric_id,
+                        "sample": ev.get("sample"),
+                    }
+                )
 
         # 4. sample role consistency
         design = analysis_result.get("experiment_design") or (
@@ -489,6 +505,21 @@ class FactVerificationService:
                         {
                             **issue,
                             "severity": "severe",
+                            "metric_id": metric_id,
+                            "sample": card.get("sample"),
+                            "source": (
+                                f"{card.get('source_file', '')}::"
+                                f"{card.get('source_field', '')}"
+                            ),
+                        }
+                    )
+                # 2026-07-02 止血：同 verify_fact_packet，诚实失败信号只在这里（真正的
+                # 验证网关）判定，warning 级别，不计入 unit_errors。
+                if schema_check.get("recompute_status") in ("inputs_missing", "not_applicable"):
+                    issues.append(
+                        {
+                            "rule": "recalculation_inputs_missing",
+                            "severity": "warning",
                             "metric_id": metric_id,
                             "sample": card.get("sample"),
                             "source": (

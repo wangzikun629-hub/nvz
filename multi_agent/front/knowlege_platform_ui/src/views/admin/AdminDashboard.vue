@@ -4,14 +4,25 @@
     <!-- 页头 -->
     <div class="page-header">
       <div>
-        <h2 class="page-title">成员管理</h2>
-        <p class="page-sub">共 {{ stats.total_users }} 名成员，当前在线会话 {{ stats.active_sessions }} 个</p>
+        <h2 class="page-title">{{ activeTab === 'users' ? '成员管理' : '候选指标审核' }}</h2>
+        <p class="page-sub" v-if="activeTab === 'users'">共 {{ stats.total_users }} 名成员，当前在线会话 {{ stats.active_sessions }} 个</p>
+        <p class="page-sub" v-else>系统自动探测到的候选指标，需人工确认后才会正式生效</p>
       </div>
-      <el-button :loading="loading" @click="loadAll" :icon="Refresh" circle />
+      <el-button
+        :loading="activeTab === 'users' ? loading : candidateLoading"
+        @click="activeTab === 'users' ? loadAll() : loadCandidates()"
+        :icon="Refresh"
+        circle
+      />
     </div>
 
+    <el-tabs v-model="activeTab" class="admin-tabs">
+      <el-tab-pane label="成员管理" name="users" />
+      <el-tab-pane label="候选指标审核" name="candidates" />
+    </el-tabs>
+
     <!-- 统计卡片 -->
-    <div class="stat-row">
+    <div class="stat-row" v-if="activeTab === 'users'">
       <div class="stat-card">
         <div class="stat-icon purple">
           <el-icon :size="22"><User /></el-icon>
@@ -33,7 +44,7 @@
     </div>
 
     <!-- 成员表格 -->
-    <div class="table-card">
+    <div class="table-card" v-if="activeTab === 'users'">
       <el-table
         v-loading="loading"
         :data="users"
@@ -126,6 +137,82 @@
       </el-table>
     </div>
 
+    <!-- 候选指标表格 -->
+    <div class="table-card" v-if="activeTab === 'candidates'">
+      <el-table v-loading="candidateLoading" :data="candidates" row-key="candidate_key" style="width: 100%">
+        <el-table-column label="候选指标" min-width="160">
+          <template #default="{ row }">
+            <div>{{ row.label || row.metric_guess || row.candidate_key }}</div>
+            <div class="candidate-key">{{ row.candidate_key }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="猜测单位" width="100">
+          <template #default="{ row }">{{ row.unit_guess || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="出现项目数" width="110" align="center">
+          <template #default="{ row }">{{ row.distinct_project_count || 0 }}</template>
+        </el-table-column>
+        <el-table-column label="观测次数" width="100" align="center">
+          <template #default="{ row }">{{ row.occurrence_count || (row.occurrences || []).length }}</template>
+        </el-table-column>
+        <el-table-column label="状态" width="150">
+          <template #default="{ row }">
+            <el-tag size="small" :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="180">
+          <template #default="{ row }">{{ formatDate(row.updated_at || row.created_at) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="180" align="right">
+          <template #default="{ row }">
+            <el-button
+              text type="primary" size="small"
+              :disabled="['approved', 'approved_auto', 'rejected'].includes(row.status)"
+              @click="openApprove(row)"
+            >通过</el-button>
+            <el-button
+              text type="danger" size="small"
+              :disabled="['approved', 'approved_auto', 'rejected'].includes(row.status)"
+              @click="handleReject(row)"
+            >驳回</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div v-if="!candidateLoading && !candidates.length" class="conv-empty" style="padding: 24px;">
+        暂无候选指标
+      </div>
+    </div>
+
+    <!-- 候选指标审核弹窗 -->
+    <el-dialog v-model="approveDialog.visible" title="通过候选指标" width="420px">
+      <p class="dialog-hint">
+        补全正式指标信息后注册为正式指标：<strong>{{ approveDialog.candidate?.label || approveDialog.candidate?.candidate_key }}</strong>
+      </p>
+      <el-form :model="approveDialog" label-width="110px" style="margin-top: 8px">
+        <el-form-item label="正式指标 ID">
+          <el-input v-model="approveDialog.metric_id" placeholder="如 hic_cis_trans_ratio" />
+        </el-form-item>
+        <el-form-item label="显示名称">
+          <el-input v-model="approveDialog.label" placeholder="留空则沿用候选名称" />
+        </el-form-item>
+        <el-form-item label="单位">
+          <el-input v-model="approveDialog.unit" placeholder="如 % / ratio / count" />
+        </el-form-item>
+        <el-form-item label="校验合约">
+          <el-select v-model="approveDialog.verifier_contract" style="width: 100%">
+            <el-option label="strict_formula_recalculation（严格重算）" value="strict_formula_recalculation" />
+            <el-option label="citation_only（只引用）" value="citation_only" />
+            <el-option label="display_value_only（只展示）" value="display_value_only" />
+            <el-option label="non_numeric_design_status（定性）" value="non_numeric_design_status" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="approveDialog.visible = false">取消</el-button>
+        <el-button type="primary" :loading="approveDialog.loading" @click="confirmApprove">确认通过</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 重置密码弹窗 -->
     <el-dialog v-model="resetDialog.visible" title="重置密码" width="380px">
       <p class="dialog-hint">
@@ -162,7 +249,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, User, Connection, Loading } from '@element-plus/icons-vue'
 import { adminApi } from '@/api/admin.js'
@@ -174,6 +261,7 @@ const currentUserId = localStorage.getItem('kp_user_id') || ''
 const loading = ref(false)
 const stats = ref({ total_users: 0, active_sessions: 0 })
 const users = ref([])
+const activeTab = ref('users')
 
 // 对话展开
 const conversations = reactive({})
@@ -181,6 +269,10 @@ const convLoading = reactive({})
 
 // ── 初始化 ───────────────────────────────────────────────────────────────────
 onMounted(() => loadAll())
+
+watch(activeTab, (val) => {
+  if (val === 'candidates' && !candidates.value.length) loadCandidates()
+})
 
 async function loadAll() {
   // 清空对话缓存，防止刷新后展示过期数据
@@ -284,6 +376,101 @@ async function handleDelete(row) {
   }
 }
 
+// ── 候选指标审核（Phase 1.5）───────────────────────────────────────────────────
+const candidateLoading = ref(false)
+const candidates = ref([])
+
+async function loadCandidates() {
+  candidateLoading.value = true
+  try {
+    const data = await adminApi.listCandidateMetrics()
+    candidates.value = data.items || []
+  } catch (e) {
+    ElMessage.error(e.message || '加载候选指标失败')
+  } finally {
+    candidateLoading.value = false
+  }
+}
+
+function statusLabel(status) {
+  const map = {
+    shadow: '影子层观察中',
+    pending_review: '待人工复核',
+    eligible_for_auto_promotion: '待自动转正',
+    approved_auto: '已自动转正',
+    approved: '已人工通过',
+    rejected: '已驳回',
+  }
+  return map[status] || status || '-'
+}
+
+function statusTagType(status) {
+  if (status === 'approved' || status === 'approved_auto') return 'success'
+  if (status === 'rejected') return 'info'
+  if (status === 'pending_review' || status === 'eligible_for_auto_promotion') return 'warning'
+  return ''
+}
+
+const approveDialog = reactive({
+  visible: false,
+  candidate: null,
+  metric_id: '',
+  label: '',
+  unit: '',
+  verifier_contract: 'display_value_only',
+  loading: false,
+})
+
+function openApprove(row) {
+  Object.assign(approveDialog, {
+    visible: true,
+    candidate: row,
+    metric_id: row.candidate_key || '',
+    label: row.label || '',
+    unit: row.unit_guess || '',
+    verifier_contract: 'display_value_only',
+    loading: false,
+  })
+}
+
+async function confirmApprove() {
+  if (!approveDialog.metric_id.trim()) { ElMessage.warning('请填写正式指标 ID'); return }
+  if (!approveDialog.unit.trim()) { ElMessage.warning('请填写单位'); return }
+  approveDialog.loading = true
+  try {
+    await adminApi.approveCandidateMetric(approveDialog.candidate.candidate_key, {
+      metric_id: approveDialog.metric_id.trim(),
+      unit: approveDialog.unit.trim(),
+      verifier_contract: approveDialog.verifier_contract,
+      label: approveDialog.label.trim() || undefined,
+    })
+    ElMessage.success('候选指标已通过并注册')
+    approveDialog.visible = false
+    loadCandidates()
+  } catch (e) {
+    ElMessage.error(e.message || '审核失败')
+  } finally {
+    approveDialog.loading = false
+  }
+}
+
+async function handleReject(row) {
+  try {
+    await ElMessageBox.confirm(
+      `确定驳回候选指标 "${row.label || row.candidate_key}"？驳回后将加入黑名单，不再重复上报。`,
+      '驳回确认',
+      { type: 'warning', confirmButtonText: '确认驳回', cancelButtonText: '取消' }
+    )
+  } catch { return }
+  try {
+    await adminApi.rejectCandidateMetric(row.candidate_key)
+    ElMessage.success('已驳回')
+    loadCandidates()
+  } catch (e) {
+    ElMessage.error(e.message || '驳回失败')
+  }
+}
+
 // ── 工具 ──────────────────────────────────────────────────────────────────────
 function formatDate(str) {
   if (!str) return '-'
@@ -296,7 +483,7 @@ function formatDate(str) {
 <style lang="scss" scoped>
 .admin-dashboard {
   padding: 0;
-  color: #c9d1d9;
+  color: #1e293b;
   min-height: 100%;
 }
 
@@ -310,13 +497,13 @@ function formatDate(str) {
 .page-title {
   font-size: 20px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #1e293b;
   margin: 0 0 4px;
 }
 
 .page-sub {
   font-size: 13px;
-  color: #475569;
+  color: #94a3b8;
   margin: 0;
 }
 
@@ -328,13 +515,14 @@ function formatDate(str) {
 
 .stat-card {
   flex: 1;
-  background: #0b1320;
-  border: 1px solid #1a2638;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 20px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .stat-icon {
@@ -355,30 +543,31 @@ function formatDate(str) {
 .stat-num {
   font-size: 32px;
   font-weight: 800;
-  color: #e2e8f0;
+  color: #1e293b;
   line-height: 1;
 }
 
 .stat-label {
   font-size: 13px;
-  color: #475569;
+  color: #94a3b8;
   margin-top: 4px;
 }
 
 .table-card {
-  background: #0b1320;
-  border: 1px solid #1a2638;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 
   :deep(.el-table) {
     background: transparent;
-    color: #c9d1d9;
+    color: #334155;
 
     th.el-table__cell {
-      background: #060d16;
-      color: #475569;
-      border-bottom: 1px solid #1a2638;
+      background: #fafbfc;
+      color: #94a3b8;
+      border-bottom: 1px solid #f1f5f9;
       font-size: 12px;
       text-transform: uppercase;
       letter-spacing: .04em;
@@ -386,13 +575,13 @@ function formatDate(str) {
 
     td.el-table__cell {
       background: transparent;
-      border-bottom: 1px solid #0f1e2e;
-      color: #c9d1d9;
+      border-bottom: 1px solid #f8fafc;
+      color: #334155;
     }
 
-    tr:hover td.el-table__cell { background: rgba(255,255,255,.03); }
-    .el-table__expand-icon { color: #475569; }
-    .el-table__expand-icon--expanded { color: #22c55e; }
+    tr:hover td.el-table__cell { background: #f8fafc; }
+    .el-table__expand-icon { color: #94a3b8; }
+    .el-table__expand-icon--expanded { color: #16a34a; }
   }
 }
 
@@ -420,16 +609,16 @@ function formatDate(str) {
   }
 }
 
-.conv-count { color: #64748b; font-size: 14px; }
+.conv-count { color: #94a3b8; font-size: 14px; }
 
 .expand-wrap {
   padding: 16px 32px 16px 60px;
-  background: #060d16;
+  background: #f8fafc;
 }
 
 .conv-loading, .conv-empty {
   font-size: 13px;
-  color: #475569;
+  color: #94a3b8;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -443,8 +632,8 @@ function formatDate(str) {
 }
 
 .conv-item {
-  background: #0b1320;
-  border: 1px solid #1a2638;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   padding: 10px 14px;
 }
@@ -452,7 +641,7 @@ function formatDate(str) {
 .conv-title {
   font-size: 13px;
   font-weight: 500;
-  color: #e2e8f0;
+  color: #334155;
   margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
@@ -464,7 +653,7 @@ function formatDate(str) {
   align-items: center;
   gap: 10px;
   font-size: 12px;
-  color: #475569;
+  color: #94a3b8;
 }
 
 .dialog-hint {
@@ -473,10 +662,15 @@ function formatDate(str) {
   margin: 0 0 16px;
 }
 
-:deep(.el-dialog) {
-  background: #0b1320;
-  border: 1px solid #1a2638;
-  .el-dialog__title { color: #e2e8f0; }
-  .el-dialog__headerbtn .el-dialog__close { color: #475569; }
+.admin-tabs {
+  margin-bottom: 16px;
+
+  :deep(.el-tabs__nav-wrap::after) { background-color: #e2e8f0; }
+}
+
+.candidate-key {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
 }
 </style>

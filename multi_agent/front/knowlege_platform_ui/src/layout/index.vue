@@ -15,18 +15,21 @@
         background-color="transparent"
         text-color="#64748b"
         active-text-color="#22c55e"
-        router
         class="el-menu-vertical"
       >
-        <el-menu-item index="/knowledge">
-          <el-icon><Files /></el-icon>
-          <span>知识库</span>
+        <el-menu-item index="/kanban/rd" @click="router.push('/kanban/rd')">
+          <el-icon><Grid /></el-icon>
+          <span>研发看板</span>
         </el-menu-item>
-        <el-menu-item index="/kb-chat">
+        <el-menu-item index="/kanban/cs" @click="router.push('/kanban/cs')">
+          <el-icon><Headset /></el-icon>
+          <span>客户服务看板</span>
+        </el-menu-item>
+        <el-menu-item index="/kb-chat" @click="router.push('/kb-chat')">
           <el-icon><ChatLineRound /></el-icon>
           <span>知识库问答</span>
         </el-menu-item>
-        <el-menu-item v-if="isAdmin" index="/admin">
+        <el-menu-item v-if="isAdmin" index="/admin/dashboard" @click="router.push('/admin/dashboard')">
           <el-icon><UserFilled /></el-icon>
           <span>成员管理</span>
         </el-menu-item>
@@ -106,12 +109,18 @@
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ChatLineRound, Files, Monitor, SwitchButton, UserFilled } from '@element-plus/icons-vue'
+import { ChatLineRound, Grid, Headset, Monitor, SwitchButton, UserFilled } from '@element-plus/icons-vue'
 import { listSessions, logout, revokeSession } from '@/api/auth'
 
 const route = useRoute()
 const router = useRouter()
-const activeMenu = computed(() => route.path)
+const activeMenu = computed(() => {
+  const p = route.path
+  if (p.startsWith('/kanban/rd')) return '/kanban/rd'
+  if (p.startsWith('/kanban/cs')) return '/kanban/cs'
+  if (p.startsWith('/admin')) return '/admin/dashboard'
+  return p
+})
 const currentUser = computed(() => localStorage.getItem('kp_user') || 'User')
 const userInitial = computed(() => (currentUser.value || 'U').charAt(0).toUpperCase())
 const isAdmin = computed(() => localStorage.getItem('kp_is_admin') === '1')
@@ -199,19 +208,19 @@ const handleLogout = async () => {
   display: flex;
   height: 100vh;
   width: 100%;
-  background-color: #060d16;
-  color: #c9d1d9;
+  background-color: #f1f5f9;
+  color: #1e293b;
 }
 
 /* ── 侧边栏 ── */
 .sidebar {
   width: 220px;
   flex-shrink: 0;
-  background: #0b1320;
-  border-right: 1px solid #1a2638;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
   display: flex;
   flex-direction: column;
-  box-shadow: 2px 0 16px rgba(0, 0, 0, 0.4);
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
   z-index: 10;
 }
 
@@ -221,7 +230,7 @@ const handleLogout = async () => {
   align-items: center;
   gap: 10px;
   padding: 0 18px;
-  border-bottom: 1px solid #1a2638;
+  border-bottom: 1px solid #f1f5f9;
   flex-shrink: 0;
 
   img {
@@ -241,13 +250,13 @@ const handleLogout = async () => {
 .logo-name {
   font-size: 16px;
   font-weight: 700;
-  color: #e2e8f0;
+  color: #1e293b;
   letter-spacing: 0.02em;
 }
 
 .logo-sub {
   font-size: 10px;
-  color: #475569;
+  color: #94a3b8;
   margin-top: 3px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -270,15 +279,15 @@ const handleLogout = async () => {
     transition: background 0.18s, color 0.18s;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.05) !important;
-      color: #94a3b8 !important;
+      background: #f8fafc !important;
+      color: #334155 !important;
     }
 
     &.is-active {
-      background: rgba(34, 197, 94, 0.12) !important;
-      color: #22c55e !important;
+      background: rgba(22, 163, 74, 0.08) !important;
+      color: #16a34a !important;
 
-      .el-icon { color: #22c55e; }
+      .el-icon { color: #16a34a; }
     }
 
     .el-icon {
@@ -292,7 +301,7 @@ const handleLogout = async () => {
 /* 底部用户区 */
 .sidebar-footer {
   padding: 14px 12px;
-  border-top: 1px solid #1a2638;
+  border-top: 1px solid #f1f5f9;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -304,7 +313,7 @@ const handleLogout = async () => {
   gap: 10px;
   padding: 8px 8px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #f8fafc;
 }
 
 .user-avatar {
@@ -330,7 +339,7 @@ const handleLogout = async () => {
 .user-name {
   font-size: 12px;
   font-weight: 600;
-  color: #cbd5e1;
+  color: #334155;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -338,7 +347,7 @@ const handleLogout = async () => {
 
 .user-role {
   font-size: 10px;
-  color: #475569;
+  color: #94a3b8;
   margin-top: 1px;
 }
 
@@ -366,24 +375,23 @@ const handleLogout = async () => {
   .el-icon { font-size: 14px; }
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
-    color: #94a3b8;
+    background: #f1f5f9;
+    color: #334155;
   }
 
   &.logout:hover {
-    background: rgba(239, 68, 68, 0.1);
-    color: #f87171;
+    background: rgba(239, 68, 68, 0.06);
+    color: #ef4444;
   }
 }
 
 /* ── 内容区 ── */
 .main-container {
   flex: 1;
+  min-width: 0;        /* 防止 flex 子元素撑宽超出 */
   padding: 20px;
-  overflow-y: auto;
-  background-color: #060d16;
-  background-image: radial-gradient(rgba(30, 45, 64, 0.5) 1px, transparent 1px);
-  background-size: 28px 28px;
+  overflow-y: auto;    /* 自然流页面靠这里滚动 */
+  background-color: #f1f5f9;
 }
 
 /* ── 会话 Dialog 内部样式 ── */
@@ -405,29 +413,24 @@ const handleLogout = async () => {
   align-items: center;
   gap: 8px;
   font-weight: 600;
-  color: #e2e8f0;
+  color: #1e293b;
 }
 
 .session-id {
   margin-top: 4px;
-  color: #475569;
+  color: #94a3b8;
   font-size: 11px;
   word-break: break-all;
 }
 
-/* ── 页面切换动画 ── */
+/* ── 页面切换动画（纯淡入淡出，消除闪屏） ── */
 .fade-transform-leave-active,
 .fade-transform-enter-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.15s ease;
 }
 
-.fade-transform-enter-from {
-  opacity: 0;
-  transform: translateX(-16px);
-}
-
+.fade-transform-enter-from,
 .fade-transform-leave-to {
   opacity: 0;
-  transform: translateX(16px);
 }
 </style>

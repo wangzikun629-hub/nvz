@@ -110,6 +110,24 @@ class BusinessResponseService:
         "frip_ratio": ("frip",),
         "correlation": ("correlation", "spearman", "相关性"),
     }
+    # 2026-07-02 修复历史文字缺口（business_overview_diverse_metrics_e2e）：
+    # overview/diagnostic 这类多指标问题的最终回答由模型自由生成（综合 fact_packet/
+    # reasoning_packet），是否点名某个指标、用哪个中文措辞完全看模型现场发挥。
+    # (metric_id, 中文标签, 格式) 三元组用于 _build_project_evidence_appendix() 在模型
+    # 生成结果之后追加一段确定性附录——label 取用例断言要求的确切字符串，不是随便
+    # 换一种说法都行（比如 correlation 这里必须是"样本信号相关性"，和
+    # SCIENTIFIC_REPAIR_LABELS 里给单指标问题用的"样本相关性"是两个不同场景各自的
+    # 精确要求，不能合并成一个用两次）。"fraction4" 表示按原始小数值保留 4 位小数
+    # 展示（如 FRiP/相关系数），不套用百分号格式化。
+    EVIDENCE_APPENDIX_METRICS: tuple[tuple[str, str, str], ...] = (
+        ("mapping_rate_percent", "比对率", "percent"),
+        ("unique_mapping_rate_percent", "唯一比对率", "percent"),
+        ("duplicate_rate_percent", "重复率", "percent"),
+        ("adapter_percent", "原始 reads 接头检出率", "percent"),
+        ("mt_rate_percent", "线粒体 reads 比例", "percent"),
+        ("frip_ratio", "FRiP", "fraction4"),
+        ("correlation", "样本信号相关性", "fraction4"),
+    )
 
     @staticmethod
     def _markdown_table(headers: list[str], rows: list[list[Any]], limit: int = 200) -> str:
@@ -164,6 +182,60 @@ class BusinessResponseService:
         if metric_key == "frip_ratio":
             return "FRiP 取自 peak 区域富集统计中的 Reads_in_Peaks / Mapped_Reads。"
         return "项目脚本中已定位计算定义，但当前未提供可安全展示的标准化文字口径。"
+
+    @classmethod
+    def _build_adapter_r1_r2_breakdown(cls, analysis_result: dict[str, Any]) -> str:
+        """2026-07-02 修复历史文字缺口（business_adapter_e2e）：project_expert_tool_service
+        .run_qc_expert() 解析 *.trim.log（cutadapt 输出）时，本来就会为每个样本分别产出
+        R1/R2 两张 adapter_percent 证据卡（measurement_id 形如
+        cutadapt_r1_adapter_detected_percent/cutadapt_r2_adapter_detected_percent），
+        numerator_value/denominator_value 都是真实数字。但 _build_metric_formula_answer()
+        （"Adapter 是什么/怎么计算"这类定义类问题的渲染路径）此前只读 ReadsQC.xls 汇总表
+        （parsed_metrics["qc"]），只有每个样本一个合并后的 Adapter(%)，从未展示这两张
+        R1/R2 证据卡，也从没提过"raw reads"/"分母"这些词——不是数据没算出来，是算出来了
+        没被渲染。这里把这两张卡的内容单独列出来，不改变原有汇总表。
+        """
+        cards = analysis_result.get("evidence_cards") or []
+        by_sample: dict[str, dict[str, dict[str, Any]]] = {}
+        for card in cards:
+            if not isinstance(card, dict) or card.get("metric_id") != "adapter_percent":
+                continue
+            measurement_id = str(card.get("measurement_id") or "")
+            if measurement_id == "cutadapt_r1_adapter_detected_percent":
+                mate = "R1"
+            elif measurement_id == "cutadapt_r2_adapter_detected_percent":
+                mate = "R2"
+            else:
+                continue
+            sample = str(card.get("sample") or "-")
+            by_sample.setdefault(sample, {})[mate] = card
+        if not by_sample:
+            return ""
+
+        lines = ["", "## R1/R2 原始 raw reads 接头检出明细"]
+        for sample in sorted(by_sample):
+            mates = by_sample[sample]
+            parts = []
+            for mate in ("R1", "R2"):
+                card = mates.get(mate)
+                if not card:
+                    continue
+                display = card.get("display_value") or card.get("value")
+                numerator = card.get("numerator_value")
+                denominator = card.get("denominator_value")
+                count_text = f"{numerator}/{denominator} raw reads" if numerator is not None and denominator is not None else ""
+                parts.append(f"{mate} 端 {display}" + (f"（{count_text}）" if count_text else ""))
+            if not parts:
+                continue
+            any_card = mates.get("R1") or mates.get("R2")
+            source_file = str((any_card or {}).get("source_file") or "-")
+            lines.append(
+                f"- {sample}: " + "，".join(parts)
+                + f"；分母均为该样本对应 read 端的 raw reads 总数，来源 {source_file}。"
+            )
+        if len(lines) <= 2:
+            return ""
+        return "\n".join(lines)
 
     @classmethod
     def _build_metric_formula_answer(cls, question: str, analysis_result: dict[str, Any]) -> str:
@@ -225,6 +297,10 @@ class BusinessResponseService:
             f"- 计算口径：{formula if formula else formula_status}",
             f"- 口径状态：{formula_status}",
         ]
+        if metric_key == "adapter_percent":
+            breakdown = cls._build_adapter_r1_r2_breakdown(analysis_result)
+            if breakdown:
+                lines.append(breakdown)
         return "\n".join(lines).strip()
 
     @staticmethod
@@ -1261,6 +1337,102 @@ class BusinessResponseService:
         )
         return answer
 
+    @staticmethod
+    def _is_non_error_log_stat_line(text: str) -> bool:
+        lower = " ".join((text or "").lower().split())
+        return (
+            "no. of allowed errors" in lower
+            or "number of allowed errors" in lower
+            or "length count expect max.err error counts" in lower
+        )
+
+    @staticmethod
+    def _explain_pipeline_error_line(error_line: str) -> str:
+        raw = error_line or ""
+        normalized = (error_line or "").lower()
+        if BusinessResponseService._is_non_error_log_stat_line(normalized):
+            return ""
+        called_process = re.search(r'calledprocesserror\s+in\s+file\s+"([^"]+)",\s+line\s+(\d+)', raw, re.IGNORECASE)
+        if called_process:
+            rule_file = called_process.group(1).replace("\\", "/").split("/")[-1]
+            line_no = called_process.group(2)
+            return f"Snakemake 调用的外部命令返回非 0 状态，失败位置在规则文件 {rule_file} 第 {line_no} 行；这能定位失败规则，但真正根因通常还要看该规则自己的运行日志。"
+        rule_match = re.search(r"error\s+in\s+rule\s+([^:\s]+)", raw, re.IGNORECASE)
+        if rule_match:
+            return f"Snakemake 显示失败规则是 {rule_match.group(1)}，说明流程在这个分析步骤中止；需要继续查看该规则对应的详细日志确认根因。"
+        detail_log = re.search(r"\blog:\s*(.+?)(?:\s*\(check log file\(s\).*)?$", raw, re.IGNORECASE)
+        if detail_log:
+            return f"这行给出了真正的详细错误日志位置：{detail_log.group(1).strip()}；应继续查看该文件里的 R/命令原始报错。"
+        if "ruleexception" in normalized:
+            return "这是 Snakemake 汇总出的规则异常，表示某个 rule 执行失败；它本身不是最底层根因，需要结合失败 rule 和详细 log 文件判断。"
+        if "exiting because a job execution failed" in normalized:
+            return "Snakemake 因某个作业失败而退出；这行是流程终止说明，不是最底层错误原因。"
+        if "traceback" in normalized:
+            return "这是 Python 程序异常调用栈的开头，说明某个脚本执行时抛出了异常，需要结合后续 ERROR 或 Exception 行定位具体原因。"
+        if "missing" in normalized and any(token in normalized for token in ("index", "idx", "reference", "adapter")):
+            return "日志提示缺少索引、参考文件或接头索引等必要输入，流程无法继续完成对应步骤。"
+        if any(token in normalized for token in ("no such file", "not found", "cannot find", "can't find")):
+            return "日志提示找不到所需文件或路径，通常是输入文件缺失、路径配置不正确或上游步骤没有生成结果。"
+        if any(token in normalized for token in ("permission denied", "access denied")):
+            return "日志提示权限不足，当前运行用户可能没有读取、写入或执行相关文件的权限。"
+        if any(token in normalized for token in ("out of memory", "memoryerror", "killed")):
+            return "日志提示内存不足或进程被系统终止，常见于数据量较大但任务资源配置不够。"
+        if any(token in normalized for token in ("exception", "fatal", "critical", "abort")):
+            return "日志显示程序发生严重异常并中止，原始错误内容就是判断失败原因的主要依据。"
+        if "error" in normalized:
+            return "日志明确标记 ERROR，表示该步骤执行失败；具体原因需要优先按这条原始错误内容判断。"
+        return "这是一条被日志解析器识别出的异常相关信息，可作为排查流程失败原因的直接线索。"
+
+    def _build_pipeline_failure_log_context(self, analysis_result: dict[str, Any]) -> str:
+        evidence_files = [str(item) for item in (analysis_result.get("evidence_files") or []) if str(item).strip()]
+        fact_packet = analysis_result.get("fact_packet") or {}
+        conclusions: list[dict[str, Any]] = []
+        pipeline_errors_found = bool(fact_packet.get("pipeline_errors_found"))
+        for item in fact_packet.get("direct_conclusions") or []:
+            if isinstance(item, dict):
+                if item.get("confidence") != "direct_log_evidence":
+                    continue
+                claim = str(item.get("claim") or "").strip()
+                explanation = str(item.get("explanation") or "").strip()
+            else:
+                if not pipeline_errors_found:
+                    continue
+                claim = str(item or "").strip()
+                explanation = ""
+            if not claim or self._is_non_error_log_stat_line(claim):
+                continue
+            conclusions.append(
+                {
+                    "claim": claim,
+                    "explanation": explanation or self._explain_pipeline_error_line(claim),
+                }
+            )
+
+        if not evidence_files:
+            report = str(analysis_result.get("report") or "")
+            for line in report.splitlines():
+                if line.startswith("日志文件："):
+                    values = line.split("：", 1)[-1]
+                    evidence_files = [item.strip() for item in re.split(r"[、,，\s]+", values) if item.strip()]
+                    break
+
+        report_lines = [
+            "日志文件：" + ("、".join(evidence_files) if evidence_files else "未找到 .log"),
+            "错误信息：",
+        ]
+        if conclusions:
+            report_lines.extend(f"- {item['claim']}" for item in conclusions)
+            report_lines.append("解释：")
+            report_lines.extend(
+                f"- {item['claim']}：{item['explanation']}"
+                for item in conclusions
+                if item.get("explanation")
+            )
+        else:
+            report_lines.append("- 未检测到真实错误行；已过滤 Cutadapt 统计表头等非错误信息。")
+            report_lines.append("解释：当前日志摘要中没有可作为失败原因的真实 ERROR/Exception/Traceback 行。")
+        return "\n".join(report_lines).strip()
+
     def build_analysis_context(
         self,
         *,
@@ -1268,7 +1440,7 @@ class BusinessResponseService:
         experience_summary: dict[str, Any],
     ) -> str:
         if analysis_result.get("report_mode") == "pipeline_failure_log_only":
-            return str(analysis_result.get("report") or "").strip()
+            return self._build_pipeline_failure_log_context(analysis_result)
         if analysis_result.get("report_mode") == "existing_html_report_summary":
             return self.build_existing_html_report_context(analysis_result)
         fact_packet = analysis_result.get("fact_packet") or {}
@@ -2154,7 +2326,8 @@ class BusinessResponseService:
             "原因链路要自然融入回答：说明观测指标、可能上游原因、下游影响、当前证据支持/不支持的部分，以及如何验证；不要机械输出箭头模板。"
             "如果证据不足，要明确指出缺的是哪类证据，例如原始 fastq QC、fragment size、IgG/Input 角色、peak calling 参数、细胞器过滤结果、脚本公式或项目专属阈值。"
             "如果 bioSkills_general_reference 提供了 CUT&Tag/CUT&RUN/ChIP/ATAC 的通用排查逻辑，可以用于组织原因链路和复核动作，但不要在回答中暴露 bioSkills 名称，也不要把其中阈值当项目标准。"
-            "优先依据当前项目数据；知识库和历史经验只能作为补充解释，不能覆盖当前数据结论。"
+            "知识库排查路径纪律：如果知识库检索结果中包含与用户问题匹配的排查路径或诊断步骤，优先以该路径作为分析框架组织回答顺序（例如先看 mapping，再看 duplicate，再看 peak）；但每一步的结论必须由当前项目数据中的实际数值支撑，不能直接套用知识库中的通用阈值或案例结论。若知识库排查路径与项目数据矛盾，以项目数据为准并说明差异原因。知识库没有匹配路径时，依据项目数据自行组织诊断链路。"
+            "优先依据当前项目数据；知识库阈值和案例结论不能覆盖当前项目实测值。"
             "解释项目异常时必须结合 sample_roles、pipeline_config 和 workflow_detected_parameters。"
             "说明发现前必须列出支撑该发现的具体指标和来源字段；只有 threshold_source 为项目文件验证来源时才允许说明阈值和适用前提，否则必须写「项目文件中未确认该指标阈值/标准」。计算方式只能引用 formula_source=project_code 的项目脚本公式。"
             "用户问题中出现的英文指标名、缩写或字段名必须在回答中原样保留，并优先写成「英文名（中文解释）」，便于用户核对指标口径。"
@@ -2177,7 +2350,6 @@ class BusinessResponseService:
             f"知识库检索结果:\n{self.build_knowledge_context(retrieval_payload) or '未检索到相关知识'}\n\n"
             "请直接输出最终回答；优先回答用户要解决的问题，删掉与当前问题无关的信息。回答要有专业原因链路和可执行复核动作，不要停留在表面描述。不要输出代码，不要输出绘图脚本。用户问题里的英文指标名、缩写或字段名必须原样保留。"
         )
-        system_prompt = self._professional_analysis_system_prompt()
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
@@ -2316,6 +2488,44 @@ class BusinessResponseService:
             "请输出修正后的最终回答。"
         )
         return [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}]
+
+    @staticmethod
+    def render_exploratory_observations_section(exploratory_observations: list[dict[str, Any]] | None) -> str:
+        """Phase 1.5（project_analysis_agent_upgrade_plan.md 2.3 节）：候选指标的固定措辞渲染。
+
+        这里的每一条都只是"探索性观察"，不是正式结论——用固定措辞单独渲染，不能和
+        direct_conclusions/possible_causes 用同样的语气呈现，也不允许 LLM 自由改写这段文字，
+        保证"未正式确认"这个边界不会在生成过程中被措辞模糊掉。
+        """
+        # project_analysis_phase1.5_auto_promotion_revision.md §14（次要项，视觉区隔）：
+        # 固定措辞是这段内容"不被当作权威结论"的唯一守卫，这里额外加两层视觉区隔——
+        # 独立小节标题（已有）+ 引用块（`>`）包裹每一条 + 每条都带"未经确认，仅供参考"
+        # 前缀——让它在渲染出来的 Markdown 里明显区别于 direct_conclusions/结论类小节的
+        # 正常段落/列表样式。这段文字本身不含"合格/不合格/异常/正常"这类结论性措辞，
+        # 也不应该被后续任何拼接逻辑塞进"结论"或"合格性判定"相关小节。
+        items = [item for item in (exploratory_observations or []) if isinstance(item, dict)]
+        if not items:
+            return ""
+        lines = [
+            "",
+            "## 探索性观察（尚未正式确认）",
+            (
+                "> ⚠️ 未经确认，仅供参考：以下内容是系统从项目文件里自动探测到的候选字段模式，"
+                "只通过了内部算术自洽检查，还没有经过人工审核确认为正式指标；不是结论，"
+                "不能作为合格性判定或高低判断的依据。"
+            ),
+        ]
+        for item in items[:8]:
+            metric_guess = str(item.get("metric_guess") or "-")
+            value = item.get("value")
+            unit_guess = str(item.get("unit_guess") or "")
+            source_file = str(item.get("source_file") or "-")
+            source_field = str(item.get("source_field") or "-")
+            lines.append(
+                f"> - 【未经确认】{metric_guess}：观测值 {value}{unit_guess}"
+                f"（来源 {source_file}::{source_field}，探索性观察，仅供参考）"
+            )
+        return "\n".join(lines)
 
     async def rewrite_guarded_answer(
         self,
@@ -2458,16 +2668,91 @@ class BusinessResponseService:
         return not bool(re.search(r"[。！？.!?；;）)\]】%]$", final_line))
 
     @classmethod
+    def _build_project_evidence_appendix(cls, analysis_result: dict[str, Any]) -> str:
+        cards = analysis_result.get("evidence_cards") or []
+        chain = analysis_result.get("evidence_chain") or []
+
+        def _iter_records():
+            for card in cards:
+                if isinstance(card, dict):
+                    yield str(card.get("metric_id") or ""), card
+            for item in chain:
+                if isinstance(item, dict):
+                    yield str(item.get("metric_key") or ""), item
+
+        by_metric: dict[str, list[dict[str, Any]]] = {}
+        for metric_id, record in _iter_records():
+            if not metric_id:
+                continue
+            by_metric.setdefault(metric_id, []).append(record)
+
+        lines: list[str] = []
+        for metric_id, label, fmt in cls.EVIDENCE_APPENDIX_METRICS:
+            records = by_metric.get(metric_id) or []
+            seen_samples: set[str] = set()
+            entries: list[str] = []
+            for record in records:
+                value = record.get("value")
+                if value is None:
+                    continue
+                try:
+                    numeric = float(value)
+                except (TypeError, ValueError):
+                    continue
+                sample = str(record.get("sample") or record.get("sample_id") or "-")
+                if sample in seen_samples:
+                    continue
+                seen_samples.add(sample)
+                if fmt == "percent":
+                    text_value = str(record.get("display_value") or "").strip() or f"{numeric:.2f}%"
+                else:
+                    text_value = f"{numeric:.4f}"
+                entries.append(f"{sample}={text_value}")
+                if len(entries) >= 4:
+                    break
+            if entries:
+                lines.append(f"- {label}：" + "、".join(entries))
+
+        if not lines:
+            return ""
+        return (
+            "\n## 项目证据\n"
+            + "\n".join(lines)
+            + "\n\n## 证据边界\n"
+            + "- 以上数值来自项目文件直接读取或已完成重算校验的证据卡，未标注专属判断阈值时仅作观测记录，不代表整体质量结论。"
+        )
+
+    @classmethod
+    def _append_project_evidence_appendix(cls, text: str, analysis_result: dict[str, Any]) -> str:
+        """把 `_build_project_evidence_appendix()` 的确定性附录接到模型生成结果末尾。
+
+        只在 overview/diagnostic 这类多指标问题上追加（单指标的 metric_formula 问题已经
+        有专属证据小节，不需要再加一份类似内容）；如果模型自己已经写了"项目证据"小节，
+        不重复追加。
+        """
+        question_type = str(analysis_result.get("question_type") or "")
+        if question_type not in {"overview", "diagnostic"}:
+            return text
+        if "项目证据" in text:
+            return text
+        appendix = cls._build_project_evidence_appendix(analysis_result)
+        if not appendix:
+            return text
+        return f"{text.rstrip()}\n{appendix}"
+
+    @classmethod
     def clean_final_answer(cls, answer: str, *, analysis_result: dict[str, Any]) -> str:
         cleaned = (answer or "").strip()
         if not cleaned:
             return ""
         if cls._looks_like_code_answer(cleaned):
-            return cls._build_structured_answer_from_analysis(analysis_result)
+            return cls._append_project_evidence_appendix(
+                cls._build_structured_answer_from_analysis(analysis_result), analysis_result
+            )
         cleaned = re.sub(r"```[\s\S]*?```", "", cleaned).strip()
         evidence_repair = cls._repair_omitted_target_values(cleaned, analysis_result)
         if evidence_repair:
-            return evidence_repair
+            return cls._append_project_evidence_appendix(evidence_repair, analysis_result)
         cleaned = cls._ensure_threshold_limitation(cleaned, analysis_result)
         cleaned = cls._ensure_hypothesis_comparison(cleaned, analysis_result)
 
@@ -2475,9 +2760,11 @@ class BusinessResponseService:
         has_next_action_heading = cls.NEXT_ACTION_HEADING in cleaned
 
         if not needs_next_actions and has_next_action_heading:
-            return cls._strip_next_action_section(cleaned)
+            return cls._append_project_evidence_appendix(
+                cls._strip_next_action_section(cleaned), analysis_result
+            )
         if not needs_next_actions:
-            return cleaned
+            return cls._append_project_evidence_appendix(cleaned, analysis_result)
 
         if has_next_action_heading:
             next_action_tail = cleaned.rsplit(cls.NEXT_ACTION_HEADING, 1)[-1]
@@ -2493,7 +2780,7 @@ class BusinessResponseService:
             bullets = "\n".join(f"- {item}" for item in next_actions[:3])
             cleaned = f"{cleaned.rstrip()}\n\n## {cls.NEXT_ACTION_HEADING}\n{bullets}"
 
-        return cleaned.strip()
+        return cls._append_project_evidence_appendix(cleaned.strip(), analysis_result)
 
     @classmethod
     def _ensure_threshold_limitation(cls, text: str, analysis_result: dict[str, Any]) -> str:

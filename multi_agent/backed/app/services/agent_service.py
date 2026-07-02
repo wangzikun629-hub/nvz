@@ -149,31 +149,51 @@ class MultiAgentService:
         "readsqc",
         "alignmentqc",
     )
-    CHART_INTENT_KEYWORDS = (
-        "画",
-        "画出",
-        "画图",
-        "画一下",
-        "绘图",
-        "绘制",
-        "作图",
-        "出图",
-        "生成图",
-        "可视化",
-        "对比图",
-        "比较图",
-        "柱状图",
-        "柱形图",
-        "折线图",
-        "热图",
-        "图表",
-        "chart",
-        "plot",
-        "visualize",
-        "heatmap",
-        "bar",
-        "line",
+    # 强意图词：明确的"画图"动作动词，直接触发图表路由（不受负面语境影响）
+    CHART_STRONG_KEYWORDS = frozenset((
+        "画", "画出", "画图", "画一下", "绘图", "绘制", "作图",
+        "出图", "生成图", "可视化", "visualize",
+    ))
+    # 弱意图词：图表名词/英文词，需同时不含"描述性语境"才触发
+    # "chart"/"heatmap"/"plot" 在中文生信对话里既可以是请求词也可以是描述词
+    # （"this heatmap shows..."、"bar chart怎么解读"），所以列为弱词接受负面过滤
+    CHART_WEAK_KEYWORDS = frozenset((
+        "对比图", "比较图", "柱状图", "柱形图", "折线图",
+        "chart", "heatmap", "plot",
+    ))
+    # 合并供外部兼容调用
+    CHART_INTENT_KEYWORDS = tuple(CHART_STRONG_KEYWORDS | CHART_WEAK_KEYWORDS)
+    # 描述性语境词：出现时说明用户在描述/解读已有图表，而非请求生成新图
+    # "里" 单字：弱词与"里"同现时，通常是 "heatmap里..."/"图里..." 描述性表达
+    # 注意"里"只在无强意图词时才生效（有"画"/"绘制"等强词时不过滤）
+    CHART_NEGATIVE_CONTEXT = frozenset((
+        "看到", "看见", "里面", "里", "图里", "图中", "图上",
+        "观察到", "显示", "中看", "解读", "怎么看", "如何看",
+        "说明什么", "表示什么", "代表什么", "什么意思",
+    ))
+
+    # 身份 / 问候快速拦截——不走任何 Agent，直接返回
+    _IDENTITY_DIRECT_ANSWER = (
+        "我是一个专为基因组学测序项目设计的智能助手，"
+        "专注于 CUT&Tag / ChIP-seq / CUT&RUN / ATAC-seq 等实验的 QC 分析、"
+        "问题诊断与数据解读。您可以向我询问项目数据质量、指标含义、流程参数等问题，"
+        "也可以直接绑定项目让我分析具体结果。"
     )
+    _IDENTITY_TRIGGERS = (
+        "你是谁", "你是什么", "你是啥", "介绍一下你自己", "自我介绍",
+        "你叫什么", "你叫啥", "你能做什么", "你能干什么", "你有什么功能",
+        "你是ai", "你是机器人", "你是助手", "who are you", "what are you",
+        "what can you do",
+    )
+
+    @classmethod
+    def _get_identity_direct_answer(cls, user_query: str) -> str | None:
+        """如果是身份/问候问题，返回固定回答；否则返回 None。"""
+        normalized = cls._normalize_text(user_query).lower().rstrip("？?！!。.")
+        for trigger in cls._IDENTITY_TRIGGERS:
+            if normalized == trigger or normalized.endswith(trigger) or trigger in normalized:
+                return cls._IDENTITY_DIRECT_ANSWER
+        return None
 
     @staticmethod
     def _iter_answer_chunks(text: str, max_chars: int = 80):
@@ -415,12 +435,24 @@ class MultiAgentService:
     @classmethod
     def _extract_chart_request(cls, user_query: str) -> dict[str, object] | None:
         normalized = cls._normalize_text(user_query).lower()
-        if not normalized or not any(keyword.lower() in normalized for keyword in cls.CHART_INTENT_KEYWORDS):
+        if not normalized:
             return None
+
+        has_strong = any(kw in normalized for kw in cls.CHART_STRONG_KEYWORDS)
+        has_weak   = any(kw in normalized for kw in cls.CHART_WEAK_KEYWORDS)
+
+        if not has_strong and not has_weak:
+            return None
+
+        # 弱词（对比图/柱状图等）但含"描述性看图"语境 → 用户在描述已有图表，非画图请求
+        if not has_strong and has_weak:
+            if any(neg in normalized for neg in cls.CHART_NEGATIVE_CONTEXT):
+                return None
 
         metric = None
         metric_hits = (
-            ("correlation", ("correlation", "spearman", "相关性", "相关系数", "热图")),
+            # "热图" 保留为指标别名（不再是触发词），只有先通过上方关键词检查才会到达这里
+            ("correlation", ("correlation", "spearman", "相关性", "相关系数", "热图", "heatmap")),
             ("mapping", ("mapping", "比对率", "比对", "mapped reads", "reads对比", "reads 比对")),
             ("unique", ("unique", "唯一比对", "唯一比对率", "unique rate")),
             ("duplicate", ("duplicate", "duplicates", "重复率", "重复", "dup rate")),
@@ -436,17 +468,22 @@ class MultiAgentService:
                 metric = candidate
                 break
         if metric is None:
-            if any(term in normalized for term in ("对比图", "比较图", "他们", "样本对比", "指标对比", "画图", "图表", "柱状图", "柱形图", "折线图", "可视化")):
+            # "他们" 过于泛化已删除；保留明确指代图表类型的词
+            if any(term in normalized for term in (
+                "对比图", "比较图", "样本对比", "指标对比",
+                "画图", "图表", "柱状图", "柱形图", "折线图", "可视化",
+            )):
                 metric = "alignment_summary"
             else:
                 return None
 
         chart_type = None
-        if any(term in normalized for term in ("热图", "heatmap")):
+        # chart_type 检测：只用明确的图类型词，不再用 "bar"/"line" 单词防误判
+        if any(term in normalized for term in ("热图", "heatmap", "相关性热图")):
             chart_type = "heatmap"
-        elif any(term in normalized for term in ("折线图", "line")):
+        elif any(term in normalized for term in ("折线图", "line chart", "linechart")):
             chart_type = "line"
-        elif any(term in normalized for term in ("柱状图", "柱形图", "bar")):
+        elif any(term in normalized for term in ("柱状图", "柱形图", "bar chart", "barchart")):
             chart_type = "bar"
 
         return {"metric": metric, "chart_type": chart_type, "samples": []}
@@ -501,29 +538,28 @@ class MultiAgentService:
             metric=str(chart_request["metric"]),
             chart_type=chart_request.get("chart_type"),
             samples=chart_request.get("samples") or [],
-            user_request=user_query,   # 把完整用户需求传给 LLM，支持个性化
+            user_request=user_query,
         )
 
-        chart_id = str(chart_result.get("chart_id") or "")
-        plotly_spec = chart_result.get("plotly_spec", {})
+        chart_id    = str(chart_result.get("chart_id") or "")
+        image_url   = str(chart_result.get("image_url") or "")
         source_file = str(chart_result.get("source_file") or "")
-        metric = str(chart_result.get("metric") or "")
+        metric      = str(chart_result.get("metric") or "")
         data_points = chart_result.get("data_points", 0)
 
-        # ```chart 代码块写入会话消息，页面重载后前端凭 chart_id 重新拉取 spec
-        chart_block = f"```chart\n{chart_id}\n```" if chart_id else ""
+        chart_block = f"```image\n{image_url}\n```" if image_url else ""
         answer_text = "\n".join(filter(None, [
-            "## 交互图表已生成",
+            "## 图表已生成",
             "",
             f"项目：`{project_id}`　指标：`{metric}`　数据点：{data_points}",
             f"来源文件：{source_file}",
             "",
-            "> 图表已在下方渲染，支持悬停查看数值、缩放、平移。",
+            "> 图表由 ggplot2 生成，可点击放大或下载 PNG。",
             "",
             chart_block,
         ]))
 
-        return answer_text, plotly_spec, chart_id
+        return answer_text, {}, chart_id, image_url, metric
 
     @classmethod
     async def _prepare_task_context(cls, request: ChatMessageRequest):
@@ -986,6 +1022,21 @@ class MultiAgentService:
                 project_state,
             ) = await cls._prepare_task_context(request)
             effective_query, followup_confirmed = cls._resolve_followup_execution(user_query, project_state)
+
+            # ── 身份 / 问候快速拦截 ──────────────────────────────────────────────
+            identity_answer = cls._get_identity_direct_answer(effective_query)
+            if identity_answer:
+                chat_history.append({"role": "assistant", "content": identity_answer})
+                await session_service.asave_history(user_id, session_id, chat_history)
+                return {
+                    "answer": identity_answer,
+                    "sources": [],
+                    "retrieved_docs": [],
+                    "project_analysis": {},
+                    "execution_trace": {"route": "identity_direct", "answer_llm_used": False},
+                }
+            # ────────────────────────────────────────────────────────────────────
+
             effective_history, effective_context_payload = cls._apply_effective_query(
                 orchestrator_history,
                 context_payload,
@@ -1145,6 +1196,21 @@ class MultiAgentService:
                 project_state,
             ) = await cls._prepare_task_context(request)
             effective_query, followup_confirmed = cls._resolve_followup_execution(user_query, project_state)
+
+            # ── 身份 / 问候快速拦截：跳过所有 Agent，直接流式返回 ──────────────
+            identity_answer = cls._get_identity_direct_answer(effective_query)
+            if identity_answer:
+                for answer_chunk in cls._iter_answer_chunks(identity_answer):
+                    yield "data: " + ResponseFactory.build_text(
+                        answer_chunk, ContentKind.ANSWER
+                    ).model_dump_json() + "\n\n"
+                    await asyncio.sleep(0)
+                yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
+                chat_history.append({"role": "assistant", "content": identity_answer})
+                await session_service.asave_history(user_id, session_id, chat_history)
+                return
+            # ─────────────────────────────────────────────────────────────────────
+
             effective_history, effective_context_payload = cls._apply_effective_query(
                 orchestrator_history,
                 context_payload,
@@ -1229,28 +1295,29 @@ class MultiAgentService:
                 # ── 图表生成（用 try/finally 保证 stage 事件一定发出） ────────
                 _chart_error: str | None = None
                 answer_text = ""
-                plotly_spec = None
-                _chart_id = ""
+                _chart_id   = ""
+                _image_url  = ""
+                _metric     = str(chart_request.get("metric") or "")
                 try:
-                    answer_text, plotly_spec, _chart_id = await cls._run_project_chart_route(
-                        user_query=effective_query,
-                        project_id=resolved_project_id,
-                        project_root=resolved_project_root,
-                    )
+                    answer_text, _, _chart_id, _image_url, _metric = \
+                        await cls._run_project_chart_route(
+                            user_query=effective_query,
+                            project_id=resolved_project_id,
+                            project_root=resolved_project_root,
+                        )
                 except Exception as _exc:
                     _chart_error = str(_exc)
                     logger.error("chart_route error: %s", _chart_error, exc_info=True)
                     answer_text = f"图表生成失败：{_chart_error}"
                 finally:
-                    # 无论成功/失败，都发 completed 让前端阶段结束
                     yield "data: " + ResponseFactory.build_text(
                         json.dumps(
                             {
                                 "type": "project_stage",
                                 "stage": "generate_chart",
                                 "status": "completed" if not _chart_error else "error",
-                                "text": "交互图表已生成" if not _chart_error else f"生成失败：{_chart_error}",
-                                "detail": {"metric": str(chart_request.get("metric") or "")},
+                                "text": "图表已生成" if not _chart_error else f"生成失败：{_chart_error}",
+                                "detail": {"metric": _metric},
                             },
                             ensure_ascii=False,
                         ),
@@ -1276,12 +1343,14 @@ class MultiAgentService:
                         ContentKind.ANSWER,
                     ).model_dump_json() + "\n\n"
                     await asyncio.sleep(0)
-                # 再推 Plotly spec（前端识别 kind=chart_spec 后渲染交互图）
-                # 携带 chart_id，前端缓存后可直接渲染，页面重载时凭 chart_id 重新拉取
-                if plotly_spec:
+                # 推 ggplot2 PNG 图片事件
+                if _image_url:
                     yield "data: " + ResponseFactory.build_text(
-                        json.dumps({"chart_id": _chart_id, "spec": plotly_spec}, ensure_ascii=False),
-                        ContentKind.CHART_SPEC,
+                        json.dumps(
+                            {"chart_id": _chart_id, "image_url": _image_url, "metric": _metric},
+                            ensure_ascii=False,
+                        ),
+                        ContentKind.IMAGE_CHART,
                     ).model_dump_json() + "\n\n"
                 yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
             elif use_fast_rag:
@@ -1400,6 +1469,22 @@ class MultiAgentService:
                             ContentKind.ANSWER,
                         ).model_dump_json() + "\n\n"
                         await asyncio.sleep(0)
+                # 若 business_agent 内部走了图表路由，补发 CHART_SPEC 事件
+                # （chart_request 路由已在上方单独处理，此处补齐 direct_business_route 缺失的图表推送）
+                _biz_analysis = ((business_result or {}).get("analysis_result") or {})
+                _biz_payload = (_biz_analysis.get("result_payload") or {})
+                if _biz_payload.get("output_mode") == "chart":
+                    _biz_chart = _biz_payload.get("chart") or {}
+                    _biz_plotly_spec = _biz_chart.get("plotly_spec")
+                    _biz_chart_id = str(_biz_chart.get("chart_id") or "")
+                    if _biz_plotly_spec and _biz_chart_id:
+                        yield "data: " + ResponseFactory.build_text(
+                            json.dumps(
+                                {"chart_id": _biz_chart_id, "spec": _biz_plotly_spec},
+                                ensure_ascii=False,
+                            ),
+                            ContentKind.CHART_SPEC,
+                        ).model_dump_json() + "\n\n"
                 yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
             elif force_consult_route:
                 yield "data: " + ResponseFactory.build_text(
@@ -1419,15 +1504,23 @@ class MultiAgentService:
                     ContentKind.PROCESS,
                 ).model_dump_json() + "\n\n"
                 # _force_consult_stream 返回一个 asynccontextmanager，
-                # 持有 pool slot 直到 streaming 完成
+                # 持有 pool slot 直到 streaming 完成。
+                # 注意：process_stream_response 末尾会自动 yield 一个 FINISH 事件，
+                # 为避免 FINISH 后再发 PROCESS（前端已停止处理），我们手动迭代 ANSWER/PROCESS
+                # 事件，跳过最后的 FINISH，待阶段标记发完后再统一发 FINISH。
                 async with cls._force_consult_stream(effective_query) as streaming_result:
                     stream_iter = process_stream_response(streaming_result).__aiter__()
+                    _last_chunk: str | None = None
                     while True:
                         try:
                             chunk = await stream_iter.__anext__()
+                            if _last_chunk is not None:
+                                yield _last_chunk
+                            _last_chunk = chunk
                         except StopAsyncIteration:
                             break
-                        yield chunk
+                    # _last_chunk 是 process_stream_response 产生的 FINISH，丢弃它，
+                    # 等阶段标记发完后再手动补发 FINISH
                     answer_text = streaming_result.final_output
                 yield "data: " + ResponseFactory.build_text(
                     _build_stage_payload(
@@ -1437,6 +1530,7 @@ class MultiAgentService:
                     ),
                     ContentKind.PROCESS,
                 ).model_dump_json() + "\n\n"
+                yield "data: " + ResponseFactory.build_finish().model_dump_json() + "\n\n"
             else:
                 streaming_result = Runner.run_streamed(
                     starting_agent=orchestrator_agent,

@@ -15,7 +15,8 @@ from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
     resolve_project_root,
 )
 from multi_agent.backed.app.infrastructure.logging.logger import logger
-from multi_agent.backed.app.services.chart_spec_service import chart_spec_service
+from multi_agent.backed.app.services.r_chart_service import r_chart_service
+from multi_agent.backed.app.services.r_codegen_service import r_codegen_service
 
 
 @dataclass(frozen=True)
@@ -32,7 +33,7 @@ class MetricSpec:
 
 class ProjectChartService:
     SPEC_ROOT = Path(__file__).resolve().parents[1] / "generated" / "chart_specs"
-    SUPPORTED_CHART_TYPES = {"bar", "line", "heatmap"}
+    SUPPORTED_CHART_TYPES = {"bar", "line", "heatmap", "scatter"}
     METRICS: tuple[MetricSpec, ...] = (
         MetricSpec(
             key="alignment_summary",
@@ -406,109 +407,151 @@ class ProjectChartService:
         *,
         project_id: str,
         metric: str,
+        metric2: str | None = None,
         chart_type: str | None = None,
         project_root: str | None = None,
         samples: list[str] | None = None,
         user_request: str = "",
+        use_codegen: bool = True,   # 始终 True，保留参数仅供兼容
     ) -> dict[str, Any]:
         """
-        提取项目数据后调用 LLM 生成 Plotly JSON spec，持久化到文件，返回给前端直接渲染。
+        提取项目 QC 数据 → LLM 生成 ggplot2 R 脚本 → 执行 → 返回 PNG 图片 URL。
 
         Returns
         -------
         dict  —  {
             "success": bool,
-            "chart_id": str,           # 唯一 ID，用于页面重载后重新拉取 spec
+            "chart_id": str,
             "project_id": str,
             "metric": str,
-            "chart_type": str,
-            "plotly_spec": {...},
+            "chart_type": "codegen_png",
+            "image_url": str,          # /generated/charts/{chart_id}.png
             "source_file": str,
             "data_points": int,
-            "summary": str,            # 含嵌入式 chart 代码块，可直接写入会话消息
+            "summary": str,
         }
         """
         spec = cls._resolve_metric(metric)
-        resolved_chart_type = cls._resolve_chart_type(chart_type, spec)
         root = resolve_project_root(project_id, project_root)
 
-        # ── 提取数据（同步文件 I/O，用 asyncio.to_thread 避免阻塞事件循环） ──
-        def _extract_data() -> tuple[dict[str, Any], int, Path]:
+        # ── 双指标对比路径 ─────────────────────────────────────────────────────
+        if metric2:
+            spec2 = cls._resolve_metric(metric2)
+            _ct = cls._normalize(chart_type or "scatter")
+            dual_chart_type = "grouped_bar" if _ct in ("bar", "grouped_bar") else "scatter"
+
+            def _extract_dual() -> tuple[list, list | None, list | None, list | None, list[list] | None, int, Path]:
+                lbs1, vals1, src1, _, _ = cls._load_metric_rows(root, spec,  samples)
+                lbs2, vals2, _,    _, _ = cls._load_metric_rows(root, spec2, samples)
+                common = {cls._normalize(s): s for s in lbs1}
+                labels_out, x_vals, y_vals = [], [], []
+                for i, s in enumerate(lbs2):
+                    key = cls._normalize(s)
+                    if key in common:
+                        idx = next(j for j, ls in enumerate(lbs1) if cls._normalize(ls) == key)
+                        labels_out.append(lbs1[idx])
+                        x_vals.append(vals1[idx])
+                        y_vals.append(vals2[i])
+                if not labels_out:
+                    raise ValueError(
+                        f"指标 {spec.key} 与 {spec2.key} 无公共样本，无法生成对比图"
+                    )
+                if dual_chart_type == "scatter":
+                    return labels_out, None, x_vals, y_vals, None, len(labels_out), src1
+                else:
+                    matrix = [[x, y] for x, y in zip(x_vals, y_vals)]
+                    return labels_out, None, None, None, matrix, len(labels_out), src1
+
+            labels, vals, x_vals, y_vals, matrix, data_points, source_file = \
+                await asyncio.to_thread(_extract_dual)
+
+            metric_key = f"{spec.key}_vs_{spec2.key}"
+            codegen_kwargs: dict[str, Any] = dict(
+                project_id=project_id,
+                metric=metric_key,
+                ylabel=spec2.value_label,
+                user_request=user_request or f"双指标对比：{spec.value_label} vs {spec2.value_label}",
+                labels=labels,
+                values=vals,
+                x_values=x_vals,
+                y_values=y_vals,
+                xlabel=spec.value_label,
+                metric_labels=[spec.value_label, spec2.value_label] if dual_chart_type == "grouped_bar" else None,
+                matrix=matrix,
+            )
+            codegen_result = await r_codegen_service.generate(**codegen_kwargs)
+            image_url = codegen_result["image_url"]
+            chart_id  = codegen_result["chart_id"]
+            chart_block = f"```image\n{image_url}\n```"
+            summary = (
+                f"已生成 {project_id} 的 {spec.key} vs {spec2.key} 双指标对比图"
+                f"（共 {data_points} 个公共样本）。\n\n{chart_block}"
+            )
+            return {
+                "success":     True,
+                "chart_id":    chart_id,
+                "project_id":  project_id,
+                "metric":      metric_key,
+                "chart_type":  "codegen_png",
+                "image_url":   image_url,
+                "r_script":    codegen_result.get("r_script", ""),
+                "source_file": cls._display_source_path(source_file, root),
+                "data_points": data_points,
+                "summary":     summary,
+            }
+
+        # ── 单指标路径 ────────────────────────────────────────────────────────
+        resolved_chart_type = cls._resolve_chart_type(chart_type, spec)
+
+        def _extract_data() -> tuple[list, list | None, list | None, list[list] | None, int, Path]:
             if spec.key == "alignment_summary":
                 lbs, mlbs, mat, src, _ = cls._load_alignment_summary(root, spec, samples)
-                idata: dict[str, Any] = {
-                    "metric":          spec.key,
-                    "chart_type_hint": "grouped_bar",
-                    "project_id":      project_id,
-                    "data": {
-                        "labels":        lbs,
-                        "values":        None,
-                        "ylabel":        spec.value_label,
-                        "metric_labels": mlbs,
-                        "matrix":        mat,
-                    },
-                }
-                return idata, len(lbs) * len(mlbs), src
+                return lbs, None, mlbs, mat, len(lbs) * len(mlbs), src
 
             if resolved_chart_type == "heatmap":
                 lbs, mat, src = cls._load_correlation_matrix(root, spec)
-                idata = {
-                    "metric":          spec.key,
-                    "chart_type_hint": "heatmap",
-                    "project_id":      project_id,
-                    "data": {
-                        "labels":        lbs,
-                        "values":        None,
-                        "ylabel":        spec.value_label,
-                        "metric_labels": None,
-                        "matrix":        mat,
-                    },
-                }
-                return idata, len(lbs), src
+                return lbs, None, None, mat, len(lbs), src
 
-            lbs, vals, src, _, _ = cls._load_metric_rows(root, spec, samples)
-            idata = {
-                "metric":          spec.key,
-                "chart_type_hint": resolved_chart_type,
-                "project_id":      project_id,
-                "data": {
-                    "labels":        lbs,
-                    "values":        vals,
-                    "ylabel":        spec.value_label,
-                    "metric_labels": None,
-                    "matrix":        None,
-                },
-            }
-            return idata, len(vals), src
+            lbs, vls, src, _, _ = cls._load_metric_rows(root, spec, samples)
+            return lbs, vls, None, None, len(vls), src
 
-        input_data, data_points, source_file = await asyncio.to_thread(_extract_data)
-
-        # ── 调用 LLM 生成 Plotly spec ────────────────────────────────────────
-        plotly_spec = await chart_spec_service.generate(input_data, user_request)
-
-        # ── 持久化：生成 chart_id，写入 JSON 文件 ─────────────────────────────
-        chart_id = uuid4().hex
-        await asyncio.to_thread(cls._save_spec, chart_id, plotly_spec)
+        labels, values, metric_labels, matrix, data_points, source_file = \
+            await asyncio.to_thread(_extract_data)
 
         logger.info(
-            "project_chart_spec generated project=%s metric=%s chart_type=%s chart_id=%s source=%s",
-            project_id, spec.key, resolved_chart_type, chart_id, str(source_file),
+            "r_codegen path project=%s metric=%s chart_type=%s points=%d",
+            project_id, spec.key, resolved_chart_type, data_points,
         )
 
-        # summary 内嵌 ```chart 代码块，写入会话消息后页面重载仍可还原图表
-        chart_block = f"```chart\n{chart_id}\n```"
+        codegen_result = await r_codegen_service.generate(
+            project_id=project_id,
+            metric=spec.key,
+            ylabel=spec.value_label,
+            user_request=user_request or f"为 {spec.key} 指标画一个专业美观的图表",
+            labels=labels,
+            values=values,
+            groups=None,
+            metric_labels=metric_labels,
+            matrix=matrix,
+        )
+
+        chart_id  = codegen_result["chart_id"]
+        image_url = codegen_result["image_url"]
+        chart_block = f"```image\n{image_url}\n```"
         summary = (
-            f"已生成 {project_id} 的 {spec.key} 交互图表（数据点：{data_points}）。\n\n"
+            f"已生成 {project_id} 的 {spec.key} 图表（数据点：{data_points}）。\n\n"
             f"{chart_block}"
         )
+        logger.info("r_codegen done project=%s metric=%s chart_id=%s", project_id, spec.key, chart_id)
 
         return {
             "success":     True,
             "chart_id":    chart_id,
             "project_id":  project_id,
             "metric":      spec.key,
-            "chart_type":  resolved_chart_type,
-            "plotly_spec": plotly_spec,
+            "chart_type":  "codegen_png",
+            "image_url":   image_url,
+            "r_script":    codegen_result.get("r_script", ""),
             "source_file": cls._display_source_path(source_file, root),
             "data_points": data_points,
             "summary":     summary,

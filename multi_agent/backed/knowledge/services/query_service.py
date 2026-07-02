@@ -23,7 +23,7 @@ class QueryService:
         self.llm = ChatOpenAI(
             model=settings.MODEL,
             api_key=settings.API_KEY,
-            base_url=settings.BASE_URL,
+            base_url=settings.LLM_BASE_URL,
             temperature=0,
             timeout=120,
             max_tokens=self.MAX_OUTPUT_TOKENS,

@@ -29,4 +29,16 @@ export const adminApi = {
   deleteUser(userId) {
     return service.delete(`/admin/users/${userId}`)
   },
+  /** 候选指标队列（Phase 1.5 审核） */
+  listCandidateMetrics(status) {
+    return service.get('/admin/candidate-metrics', { params: status ? { status } : {} })
+  },
+  /** 通过候选指标：补全正式指标名/单位/校验合约/适用实验类型后注册 */
+  approveCandidateMetric(candidateKey, payload) {
+    return service.post(`/admin/candidate-metrics/${candidateKey}/approve`, payload)
+  },
+  /** 驳回候选指标并加入黑名单 */
+  rejectCandidateMetric(candidateKey, note) {
+    return service.post(`/admin/candidate-metrics/${candidateKey}/reject`, { note: note || '' })
+  },
 }

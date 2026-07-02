@@ -33,6 +33,7 @@ class RetrievalService:
         self._file_content_cache: dict[tuple[str, float], str] = {}
         self._query_embedding_cache: dict[str, List[float]] = {}
         self._title_embedding_cache: dict[tuple[str, ...], List[List[float]]] = {}
+        self._candidate_embedding_cache: dict[str, List[float]] = {}
         self._rerank_session = requests.Session()
 
     def _build_metadata_cache_key(self) -> tuple[tuple[str, float], ...]:
@@ -168,6 +169,45 @@ class RetrievalService:
             perf_counter() - started_at,
         )
         return embeddings
+
+    def _get_candidate_embeddings(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+
+        embeddings_by_index: list[List[float] | None] = [None] * len(texts)
+        missing_texts: list[str] = []
+        missing_indices: list[int] = []
+        for index, text in enumerate(texts):
+            cached = self._candidate_embedding_cache.get(text)
+            if cached is None:
+                missing_texts.append(text)
+                missing_indices.append(index)
+            else:
+                embeddings_by_index[index] = cached
+
+        if missing_texts:
+            started_at = perf_counter()
+            missing_embeddings = self.vector_store.embedd_documents(missing_texts)
+            for text, embedding, index in zip(missing_texts, missing_embeddings, missing_indices):
+                if len(self._candidate_embedding_cache) >= 512:
+                    self._candidate_embedding_cache.pop(next(iter(self._candidate_embedding_cache)))
+                self._candidate_embedding_cache[text] = embedding
+                embeddings_by_index[index] = embedding
+            logger.info(
+                "candidate embeddings done texts=%d cache_hits=%d cache_misses=%d cost=%.3fs",
+                len(texts),
+                len(texts) - len(missing_texts),
+                len(missing_texts),
+                perf_counter() - started_at,
+            )
+        else:
+            logger.info(
+                "candidate embeddings done texts=%d cache_hits=%d cache_misses=0 cost=0.000s",
+                len(texts),
+                len(texts),
+            )
+
+        return [embedding for embedding in embeddings_by_index if embedding is not None]
 
     def rough_ranking(self, user_query, mds_metadata: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -358,8 +398,9 @@ class RetrievalService:
         """
         # 1.返回带分数的文档列表
         started_at = perf_counter()
-        documents_with_score = self.vector_store.search_similarity_with_score(
-            user_question,
+        query_embedding = self._get_query_embedding(user_question)
+        documents_with_score = self.vector_store.search_similarity_by_vector_with_score(
+            query_embedding,
             kb_scope=kb_scope,
         )
         logger.info(
@@ -480,7 +521,15 @@ class RetrievalService:
         for document in total_candidates:
             # 去重（）
             clean_content = re.sub(r'^文档来源:.*?(?=(\n|#))', '', document.page_content, flags=re.DOTALL).strip()#【加上】
-            key = (document.metadata['title'], clean_content[:100])
+            title = (
+                document.metadata.get("title")
+                or document.metadata.get("source_name")
+                or document.metadata.get("source")
+                or document.metadata.get("path")
+                or getattr(document, "id", "")
+                or ""
+            )
+            key = (title, clean_content[:100])
             if key not in seen:
                 seen[key] = len(unique_candidates)
                 unique_candidates.append(document)
@@ -623,7 +672,7 @@ class RetrievalService:
             content = document.page_content or ""
             candidate_texts.append(f"source: {title}\n{content[:4000]}")
 
-        doc_embeddings = self.vector_store.embedd_documents(candidate_texts)
+        doc_embeddings = self._get_candidate_embeddings(candidate_texts)
         similarity = cosine_similarity([query_embedding], doc_embeddings).flatten()
 
         scored_documents = []

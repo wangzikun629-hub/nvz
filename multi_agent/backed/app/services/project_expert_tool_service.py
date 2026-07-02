@@ -354,9 +354,30 @@ class ProjectExpertToolService:
             elif lower_name.endswith(".nrf_pbc.txt"):
                 values = self._key_value_text(text)
                 sample = values.get("Sample") or sample
+                # 2026-07-02 引擎泛化排查后接通：calc_nrf_pbc.sh 产出的 *.nrf_pbc.txt
+                # 里本来就带 Total_Fragments/Distinct_Locations/Locations_1read/
+                # Locations_2reads 四个原始计数列（NRF=Distinct/Total，
+                # PBC1=Locations_1read/Distinct，PBC2=Locations_1read/Locations_2reads，
+                # 见同一文件里的公式）。此前这里只取了算好的 NRF/PBC1/PBC2 三个最终值，
+                # numerator 传 None、denominator 传字符串占位符，导致
+                # evidence_card_service.from_evidence() 拿不到真实 numerator_value/
+                # denominator_value，metric_schema_service 只能把这三个指标当
+                # citation_only 处理。这里改为把四个原始计数一并读出，按各自公式传入
+                # 真实的 numerator/denominator，让 nrf/pbc1/pbc2 能在这条证据链上真正
+                # 走 strict_formula_recalculation 重算校验。
+                total_fragments = self._float(values.get("Total_Fragments"))
+                distinct_locations = self._float(values.get("Distinct_Locations"))
+                locations_1read = self._float(values.get("Locations_1read"))
+                locations_2reads = self._float(values.get("Locations_2reads"))
+                complexity_inputs = {
+                    "NRF": (distinct_locations, total_fragments),
+                    "PBC1": (locations_1read, distinct_locations),
+                    "PBC2": (locations_1read, locations_2reads),
+                }
                 for source_key, metric_id in (("NRF", "nrf"), ("PBC1", "pbc1"), ("PBC2", "pbc2")):
                     value = self._float(values.get(source_key))
                     if value is not None:
+                        numerator_value, denominator_value = complexity_inputs[source_key]
                         cards.append(
                             self._card(
                                 project_id=project_id,
@@ -366,8 +387,12 @@ class ProjectExpertToolService:
                                 sample=sample,
                                 value=value,
                                 display_value=f"{value:.4f}".rstrip("0").rstrip("."),
-                                numerator=None,
-                                denominator="library complexity fragments",
+                                numerator=numerator_value,
+                                denominator=(
+                                    denominator_value
+                                    if denominator_value is not None
+                                    else "library complexity fragments"
+                                ),
                                 source_file=relative,
                                 source_field=source_key,
                                 formula=self._complexity_formula(source_key),

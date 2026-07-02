@@ -16,7 +16,12 @@ from multi_agent.backed.app.services.business_agent.fact_verification_service im
 from multi_agent.backed.app.services.business_agent.metric_schema_service import (
     MetricSchemaService,
 )
-from multi_agent.backed.app.services.project_analysis_service import ProjectAnalysisService
+from multi_agent.backed.app.services.project_context_builder_service import (
+    ProjectContextBuilderService,
+)
+from multi_agent.backed.app.services.project_file_parser_service import (
+    ProjectFileParserService,
+)
 
 
 def test_metric_schema_preserves_percent_scale_and_frip_fraction():
@@ -41,7 +46,11 @@ def test_metric_schema_preserves_percent_scale_and_frip_fraction():
 
 
 def test_alignment_parser_uses_canonical_nrf_pbc_definitions():
-    summary = ProjectAnalysisService._build_alignment_summary(
+    # 2026-07-02 修复历史测试债：ProjectAnalysisService._build_alignment_summary 早已
+    # 拆分迁移到 ProjectFileParserService.build_alignment_summary（公开方法），这个测试
+    # 文件当时没跟着更新，一直调用不存在的旧私有方法名。这里改指向现有实现，断言内容
+    # 不变——仍然验证 NRF/PBC1/PBC2 走 metric_schema_service 的规范定义解析。
+    summary = ProjectFileParserService.build_alignment_summary(
         [
             {
                 "Sample_ID": "S1",
@@ -73,7 +82,7 @@ def test_samplelist_header_builds_structured_experiment_design(tmp_path: Path):
         encoding="utf-8",
     )
 
-    samples = ProjectAnalysisService._parse_samplelist(samplelist)
+    samples = ProjectContextBuilderService.parse_samplelist(samplelist)
     design = ExperimentDesignService.build(samples)
 
     assert design["replicate_groups"][0]["samples"] == [
@@ -92,7 +101,7 @@ def test_correlation_is_stratified_by_experiment_design():
         {"sample": "PH_IgG", "design_fields": {}},
     ]
     design = ExperimentDesignService.build(samples)
-    summary = ProjectAnalysisService._build_correlation_summary(
+    summary = ProjectFileParserService.build_correlation_summary(
         [
             {
                 "Sample": "PH_H3K27ac_R1",
@@ -114,7 +123,7 @@ def test_correlation_is_stratified_by_experiment_design():
             },
         ]
     )
-    stratified = ProjectAnalysisService._stratify_correlation_summary(summary, design)
+    stratified = ProjectFileParserService.stratify_correlation_summary(summary, design)
 
     assert stratified["strata"]["biological_replicates"]["pair_count"] == 1
     assert stratified["strata"]["experiment_vs_control"]["pair_count"] == 2
@@ -122,7 +131,7 @@ def test_correlation_is_stratified_by_experiment_design():
 
 
 def test_frip_matrix_keeps_self_and_cross_frip():
-    summary = ProjectAnalysisService._build_frip_summary(
+    summary = ProjectFileParserService.build_frip_summary(
         [
             {
                 "file": "S1",
@@ -145,7 +154,7 @@ def test_frip_matrix_keeps_self_and_cross_frip():
     assert summary["metrics"][0]["comparison_type"] == "self_frip"
     assert summary["metrics"][1]["comparison_type"] == "cross_frip"
     assert summary["metrics"][1]["peak_set"] == "S2"
-    merged = ProjectAnalysisService._merge_frip_metrics(
+    merged = ProjectFileParserService.merge_frip_metrics(
         [{"sample": "S1", "frip_ratio": 0.1218}],
         summary["metrics"],
     )

@@ -1558,3 +1558,130 @@ def test_pipeline_failure_analysis_reads_only_log_files_and_short_circuits(tmp_p
     assert "专业原因链路" not in combined_prompt
     assert "可执行复核动作" not in combined_prompt
     assert "QC" not in combined_prompt
+
+
+def test_pipeline_failure_analysis_filters_cutadapt_error_table_labels(tmp_path: Path):
+    project_root = tmp_path / "proj_cutadapt_log_labels"
+    project_root.mkdir()
+    (project_root / "trim.log").write_text(
+        "[FFPE_H3012326.trim.log] No. of allowed errors:\n"
+        "[FFPE_H3012326.trim.log] length\tcount\texpect\tmax.err\terror counts\n"
+        "[FFPE_Z1391354.trim.log] No. of allowed errors:\n"
+        "[FFPE_Z1391354.trim.log] length count expect max.err error counts\n"
+        "ERROR missing adapter index\n",
+        encoding="utf-8",
+    )
+
+    result = ProjectAnalysisService.analyze(
+        project_id="proj_cutadapt_log_labels",
+        question="why did the project error",
+        project_root=str(project_root),
+        max_evidence_files=10,
+    )
+
+    claims = [item["claim"] for item in result["fact_packet"]["direct_conclusions"]]
+
+    assert claims == ["[trim.log] ERROR missing adapter index"]
+    assert "No. of allowed errors" not in result["report"]
+    assert "length count expect max.err error counts" not in result["report"]
+    assert "解释：" in result["report"]
+    assert "缺少" in result["report"]
+    assert "索引" in result["report"]
+
+
+def test_pipeline_failure_answer_context_filters_stale_cutadapt_table_claims():
+    context = business_response_service.build_analysis_context(
+        analysis_result={
+            "report_mode": "pipeline_failure_log_only",
+            "evidence_files": ["filter.log"],
+            "report": (
+                "日志文件：filter.log\n"
+                "错误信息：\n"
+                "- [filter.log] length count expect max.err error counts\n"
+                "解释：\n"
+                "- [filter.log] length count expect max.err error counts：日志明确标记 ERROR，表示该步骤执行失败。"
+            ),
+            "fact_packet": {
+                "pipeline_errors_found": True,
+                "direct_conclusions": [
+                    {
+                        "claim": "[filter.log] length count expect max.err error counts",
+                        "confidence": "direct_log_evidence",
+                    }
+                ],
+            },
+        },
+        experience_summary={},
+    )
+
+    assert "length count expect max.err error counts" not in context
+    assert "日志明确标记 ERROR" not in context
+    assert "未检测到真实错误行" in context
+
+
+def test_workflow_pipeline_failure_uses_deterministic_filtered_answer(tmp_path: Path, monkeypatch):
+    project_root = tmp_path / "proj_pipeline_filter_only"
+    project_root.mkdir()
+    (project_root / "filter.log").write_text(
+        "length count expect max.err error counts\n",
+        encoding="utf-8",
+    )
+
+    async def fail_stream(*args, **kwargs):
+        raise AssertionError("pipeline failure log-only answers must not call the LLM")
+        yield ""
+
+    monkeypatch.setattr(
+        "multi_agent.backed.app.services.business_agent.runtime_service.business_response_service.stream_fused_answer",
+        fail_stream,
+    )
+
+    result = ProjectAnalysisWorkflowService.run_analysis(
+        question="项目为什么报错",
+        project_id="proj_pipeline_filter_only",
+        user_id="u1",
+        session_id="s_pipeline_filter_only",
+        project_root=str(project_root),
+        max_evidence_files=4,
+    )
+
+    answer = result["result_payload"]["answer"]
+
+    assert result["success"] is True
+    assert "length count expect max.err error counts" not in answer
+    assert "日志明确标记 ERROR" not in answer
+    assert "未检测到真实错误行" in answer
+
+
+def test_pipeline_failure_explains_snakemake_rule_failure_as_pointer_to_detail_log(tmp_path: Path):
+    project_root = tmp_path / "proj_snakemake_diffbind"
+    log_dir = project_root / ".snakemake" / "log"
+    log_dir.mkdir(parents=True)
+    (log_dir / "2026-06-20T115618.538751.snakemake.log").write_text(
+        "RuleException:\n"
+        "CalledProcessError in file "
+        "\"/beegfs/Pipline_cloud/data_cloud/Snakemake_Sop/CUTTag/Pipline_smk/cuttag_pipline/rules/8.diff_DiffBind.smk\", line 151:\n"
+        "Error in rule diffbind_analyze:\n"
+        "    log: /data/Pipline_cloud/data_cloud/Result/Peak差异分析/VZ20260620003/DiffAnalysis/DiffBind/results/Oxamate-vs-Control/run_diffbind.log (check log file(s) for error details)\n"
+        "Exiting because a job execution failed. Look below for error messages\n",
+        encoding="utf-8",
+    )
+
+    result = ProjectAnalysisService.analyze(
+        project_id="proj_snakemake_diffbind",
+        question="项目为什么报错",
+        project_root=str(project_root),
+        max_evidence_files=10,
+    )
+    answer = business_response_service.build_analysis_context(
+        analysis_result=result,
+        experience_summary={},
+    )
+
+    assert "diffbind_analyze" in answer
+    assert "8.diff_DiffBind.smk" in answer
+    assert "第 151 行" in answer
+    assert "外部命令" in answer
+    assert "run_diffbind.log" in answer
+    assert "真正的详细错误" in answer
+    assert "日志明确标记 ERROR" not in answer

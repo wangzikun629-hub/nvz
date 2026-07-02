@@ -27,7 +27,7 @@ class VectorStoreRepository:
             self.embedding = OpenAIEmbeddings(
                 model=settings.EMBEDDING_MODEL,
                 api_key=settings.API_KEY,
-                base_url=settings.BASE_URL,
+                base_url=settings.EMBEDDING_BASE_URL,
                 check_embedding_ctx_length=False,
                 model_kwargs={"encoding_format": "float"},
                 chunk_size=self.EMBEDDING_BATCH_LIMIT,
@@ -55,7 +55,7 @@ class VectorStoreRepository:
     @staticmethod
     def _should_use_dashscope_multimodal_embedding() -> bool:
         model = (settings.EMBEDDING_MODEL or "").lower()
-        base_url = (settings.BASE_URL or "").lower()
+        base_url = (settings.EMBEDDING_BASE_URL or "").lower()
         return "qwen3-vl-embedding" in model and "dashscope.aliyuncs.com" in base_url
 
     def _embed_documents_with_dashscope_multimodal(self, texts: List[str]) -> List[List[float]]:

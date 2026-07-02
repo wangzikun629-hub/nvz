@@ -23,6 +23,25 @@ class ProjectParseCache:
     _PROJECT_CONTEXT_IN_FLIGHT: dict[tuple[str, bool], threading.Event] = {}
     _PROJECT_CONTEXT_LOCK = threading.Lock()
 
+    # ── File-discovery cache（Phase 1，见 project_analysis_agent_upgrade_plan.md）──
+    # 按项目根目录 mtime + 目标指标集合缓存 file_role_assignment 候选列表，
+    # 避免每次提问都重新触发探索（关键词表命中的路径不经过这里，见调用方）。
+    #
+    # 已知次要项（project_analysis_phase1.5_auto_promotion_revision.md §14）：缓存粒度是
+    # "整个项目根目录"，任何单个文件被 touch（mtime 变化）就会让整个项目的
+    # file_role_assignment 缓存失效，即使实际改动和候选文件毫无关系。当前项目规模下足够用，
+    # 先记一笔；如果观测到失效过于频繁（比如项目目录里有频繁更新的日志/进度文件），再考虑
+    # 细化为按子目录或按目标指标分片缓存，不必现在就做。
+    _FILE_DISCOVERY_CACHE_MAX_ENTRIES = 256
+    _FILE_DISCOVERY_CACHE: dict[tuple[str, int, tuple[str, ...]], list[dict[str, Any]]] = {}
+    _FILE_DISCOVERY_LOCK = threading.Lock()
+
+    # ── Code-semantics cache（Phase 1.1，见 project_analysis_agent_upgrade_plan.md 2.1 节）──
+    # 按脚本文件路径 + mtime 缓存 formula_hint；同一份 SOP 脚本被多个项目复用时不用重复解析。
+    _CODE_SEMANTICS_CACHE_MAX_ENTRIES = 512
+    _CODE_SEMANTICS_CACHE: dict[tuple[str, int], dict[str, Any]] = {}
+    _CODE_SEMANTICS_LOCK = threading.Lock()
+
     # ── File-parse helpers ────────────────────────────────────────────────
 
     def _cache_key(self, file_path: Path, parser_kind: str) -> tuple[str, int, str]:
@@ -109,6 +128,67 @@ class ProjectParseCache:
             while len(self._PROJECT_CONTEXT_CACHE) > self._PROJECT_CONTEXT_CACHE_MAX_ENTRIES:
                 self._PROJECT_CONTEXT_CACHE.pop(next(iter(self._PROJECT_CONTEXT_CACHE)))
         return self._clone_project_context(cloned)
+
+    # ── File-discovery cache helpers ───────────────────────────────────────
+
+    @staticmethod
+    def _file_discovery_key(root: Path, target_metrics: list[str]) -> tuple[str, int, tuple[str, ...]]:
+        resolved = str(root.resolve())
+        try:
+            mtime_ns = root.stat().st_mtime_ns
+        except OSError:
+            mtime_ns = 0
+        metrics_key = tuple(sorted({str(m or "").strip().lower() for m in target_metrics if str(m or "").strip()}))
+        return (resolved, mtime_ns, metrics_key)
+
+    def get_cached_file_discovery(
+        self, root: Path, target_metrics: list[str]
+    ) -> list[dict[str, Any]] | None:
+        key = self._file_discovery_key(root, target_metrics)
+        with self._FILE_DISCOVERY_LOCK:
+            cached = self._FILE_DISCOVERY_CACHE.get(key)
+        if cached is None:
+            return None
+        return [dict(item) for item in cached]
+
+    def set_cached_file_discovery(
+        self, root: Path, target_metrics: list[str], assignments: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        key = self._file_discovery_key(root, target_metrics)
+        cloned = [dict(item) for item in assignments]
+        with self._FILE_DISCOVERY_LOCK:
+            self._FILE_DISCOVERY_CACHE[key] = cloned
+            while len(self._FILE_DISCOVERY_CACHE) > self._FILE_DISCOVERY_CACHE_MAX_ENTRIES:
+                self._FILE_DISCOVERY_CACHE.pop(next(iter(self._FILE_DISCOVERY_CACHE)))
+        return [dict(item) for item in cloned]
+
+    # ── Code-semantics cache helpers ───────────────────────────────────────
+
+    @staticmethod
+    def _code_semantics_key(script_path: Path) -> tuple[str, int]:
+        resolved = str(script_path.resolve())
+        try:
+            mtime_ns = script_path.stat().st_mtime_ns
+        except OSError:
+            mtime_ns = 0
+        return (resolved, mtime_ns)
+
+    def get_cached_formula_hint(self, script_path: Path) -> dict[str, Any] | None:
+        key = self._code_semantics_key(script_path)
+        with self._CODE_SEMANTICS_LOCK:
+            cached = self._CODE_SEMANTICS_CACHE.get(key)
+        if cached is None:
+            return None
+        return dict(cached)
+
+    def set_cached_formula_hint(self, script_path: Path, formula_hint: dict[str, Any]) -> dict[str, Any]:
+        key = self._code_semantics_key(script_path)
+        cloned = dict(formula_hint)
+        with self._CODE_SEMANTICS_LOCK:
+            self._CODE_SEMANTICS_CACHE[key] = cloned
+            while len(self._CODE_SEMANTICS_CACHE) > self._CODE_SEMANTICS_CACHE_MAX_ENTRIES:
+                self._CODE_SEMANTICS_CACHE.pop(next(iter(self._CODE_SEMANTICS_CACHE)))
+        return dict(cloned)
 
     def build_cached_project_context(self, root: Path, include_html_body: bool) -> dict[str, Any]:
         """Build or return cached project context, with in-flight deduplication."""

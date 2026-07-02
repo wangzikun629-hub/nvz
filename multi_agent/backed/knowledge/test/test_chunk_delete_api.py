@@ -37,9 +37,11 @@ class DummyQueryService:
 
 
 query_module.QueryService = DummyQueryService
-sys.modules.setdefault("multi_agent.backed.knowledge.services.query_service", query_module)
+query_module_name = "multi_agent.backed.knowledge.services.query_service"
+sys.modules.setdefault(query_module_name, query_module)
 
-retrieval_module = types.ModuleType("multi_agent.backed.knowledge.services.retrieval_service")
+retrieval_module_name = "multi_agent.backed.knowledge.services.retrieval_service"
+retrieval_module = types.ModuleType(retrieval_module_name)
 
 
 class DummyRetrievalService:
@@ -48,21 +50,33 @@ class DummyRetrievalService:
 
 
 retrieval_module.RetrievalService = DummyRetrievalService
-sys.modules.setdefault("multi_agent.backed.knowledge.services.retrieval_service", retrieval_module)
+sys.modules.setdefault(retrieval_module_name, retrieval_module)
 
-from multi_agent.backed.knowledge.api.routers import router, upload_tasks, ingestion_processor
+from multi_agent.backed.knowledge.api import routers as routers_module
+from multi_agent.backed.knowledge.api.routers import router, upload_tasks
+
+for module_name, module in (
+    ("multi_agent.backed.knowledge.services.ingestion.ingestion_processor", ingestion_module),
+    (query_module_name, query_module),
+    (retrieval_module_name, retrieval_module),
+):
+    if sys.modules.get(module_name) is module:
+        sys.modules.pop(module_name)
 
 
 class ChunkDeleteApiTests(unittest.TestCase):
     def setUp(self):
         upload_tasks.clear()
+        routers_module._ingestion_processor = DummyIngestionProcessor()
         self.app = FastAPI()
         self.app.include_router(router)
         self.client = TestClient(self.app)
 
     def test_delete_chunk_marks_it_deleted_and_updates_count(self):
         deleted_ids = []
-        ingestion_processor.vector_store.delete_documents_by_ids = lambda ids: deleted_ids.extend(ids) or len(ids)
+        routers_module._ingestion_processor.vector_store.delete_documents_by_ids = (
+            lambda ids: deleted_ids.extend(ids) or len(ids)
+        )
         upload_tasks["task-1"] = {
             "status": "success",
             "message": "ok",

@@ -67,9 +67,16 @@ from multi_agent.backed.app.services.business_agent.workspace import ProjectWork
 
 
 class BusinessAgentRuntimeService:
-    KNOWLEDGE_RETRIEVAL_TIMEOUT_SECONDS = 8.0
+    KNOWLEDGE_RETRIEVAL_TIMEOUT_SECONDS = 20.0
     PROJECT_ANALYSIS_TIMEOUT_SECONDS = 25.0
-    AI_REPORT_SUMMARY_VERSION = "project-review-v3"
+    # 2026-07-02 修复：本轮 code review 修复了 evidence_card_service 的 trust_level
+    # 兜底逻辑 bug（详见 docs/project_analysis_agent_upgrade_plan.md 第三轮记录），
+    # analysis_result 的结构化内容因此发生了变化。在此之前（project-review-v3）生成
+    # 并落盘到 project_report_cache 的缓存条目，字段口径已经和当前渲染逻辑对不上，
+    # 会导致复用缓存时报告渲染成大片"报告中未提供"。版本号必须随事实层结构性改动
+    # 一起变，缓存加载处的 generation_version 比对才能把这些旧缓存当成过期、
+    # 触发一次性重新生成，而不是静默复用过期结构。
+    AI_REPORT_SUMMARY_VERSION = "project-review-v4"
     AUTO_HTML_REPORT_QUESTION = "\u603b\u7ed3\u4e00\u4e0b\u8fd9\u4e2a\u9879\u76ee"
     AUTO_REPORT_SUMMARY_ENABLED = True
     _auto_report_tasks: set[str] = set()
@@ -142,14 +149,39 @@ class BusinessAgentRuntimeService:
         analysis_result: dict[str, Any],
         question_route: dict[str, Any] | None,
     ) -> tuple[str, dict[str, Any]]:
-        # Guard 已禁用：直接透传模型输出，离线 harness 仍可独立评测。
-        return str(answer or ""), {
-            "passed": True,
-            "action": "disabled",
-            "severity": "none",
-            "violations": [],
-            "review_only": True,
-        }
+        # 是否真正启用 harness_guard 的拦截/改写由 settings.HARNESS_GUARD_ENFORCEMENT_ENABLED
+        # 控制，默认 False（维持历史上"Guard 已禁用，直接透传模型输出"的行为，离线 harness
+        # 仍可用 business_harness_guard_service 独立评测)。开启后走确定性短语级规则
+        # （不合格/pass-fail 等越界措辞的拦截与替换），这不等同于历史上更完整的
+        # semantic_guard（LLM 语义校验）+ 模型重写链路，那是更大的改动，本次未恢复。
+        from multi_agent.backed.app.config.settings import settings as _settings
+
+        if not _settings.HARNESS_GUARD_ENFORCEMENT_ENABLED:
+            enforced_answer, guard = str(answer or ""), {
+                "passed": True,
+                "action": "disabled",
+                "severity": "none",
+                "violations": [],
+                "review_only": True,
+            }
+        else:
+            enforced_answer, guard = business_harness_guard_service.enforce(
+                answer=answer,
+                analysis_result=analysis_result,
+                question_route=question_route,
+            )
+            guard["review_only"] = False
+
+        # Phase 1.5（project_analysis_agent_upgrade_plan.md 2.3 节）：候选指标的
+        # "探索性观察，未正式确认"必须用固定措辞单独渲染，不能靠 LLM 自由生成的措辞来
+        # 保证这条边界，所以在这个统一出口做确定性追加，覆盖所有走 guard 的项目问答路径。
+        exploratory_section = business_response_service.render_exploratory_observations_section(
+            (analysis_result.get("reasoning_packet") or {}).get("exploratory_observations")
+        )
+        if exploratory_section and exploratory_section not in enforced_answer:
+            enforced_answer = f"{enforced_answer}\n{exploratory_section}"
+
+        return enforced_answer, guard
 
     @classmethod
     async def _apply_answer_quality_gate(
@@ -1893,8 +1925,13 @@ class BusinessAgentRuntimeService:
             question=question,
             knowledge_status=answer_cache_service.build_knowledge_status(retrieval_payload),
         )
-        cached_answer_payload = answer_cache_service.get(answer_cache_key)
-        answer_cache_status = "hit" if cached_answer_payload else "miss"
+        deterministic_pipeline_answer = analysis_result.get("report_mode") == "pipeline_failure_log_only"
+        cached_answer_payload = None if deterministic_pipeline_answer else answer_cache_service.get(answer_cache_key)
+        answer_cache_status = (
+            "skipped_pipeline_failure_deterministic"
+            if deterministic_pipeline_answer
+            else ("hit" if cached_answer_payload else "miss")
+        )
         logger.info(
             "business_runtime stage=compose_response workflow_run_id=%s answer_cache=%s project_version=%s",
             workflow_run_id,
@@ -1926,7 +1963,13 @@ class BusinessAgentRuntimeService:
             else:
                 answer_text = ""
 
-                if analysis_result.get("report_mode") == "existing_html_report_summary":
+                if deterministic_pipeline_answer:
+                    answer_text = business_response_service.build_analysis_context(
+                        analysis_result=analysis_result,
+                        experience_summary=experience_summary,
+                    )
+                    publish_project_answer_final(answer_text)
+                elif analysis_result.get("report_mode") == "existing_html_report_summary":
                     answer_text, _ = await business_response_service._stream_with_project_deltas(
                         business_response_service.stream_existing_html_report_answer(
                             analysis_result=analysis_result,

@@ -77,6 +77,39 @@ class BusinessAnswerQualityService:
     SUPPORT_MARKERS = ("证据支持", "当前证据", "不支持", "尚不能", "未确认", "限制")
     ACTION_MARKERS = ("核对", "检查", "复核", "确认", "比较", "查看", "补充", "排查", "验证", "结合")
 
+    # project_analysis_phase1.5_auto_promotion_revision.md §10：evidence_coverage 信任加权
+    # 系数。recalculated（过了公式重算或脚本公式转正祝福）计满权重；display_only（仅展示，
+    # 公式未核实，如转置主汇总表）和 screening_signal（字段发现猜测降级）按折扣系数计入，
+    # 避免一条未核实的猜测值和一条已核实证据对覆盖分贡献相同。这两个系数是保守初始值，
+    # 应结合人工抽查动态校准（同一纪律参考 CANDIDATE_METRIC_AUTO_PROMOTE_MIN_PROJECTS 的
+    # 校准方式），不是定论。
+    EVIDENCE_TRUST_WEIGHTS = {
+        "recalculated": 1.0,
+        "display_only": 0.5,
+        "screening_signal": 0.3,
+    }
+
+    @classmethod
+    def _evidence_trust_weight(cls, project_evidence: list[dict[str, Any]]) -> dict[str, float]:
+        counts = {"recalculated": 0, "display_only": 0, "screening_signal": 0, "unknown": 0}
+        weighted = 0.0
+        for item in project_evidence:
+            level = str((item or {}).get("trust_level") or "display_only").strip()
+            if level not in cls.EVIDENCE_TRUST_WEIGHTS:
+                level = "unknown"
+                weight = cls.EVIDENCE_TRUST_WEIGHTS["display_only"]
+            else:
+                weight = cls.EVIDENCE_TRUST_WEIGHTS[level]
+            counts[level] = counts.get(level, 0) + 1
+            weighted += weight
+        return {
+            "recalculated": counts["recalculated"],
+            "display_only": counts["display_only"],
+            "screening_signal": counts["screening_signal"],
+            "unknown": counts["unknown"],
+            "weighted_count": weighted,
+        }
+
     @classmethod
     def evaluate_packet(
         cls,
@@ -98,6 +131,13 @@ class BusinessAnswerQualityService:
         possible_causes = [str(item).strip() for item in (reasoning_packet.get("possible_causes") or []) if str(item).strip()]
         response_plan = (analysis_result.get("analysis_plan") or {}).get("response_plan") or {}
 
+        # project_analysis_phase1.5_auto_promotion_revision.md §10：evidence_coverage 原来
+        # 只按 project_evidence 条目数计分，未核实值（trust_level=display_only/
+        # screening_signal）和已过公式重算的值（recalculated）贡献完全一样，是一处让自身
+        # 质量信号失真的完整性漏洞。这里改成按信任等级加权求"当量条目数"，未核实值按折扣
+        # 系数计入，不再和已核实证据同权重刷分；系数先给保守值，后续可结合人工抽查校准。
+        trust_weight = cls._evidence_trust_weight(project_evidence)
+
         dimensions = {
             "fact_correctness": {
                 "score": max(0, 30 - 6 * len([i for i in (fact_verification.get("issues") or []) if i.get("severity") == "severe"])),
@@ -105,9 +145,15 @@ class BusinessAnswerQualityService:
                 "details": [f"fact_issues={len(fact_verification.get('issues') or [])}"],
             },
             "evidence_coverage": {
-                "score": min(20, 4 + len(project_evidence) * 2),
+                "score": min(20, 4 + trust_weight["weighted_count"] * 2),
                 "max_score": 20,
-                "details": [f"project_evidence={len(project_evidence)}"],
+                "details": [
+                    f"project_evidence={len(project_evidence)}",
+                    f"recalculated={trust_weight['recalculated']}",
+                    f"display_only={trust_weight['display_only']}",
+                    f"screening_signal={trust_weight['screening_signal']}",
+                    f"weighted_count={trust_weight['weighted_count']:.2f}",
+                ],
             },
             "unsupported_conclusion_control": {
                 "score": 15 if direct_conclusions else 6,

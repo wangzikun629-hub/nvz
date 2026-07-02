@@ -12,7 +12,7 @@ search_mcp_client = MCPServerStreamableHttp(
     params={
         "url": f"{settings.DASHSCOPE_BASE_URL}",
         "headers": {
-            "Authorization": f"Bearer {settings.AL_BAILIAN_API_KEY}"
+            "Authorization": f"Bearer {settings.DASHSCOPE_API_KEY}"
         },
         "timeout": 60,
         "sse_read_timeout": 60 * 30,

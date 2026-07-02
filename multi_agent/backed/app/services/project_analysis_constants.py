@@ -192,6 +192,18 @@ PROFESSIONAL_RULES: dict[str, Any] = {
         "interpretation": "rRNA 比例过高直接消耗有效测序量，可能导致数据质量不足以支撑下游分析。",
         "downstream_impact": "mRNA reads 减少，基因定量噪声增大，差异分析效力下降。",
     },
+    "silva_total_ratio_percent": {
+        "label": "Silva rRNA total ratio",
+        "unit": "%",
+        "warning": {"op": ">", "value": 10.0},
+        "critical": {"op": ">", "value": 30.0},
+        "source_field": "Silva_total_ratio(%)",
+        "definition": "基于 SILVA rRNA 数据库 blast 比对估计的 rRNA 序列占比，独立于基因组比对的 rRNA_ratio，反映 rRNA 污染/去除效率。",
+        "denominator": "抽样 reads 总数",
+        "assumption": "SILVA blast 使用抽样 reads，与 rRNA_ratio(%)（基于全比对）口径不同，二者可交叉印证 rRNA 污染程度。",
+        "interpretation": "Silva_total_ratio 偏高提示 rRNA 去除不彻底或 rRNA depletion kit 失效，直接消耗有效测序量。",
+        "downstream_impact": "有效 mRNA reads 减少，基因检测数量与定量精度下降。",
+    },
     "detected_gene_count": {
         "label": "Detected genes",
         "unit": "genes",
@@ -213,8 +225,61 @@ PROFESSIONAL_RULES: dict[str, Any] = {
         "definition": "比对到外显子区域的 reads 占总 mapped reads 的比例。",
         "denominator": "total mapped reads",
         "assumption": "exon 比例与建库方式（polyA/total RNA）和物种基因结构相关。",
-        "interpretation": "外显子比例偏低提示基因组污染或 pre-mRNA 大量存在（RNA 降解或样本来源异常）。",
+        "interpretation": "外显子比例偏低提示基因组 DNA 污染或 pre-mRNA 大量存在（RNA 降解或样本来源异常）。",
         "downstream_impact": "影响基因表达定量的信噪比，外显子覆盖不均匀会影响 FPKM/TPM 计算准确性。",
+    },
+    "intronic_ratio_percent": {
+        "label": "Intronic reads ratio",
+        "unit": "%",
+        "warning": {"op": ">", "value": 40.0},
+        "critical": {"op": ">", "value": 60.0},
+        "source_field": "mRNA_Intronic_ratio(%)",
+        "definition": "比对到内含子区域的 reads 占总 mapped reads 的比例。",
+        "denominator": "total mapped reads",
+        "assumption": "intronic 比例因物种、建库类型（polyA/total RNA）和 rRNA 去除方案有所不同；total RNA 建库通常高于 polyA 建库。",
+        "interpretation": "内含子比例偏高提示样本中 pre-mRNA 比例大，可能来自 RNA 降解不足、提取时核质污染或 total RNA 建库特性。",
+        "downstream_impact": "影响基因定量准确性，FPKM/TPM 值可能因外显子有效 reads 减少而偏低。",
+    },
+    "intergenic_ratio_percent": {
+        "label": "Intergenic reads ratio",
+        "unit": "%",
+        "warning": {"op": ">", "value": 20.0},
+        "critical": {"op": ">", "value": 40.0},
+        "source_field": "Intergenic_ratio(%)",
+        "definition": "比对到基因间区的 reads 占总 mapped reads 的比例。",
+        "denominator": "total mapped reads",
+        "assumption": "基因注释版本差异会影响 intergenic 比例；注释不完整时该值偏高属正常现象。",
+        "interpretation": "intergenic 比例偏高提示基因组 DNA 污染或注释覆盖率不足，需结合 exon/intronic 比例综合判断。",
+        "downstream_impact": "直接压缩外显子有效 reads，影响基因表达定量和差异分析的统计效力。",
+    },
+}
+
+# ── RNA-seq 专属语义覆盖（覆盖通用 PROFESSIONAL_RULES 中与 RNA-seq 不符的描述和阈值）──
+# 用于 _build_rule_entry 的 semantic_overrides 参数，仅在 assay == "rnaseq" 时传入。
+RNASEQ_SEMANTIC_OVERRIDES: dict[str, Any] = {
+    "mapping_rate_percent": {
+        "warning": {"op": "<", "value": 80.0},
+        "critical": {"op": "<", "value": 70.0},
+        "assumption": "RNA-seq 通常使用 STAR / HISAT2 比对，总比对率要求高于 CUT&Tag；需确认参考基因组版本和是否包含 rRNA/spike-in 序列。",
+        "interpretation": "比对率偏低通常提示参考基因组版本不匹配、物种污染、样本降解或 rRNA/接头残留。",
+        "downstream_impact": "降低可用于基因定量的有效 reads，影响低表达基因的检测灵敏度和差异分析效力。",
+    },
+    "unique_mapping_rate_percent": {
+        # RNA-seq 多重比对策略（STAR --outFilterMultimapNmax）允许多比对 reads 参与定量，
+        # 不能以 CUT&Tag 的唯一比对阈值来判定质量。此处移除数值阈值，仅保留说明。
+        "warning": None,
+        "critical": None,
+        "assumption": "唯一比对率依赖比对工具参数；STAR 等支持多重比对，uniquely mapped reads 不是 RNA-seq 质量的唯一判断维度。",
+        "interpretation": "需结合总比对率和多重比对比例综合判断；唯一比对率极低（< 30%）时需排查重复序列污染或参考基因组问题。",
+        "downstream_impact": "影响基因定量时多比对 reads 的分配策略，需与 featureCounts/RSEM 等工具的多比对参数保持一致。",
+    },
+    "duplicate_rate_percent": {
+        # RNA-seq 中高表达基因天然产生高重复率，阈值不能等同于 CUT&Tag
+        "warning": {"op": ">", "value": 60.0},
+        "critical": {"op": ">", "value": 80.0},
+        "assumption": "RNA-seq 重复率受文库深度和基因表达分布影响；高表达基因的高重复率不等于文库复杂度低；需结合 detected_gene_count 和 mRNA 比例判断。",
+        "interpretation": "重复率偏高时，需先确认 mRNA 比例和检测基因数正常；若基因数偏少同时重复率极高，才提示文库复杂度不足。",
+        "downstream_impact": "去重处理对 RNA-seq 定量影响有争议；通常不建议对 polyA 文库强制去重，但对 UMI 文库应去重。",
     },
 }
 
@@ -225,6 +290,17 @@ QUESTION_FILE_HINTS: dict[str, list[str]] = {
     "peak": ["FRiP_score.xls", "FRiP_raw.txt", "Samples_peak_number_stat.xls", "5.1PeakStat.readme.txt", "5.1PeakStat"],
     "frip": ["FRiP_score.xls", "FRiP.xls", "FRiP_raw.txt", "peakFrip"],
     "spikein": ["spikein_align.xls", "Spikein"],
+    # RNA-seq 专属：reads 组成 / 基因检测数 / 表达分布
+    "rnaseq": [
+        "Statistic_Reads.xls",
+        "AlignmentQC.xls",
+        "Samples.rRNA_Globin_stat.xls",
+        "Samples.ExpRange.xls",
+        "Correlation_Summary_1.xls",
+        "spearman_Corr_readCounts.tab",
+        "SilvaBlast",
+        ".stat.xls",
+    ],
     "diagnostic": [
         "ReadsQC.xls",
         "Statistic_Reads.xls",
@@ -239,6 +315,7 @@ QUESTION_FILE_HINTS: dict[str, list[str]] = {
         "Correlation_Summary_1.xls",
         "Samples.rRNA_Globin_stat.xls",
         "Samples.ExpRange.xls",
+        "SilvaBlast",
     ],
     "diff": [
         "final_anno",
@@ -272,6 +349,10 @@ TARGET_METRIC_FILE_HINTS: dict[str, tuple] = {
     "peak_count": ("Samples_peak_number_stat.xls",),
     "mrna_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
     "rrna_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
+    "exon_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
+    "intronic_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
+    "intergenic_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
+    "silva_total_ratio_percent": ("SilvaBlast", ".stat.xls", "AllSamples.silva.xls"),
     "detected_gene_count": ("Samples.ExpRange.xls",),
 }
 

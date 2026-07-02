@@ -41,9 +41,11 @@ _MAX_INDEXED_FILES = 1200
 _MAX_COMMON_EVIDENCE_FILES = 600
 _MAX_INDEXED_DIRS = 220
 _MAX_COMMON_EVIDENCE_DIRS = 120
-_MAX_INTERNAL_WORKFLOW_DIRS = 80
-_MAX_INTERNAL_WORKFLOW_FILES = 400
+_MAX_INTERNAL_WORKFLOW_DIRS = 200
+_MAX_INTERNAL_WORKFLOW_FILES = 800
 _MAX_LOCAL_SCAN_SECONDS = 4.0
+_MAX_SFTP_MIRROR_SECONDS = 20.0
+_PROJECT_MIRROR_COMPLETE_MARKER = ".sftp-cache-complete"
 _MAX_PROJECT_SEARCH_DEPTH = 2
 _SKIP_DIR_NAMES = {
     ".business_agent",
@@ -147,8 +149,23 @@ _PRIORITY_DIR_TOKENS = (
     "alignment",
     "filter",
     "motif",
+    # RNA-seq 流程脚本/规则目录优先级
+    "rna-qc-pipline",
+    "rna_qc",
+    "star",
+    "featurecount",
+    "fastp",
+    "silvablast",
+    "rrnastat",
+    "align",
+    "stat",
 )
 _WORKFLOW_ALIASES = {
+    # 这张表现在有两个用途：① 给 _infer_workflow_keywords 提供"实验类型有哪些
+    # 别名说法"的关键词来源；② 在无法枚举 SOP 根目录真实子目录时（sftp 离线模式、
+    # 目录列举失败等）作为兜底猜测。真正命中优先靠 _match_workflow_dir 对真实
+    # 目录名做模糊匹配，不再要求这里的值和磁盘上的目录名逐字一致——之前这里写的
+    # "Hi-C_V2" 和实际目录 "HiC_V2" 对不上，就是这张静态表本身脱节导致的。
     "cuttag": "CUTTag",
     "cut&tag": "CUTTag",
     "cutrun": "CUTTag",
@@ -157,11 +174,127 @@ _WORKFLOW_ALIASES = {
     "rna-seq": "RNA-seq",
     "rnaseq": "RNA-seq",
     "rna_seq": "RNA-seq",
-    "hi-c": "Hi-C_V2",
-    "hic": "Hi-C_V2",
+    "hi-c": "HiC_V2",
+    "hic": "HiC_V2",
     "primer": "Primer",
     "foodie": "FOODIE",
+    "mngs": "mngs-NT",
+    "mngs-nt": "mngs-NT",
+    "metagenom": "mngs-NT",
 }
+
+_SOP_DIR_LISTING_TTL_SECONDS = 300.0
+_SOP_DIR_LISTING_CACHE: dict[str, tuple[float, list[str]]] = {}
+# 这个连接超时只给"列目录做模糊匹配"这一步用，明显短于 _mirror_sftp_workflow /
+# _mirror_sftp_project 用的 15s——列目录是主分析流程（data_analysis_service.run）
+# 里同步等待的一步，网络慢或不可达时应该快速失败退回静态猜测表（见
+# _resolve_sop_workflow_names），而不是把 25s 的 PROJECT_ANALYSIS_TIMEOUT_SECONDS
+# 预算大半耗在这一次连接尝试上。真正下载/镜像脚本仍然用 _open_sftp 默认的 15s。
+_SOP_DIR_LISTING_CONNECT_TIMEOUT_SECONDS = 4.0
+
+
+def _normalize_workflow_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", str(value or "").lower())
+
+
+def _list_local_sop_dirs(sop_base: Path) -> list[str]:
+    """列出 SOP 根目录下真实存在的子目录名（带短 TTL 缓存，避免每次都扫盘）。"""
+    cache_key = f"local:{sop_base}"
+    cached = _SOP_DIR_LISTING_CACHE.get(cache_key)
+    now = monotonic()
+    if cached and now - cached[0] < _SOP_DIR_LISTING_TTL_SECONDS:
+        return list(cached[1])
+    try:
+        names = sorted(child.name for child in sop_base.iterdir() if child.is_dir())
+    except (OSError, PermissionError):
+        names = []
+    _SOP_DIR_LISTING_CACHE[cache_key] = (now, names)
+    return names
+
+
+def _list_remote_sop_dirs(location: "SftpLocation") -> list[str]:
+    """sftp 版本的目录列举；离线模式下调用方不应调用这个函数（会触发网络连接）。"""
+    cache_key = f"sftp://{location.host}:{location.port}{location.remote_path}"
+    cached = _SOP_DIR_LISTING_CACHE.get(cache_key)
+    now = monotonic()
+    if cached and now - cached[0] < _SOP_DIR_LISTING_TTL_SECONDS:
+        return list(cached[1])
+    client = None
+    names: list[str] = []
+    try:
+        client, sftp = _open_sftp(location, connect_timeout=_SOP_DIR_LISTING_CONNECT_TIMEOUT_SECONDS)
+        for item in sftp.listdir_attr(location.remote_path):
+            child_path = posixpath.join(location.remote_path, item.filename)
+            is_dir = stat.S_ISDIR(item.st_mode) or (
+                stat.S_ISLNK(item.st_mode) and _remote_is_dir(sftp, child_path)
+            )
+            if is_dir:
+                names.append(item.filename)
+        names.sort()
+    except Exception:
+        names = []
+    finally:
+        if client is not None:
+            client.close()
+    _SOP_DIR_LISTING_CACHE[cache_key] = (now, names)
+    return names
+
+
+def _match_workflow_dir(dir_names: list[str], keywords: list[str]) -> str | None:
+    """在真实存在的目录名里，用归一化子串匹配挑出实验类型对应的目录。
+
+    避免依赖一张需要人工维护、容易和真实目录拼写/命名脱节的静态映射表——
+    目录改名、新增目录都不需要再改代码，只要关键词表里有对应别名即可命中。
+    """
+    if not keywords or not dir_names:
+        return None
+    normalized_keywords = [_normalize_workflow_token(k) for k in keywords]
+    best_name: str | None = None
+    best_score = 0
+    for name in dir_names:
+        normalized_name = _normalize_workflow_token(name)
+        if not normalized_name:
+            continue
+        score = sum(
+            1
+            for kw in normalized_keywords
+            if kw and (kw in normalized_name or normalized_name in kw)
+        )
+        if score > best_score:
+            best_score = score
+            best_name = name
+    return best_name
+
+
+def _resolve_sop_workflow_names(
+    sop_base: str,
+    keywords: list[str],
+    *,
+    is_remote: bool,
+    base_location: "SftpLocation | None" = None,
+) -> list[str]:
+    """把关键词解析成实际应该进入的 SOP 子目录名（可能有多个候选，按置信度排序）。
+
+    优先用真实目录列表做模糊匹配；列举不到（sftp 离线、连接失败、本地路径不存在）
+    时退回 _WORKFLOW_ALIASES 里的静态猜测，保证离线场景下行为不回归。
+    """
+    if not keywords:
+        return []
+    fallback_names = list(
+        dict.fromkeys(_WORKFLOW_ALIASES[token] for token in keywords if token in _WORKFLOW_ALIASES)
+    )
+
+    if is_remote:
+        if _sftp_offline() or base_location is None:
+            return fallback_names
+        real_dirs = _list_remote_sop_dirs(base_location)
+    else:
+        real_dirs = _list_local_sop_dirs(Path(sop_base))
+
+    matched = _match_workflow_dir(real_dirs, keywords)
+    if not matched:
+        return fallback_names
+    return [matched] + [name for name in fallback_names if name != matched]
 
 
 @dataclass(frozen=True)
@@ -304,7 +437,12 @@ def _get_sop_base_dirs() -> list[str]:
     return unique
 
 
-def _infer_workflow_names(project_root: Path, project_config: Mapping[str, object] | None = None) -> list[str]:
+def _infer_workflow_keywords(project_root: Path, project_config: Mapping[str, object] | None = None) -> list[str]:
+    """提取项目匹配到的实验类型别名 token（如 'cuttag'、'atac'）。
+
+    只返回关键词本身，不再直接映射成写死的目录名——目录名解析交给
+    _resolve_sop_workflow_names() 去对真实目录列表做模糊匹配。
+    """
     values: list[str] = []
     config = project_config or {}
     for key in ("Sequencing", "sequencing", "pipeline", "workflow", "assay", "project_type"):
@@ -313,15 +451,15 @@ def _infer_workflow_names(project_root: Path, project_config: Mapping[str, objec
             values.append(value)
     values.extend(str(part) for part in project_root.parts)
 
-    inferred: list[str] = []
+    matched: list[str] = []
     seen: set[str] = set()
     for value in values:
         normalized = value.lower().replace("\\", "/")
-        for token, canonical in _WORKFLOW_ALIASES.items():
-            if token in normalized and canonical.lower() not in seen:
-                seen.add(canonical.lower())
-                inferred.append(canonical)
-    return inferred
+        for token in _WORKFLOW_ALIASES:
+            if token in normalized and token not in seen:
+                seen.add(token)
+                matched.append(token)
+    return matched
 
 
 def _sop_workflow_roots(project_root: Path, project_config: Mapping[str, object] | None = None) -> list[Path]:
@@ -343,9 +481,32 @@ def _sop_workflow_roots(project_root: Path, project_config: Mapping[str, object]
         seen.add(resolved)
         roots.append(path)
 
-    workflow_names = _infer_workflow_names(project_root, project_config)
+    # 项目 config.yaml 中显式声明的流程脚本目录（不同 assay 路径各异，
+    # 例如 RNA-seq: scripts: /mnt/data/Pipeline/Yanfa_mRNA/RNA-QC-Pipline_v1.2）。
+    # SOP 仓库只覆盖部分 assay，此处补充读取 config 指向的真实脚本目录。
+    config = project_config or {}
+    for key in ("scripts", "script", "pipeline_dir", "pipeline", "workflow_dir", "code_dir"):
+        raw_scripts = str(config.get(key) or "").strip()
+        if not raw_scripts:
+            continue
+        script_path = Path(raw_scripts)
+        add_root(script_path)
+        # 兼容镜像/本地挂载：脚本目录可能被同步到项目根下同名子目录
+        try:
+            add_root(project_root / script_path.name)
+        except (OSError, ValueError):
+            pass
+
+    keywords = _infer_workflow_keywords(project_root, project_config)
     for raw_sop_base in _get_sop_base_dirs():
         if _is_sftp_url(raw_sop_base):
+            try:
+                base_location = _parse_sftp_url(raw_sop_base)
+            except ValueError:
+                continue
+            workflow_names = _resolve_sop_workflow_names(
+                raw_sop_base, keywords, is_remote=True, base_location=base_location
+            )
             for workflow_name in workflow_names:
                 for location in _remote_sop_workflow_locations(raw_sop_base, workflow_name):
                     cached_root = _sftp_sop_cache_root(location, workflow_name)
@@ -365,6 +526,7 @@ def _sop_workflow_roots(project_root: Path, project_config: Mapping[str, object]
             continue
 
         sop_base = Path(raw_sop_base)
+        workflow_names = _resolve_sop_workflow_names(raw_sop_base, keywords, is_remote=False)
         for workflow_name in workflow_names:
             workflow_root = sop_base / workflow_name
             before_count = len(roots)
@@ -481,7 +643,7 @@ def _remote_sop_workflow_locations(sop_base_url: str, workflow_name: str) -> lis
     ]
 
 
-def _open_sftp(location: SftpLocation):
+def _open_sftp(location: SftpLocation, *, connect_timeout: float = 15.0):
     try:
         import paramiko
     except ImportError as exc:
@@ -499,9 +661,9 @@ def _open_sftp(location: SftpLocation):
         key_filename=key_filename,
         look_for_keys=True,
         allow_agent=True,
-        timeout=15,
-        banner_timeout=15,
-        auth_timeout=15,
+        timeout=connect_timeout,
+        banner_timeout=connect_timeout,
+        auth_timeout=connect_timeout,
     )
     return client, client.open_sftp()
 
@@ -580,6 +742,10 @@ def _sftp_sop_cache_root(location: SftpLocation, workflow_name: str) -> Path:
 
 def _sop_cache_ready(cache_root: Path) -> bool:
     return (cache_root / ".sftp-cache-complete").exists()
+
+
+def _project_mirror_ready(cache_root: Path) -> bool:
+    return (cache_root / _PROJECT_MIRROR_COMPLETE_MARKER).exists()
 
 
 def _iter_cached_project_roots(project_id: str) -> Iterable[Path]:
@@ -728,6 +894,7 @@ def _mirror_sftp_project(
 ) -> Path | None:
     remote_project_root = location.remote_path
     local_project_root = local_project_root or _sftp_cache_root(location, project_id)
+    started_at = monotonic()
     client = None
     try:
         client, sftp = _open_sftp(location)
@@ -741,6 +908,7 @@ def _mirror_sftp_project(
         local_project_root.mkdir(parents=True, exist_ok=True)
 
         downloaded = 0
+        timed_out = False
         seen_dirs: set[str] = set()
         pending: list[tuple[str, int]] = []
         remote_dirs = [remote_project_root]
@@ -753,6 +921,9 @@ def _mirror_sftp_project(
             pending.append((remote_project_root, 0))
 
         while pending and downloaded < _MAX_INDEXED_FILES:
+            if monotonic() - started_at >= _MAX_SFTP_MIRROR_SECONDS:
+                timed_out = True
+                break
             current, depth = pending.pop(0)
             if current in seen_dirs:
                 continue
@@ -765,6 +936,9 @@ def _mirror_sftp_project(
             except OSError:
                 continue
             for child in children:
+                if monotonic() - started_at >= _MAX_SFTP_MIRROR_SECONDS:
+                    timed_out = True
+                    break
                 remote_child = posixpath.join(current, child.filename)
                 # Follow symlinks: listdir_attr returns lstat() so symlinks to
                 # directories appear as S_ISLNK, not S_ISDIR.
@@ -787,6 +961,21 @@ def _mirror_sftp_project(
                     downloaded += 1
                     if downloaded >= _MAX_INDEXED_FILES:
                         break
+            if timed_out:
+                break
+
+        if not timed_out and not pending:
+            # Full walk completed within the time budget — mark the cache as
+            # complete so future resolve_project_root() calls can trust it and
+            # skip re-mirroring. A timed-out or partial mirror is intentionally
+            # left unmarked so the next request resumes/re-verifies it instead
+            # of silently reusing a possibly-incomplete snapshot.
+            try:
+                (local_project_root / _PROJECT_MIRROR_COMPLETE_MARKER).write_text(
+                    "project mirror ready\n", encoding="utf-8"
+                )
+            except OSError:
+                pass
         return local_project_root if downloaded or local_project_root.exists() else None
     finally:
         if client is not None:
@@ -849,6 +1038,7 @@ def list_report_roots(project_root: Path) -> list[Path]:
 def _report_evidence_dirs(report_root: Path) -> list[Path]:
     return [
         report_root,
+        # ── CUT&Tag / ChIP-seq / CUT&RUN / ATAC-seq ──────────────────────
         report_root / "1.ReadsQC",
         report_root / "2.AlignmentQC" / "2.1AlignmentStat",
         report_root / "3.Correlation",
@@ -863,6 +1053,16 @@ def _report_evidence_dirs(report_root: Path) -> list[Path]:
         report_root / "7.DiffAnalysis" / "7.3DiffGOEnrichment",
         report_root / "7.DiffAnalysis" / "7.4DiffPathwayEnrichment",
         report_root / "8.MotifyAnalysis" / "8.1Motify",
+        # ── RNA-seq 专属目录 ──────────────────────────────────────────────
+        report_root / "4.Expression",
+        report_root / "4.GeneExpression",
+        report_root / "5.DiffExp",
+        report_root / "5.DEG",
+        report_root / "5.DiffAnalysis",
+        report_root / "6.GSEA",
+        report_root / "6.Enrichment",
+        report_root / "7.DiffExp",
+        report_root / "7.DEG",
     ]
 
 
@@ -873,8 +1073,13 @@ def _common_evidence_dirs(project_root: Path) -> list[Path]:
         dirs.extend(_report_evidence_dirs(candidate))
     dirs.extend(
         [
+            # CUT&Tag / ChIP-seq spike-in & deeptools
             project_root / "result" / "Spikein",
             project_root / "result" / "deeptools" / "Correlation",
+            # RNA-seq：reads 组成分析和基因表达分布文件常见位置
+            project_root / "result" / "QC",
+            project_root / "result" / "Expression",
+            project_root / "result" / "GeneExpression",
             project_root,
         ]
     )
@@ -1022,7 +1227,15 @@ def resolve_project_root(project_id: str, project_root: str | None = None) -> Pa
             _validate_explicit_local_root(project_root)
             local_candidates.append(Path(project_root))
 
-    local_candidates.extend(_iter_cached_project_roots(project_id))
+    # Cached SFTP mirrors are tracked separately: a directory left behind by a
+    # timed-out / abandoned mirror attempt has no completion marker and must
+    # NOT be treated as final here — otherwise a request that arrives while an
+    # earlier mirror is still (or was) in progress would silently reuse a
+    # partial snapshot. Genuine local candidates (explicit root / base dirs)
+    # carry no such marker convention and are accepted as soon as they exist.
+    sftp_cache_candidates = list(_iter_cached_project_roots(project_id))
+    local_candidates.extend(sftp_cache_candidates)
+    sftp_cache_paths = set(sftp_cache_candidates)
 
     for base_dir in _get_project_base_dirs():
         if _is_sftp_url(base_dir):
@@ -1039,10 +1252,24 @@ def resolve_project_root(project_id: str, project_root: str | None = None) -> Pa
             is_project_dir = candidate_path.exists() and candidate_path.is_dir()
         except (OSError, PermissionError):
             continue
-        if is_project_dir:
-            return candidate_path.resolve()
+        if not is_project_dir:
+            continue
+        if candidate_path in sftp_cache_paths and not _project_mirror_ready(candidate_path):
+            # Leftover from a timed-out/abandoned mirror — let the remote
+            # mirroring loop below resume it instead of reusing it as-is.
+            continue
+        return candidate_path.resolve()
 
     if _sftp_offline():
+        # Offline mode can't resume/remirror, so a partial cache (no completion
+        # marker) is better than nothing — fall back to it here rather than
+        # failing outright.
+        for candidate_path in sftp_cache_candidates:
+            try:
+                if candidate_path.exists() and candidate_path.is_dir():
+                    return candidate_path.resolve()
+            except (OSError, PermissionError):
+                continue
         raise FileNotFoundError(
             f"Project root not found for project_id={project_id}; SFTP access is disabled by PROJECT_SFTP_OFFLINE"
         )
@@ -1082,8 +1309,13 @@ def resolve_project_root(project_id: str, project_root: str | None = None) -> Pa
             )
             cached = _sftp_cache_root(location, project_id)
             try:
-                if cached.exists() and cached.is_dir():
+                if cached.exists() and cached.is_dir() and _project_mirror_ready(cached):
                     return cached.resolve()
+                # Cache dir missing, or present but left over from a timed-out /
+                # abandoned previous mirror attempt (no completion marker) — run
+                # (or resume) the mirror. _download_remote_file() skips files
+                # that already match the remote size, so this is cheap for
+                # files an earlier attempt already fetched.
                 mirrored = _mirror_sftp_project(location, project_id)
             except Exception:
                 continue
@@ -1204,7 +1436,28 @@ def find_internal_workflow_files(
     started_at = monotonic()
     root = project_root.resolve()
     scan_roots = [root, *_sop_workflow_roots(root, project_config)]
-    preferred_names = _SOP_CACHE_RELATIVE_FILES
+    # 通用 + assay 无关的偏好文件（SOP whitelist 偏 CUT&Tag，补充跨 assay 常见入口）
+    preferred_names = (
+        *_SOP_CACHE_RELATIVE_FILES,
+        "config.yaml",
+        "config.yml",
+        "Snakefile",
+        "main.py",
+        "run.py",
+        "main.sh",
+        "run.sh",
+        "pipeline.py",
+        "workflow.py",
+    )
+    # 每样本自动生成的画图脚本属噪音，不含分析公式/阈值，读取它们会挤占预算
+    noise_tokens = (
+        "genebodycoverage",
+        "junctionsaturation",
+        "base_qual_plot",
+        "_plot.",
+        ".plot.",
+        "insert_tmp",
+    )
     selected: list[Path] = []
     seen: set[Path] = set()
 
@@ -1218,6 +1471,9 @@ def find_internal_workflow_files(
             path.name.lower() not in _INTERNAL_WORKFLOW_NAMES
             and path.suffix.lower() not in _INTERNAL_WORKFLOW_SUFFIXES
         ):
+            return
+        lowered_name = path.name.lower()
+        if any(token in lowered_name for token in noise_tokens):
             return
         seen.add(resolved)
         selected.append(resolved)
@@ -1244,7 +1500,7 @@ def find_internal_workflow_files(
             continue
         for path in children:
             if path.is_dir():
-                if depth < 2 and not _should_skip_dir(path):
+                if depth < 4 and not _should_skip_dir(path):
                     pending.append((path, depth + 1))
                 continue
             scanned_files += 1

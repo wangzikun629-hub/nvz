@@ -71,7 +71,11 @@ class ProjectAnalyzeRequest(BaseModel):
 class ProjectChartRequest(BaseModel):
     project_id: str = Field(description="Project name or directory name")
     metric: str = Field(description="Metric name, for example q30, frip, peak, correlation")
-    chart_type: Optional[str] = Field(default=None, description="Chart type: bar / line / heatmap")
+    metric2: Optional[str] = Field(
+        default=None,
+        description="第二个指标名称（填写后自动切换为双指标对比图）",
+    )
+    chart_type: Optional[str] = Field(default=None, description="Chart type: bar / line / heatmap / scatter")
     project_root: Optional[str] = Field(default=None, description="Optional project root path")
     user_id: str = Field(default="project_user", description="Unique user ID")
     session_id: str = Field(default="default_project_session", description="Project analysis session ID")
@@ -80,6 +84,10 @@ class ProjectChartRequest(BaseModel):
     user_request: str = Field(
         default="",
         description="用户个性化需求描述，如'加一条 0.1 阈值线，柱子用绿色'",
+    )
+    use_codegen: bool = Field(
+        default=False,
+        description="为 True 时由 LLM 生成 R 脚本执行出图（ggplot2 PNG），适合自定义图类型",
     )
 
 
