@@ -8,6 +8,14 @@ from multi_agent.backed.app.api.routers import chat
 from multi_agent.backed.app.schemas.request import ChatCompatRequest, ChatMessageRequest, UserContext
 from multi_agent.backed.app.services.agent_service import MultiAgentService
 from multi_agent.backed.app.services.project_analysis_service import ProjectAnalysisService
+from multi_agent.backed.app.services.project_context_builder_service import (
+    ProjectContextBuilderService,
+    project_context_builder_service,
+)
+from multi_agent.backed.app.services.project_cause_analysis_service import (
+    ProjectCauseAnalysisService,
+)
+from multi_agent.backed.app.services.project_parse_cache import project_parse_cache
 from multi_agent.backed.app.services.project_cuttag_diagnostic_service import (
     ProjectCuttagDiagnosticService,
 )
@@ -181,7 +189,12 @@ def test_threshold_requires_structured_project_rule():
 
 
 def test_partial_mt_count_script_is_not_treated_as_rate_formula():
-    sources = ProjectAnalysisService._build_metric_rule_sources(
+    # 2026-07-03 修复：`_build_metric_rule_sources` 早已从 ProjectAnalysisService
+    # 搬到 project_context_builder_service.build_metric_rule_sources（职责边界见
+    # CLAUDE.md 服务表："project_context_builder_service | samplelist/config/
+    # workflow/HTML 上下文解析"），这条用例是搬迁前遗留的孤儿测试，一直没更新调用
+    # 路径——本次修复只是把调用对象改到当前实现，断言逻辑本身不变。
+    sources = project_context_builder_service.build_metric_rule_sources(
         metric_guides=[],
         workflow_summary={
             "detected_parameters": {},
@@ -552,7 +565,20 @@ def test_narrow_alignment_question_skips_raw_workflow_context():
     ) is True
 
 
-def test_auto_report_summary_is_lazy_by_default():
+def test_auto_report_summary_is_lazy_by_default(monkeypatch):
+    # 2026-07-03 修复：`AUTO_REPORT_SUMMARY_ENABLED` 现在默认是 True（见 runtime_service.py
+    # 里 2026-07-02 的修复记录，AI_REPORT_SUMMARY_VERSION 升到了 project-review-v4），
+    # 这是一个独立于本轮 Stage A0-E / Stage B-补工作的既有产品行为变化——不是这条测试
+    # 名字所说的"默认关闭"，而是"已经生成过匹配当前版本的摘要后不重复生成"意义上的懒惰。
+    # 这里改为模拟"已存在匹配当前版本的 ready 缓存"这个真实的懒惰触发条件，而不是继续
+    # 断言一个已经不成立的全局默认关闭前提。
+    monkeypatch.setattr(
+        "multi_agent.backed.app.repositories.project_report_cache_repository.project_report_cache_repository.load",
+        lambda project_id, project_root: {
+            "status": "ready",
+            "generation_version": BusinessAgentRuntimeService.AI_REPORT_SUMMARY_VERSION,
+        },
+    )
     service = BusinessAgentRuntimeService()
     assert service._should_start_auto_report_summary("u1", "s1", "p1", "D:/p1") is False
 
@@ -1015,9 +1041,13 @@ def test_process_task_sync_includes_project_analysis_payload(monkeypatch):
         "multi_agent.backed.app.services.agent_service.session_service.save_history",
         lambda user_id, session_id, history: None,
     )
+    # 2026-07-03 修复：真实调用现在会多传一个 `_preloaded_state=project_state`
+    # 关键字参数（见 agent_service.py 里 set_round_project_request_context 的调用
+    # 处，注释写明是为了避免内部重复做同步文件读取）——这条 lambda 是搬迁前的旧签名，
+    # 补上这个参数（带默认值）即可，不影响测试本身要验证的行为。
     monkeypatch.setattr(
         "multi_agent.backed.app.services.agent_service.set_round_project_request_context",
-        lambda user_id, session_id, project_id, project_root=None, max_evidence_files=None: None,
+        lambda user_id, session_id, project_id, project_root=None, max_evidence_files=None, _preloaded_state=None: None,
     )
     monkeypatch.setattr(
         "multi_agent.backed.app.services.agent_service.execute_project_business_analysis",
@@ -1067,6 +1097,9 @@ def test_chat_returns_project_analysis_fields(monkeypatch):
         fake_process_task_sync,
     )
 
+    # 2026-07-03 修复：`chat()` 之后新增了 `auth_user: dict = Depends(_require_auth_user)`
+    # 参数——直接函数调用（绕开 FastAPI 依赖注入）必须显式传入这个参数，否则拿到的是
+    # `Depends(...)` 哨兵对象本身，`_resolve_user_id` 对它调用 `.get()` 会报错。
     response = asyncio.run(
         chat(
             ChatCompatRequest(
@@ -1077,7 +1110,8 @@ def test_chat_returns_project_analysis_fields(monkeypatch):
                 project_id="proj1",
                 project_root="D:/proj1",
                 max_evidence_files=5,
-            )
+            ),
+            auth_user={"user_id": "u1"},
         )
     )
 
@@ -1161,10 +1195,17 @@ def test_diagnostic_analysis_reads_scripts_only_as_private_context(tmp_path: Pat
 
 
 def test_project_context_cache_coalesces_parallel_html_context_builds(tmp_path: Path, monkeypatch):
+    # 2026-07-03 修复：项目上下文缓存/去重（`_PROJECT_CONTEXT_CACHE`/
+    # `_PROJECT_CONTEXT_IN_FLIGHT`/`build_cached_project_context`）早已从
+    # ProjectAnalysisService 搬到 project_parse_cache.py（见 CLAUDE.md 服务表
+    # "project_parse_cache | 文件解析结果缓存、项目上下文 TTL 缓存"），真正构建
+    # 上下文的 `build_project_context` 在 project_context_builder_service 上。
+    # 这条用例是搬迁前遗留的孤儿测试，调用路径没跟着更新——本次只改调用对象，
+    # 断言的"并发去重"逻辑本身不变。
     project_root = tmp_path / "proj_context_cache"
     project_root.mkdir()
-    ProjectAnalysisService._PROJECT_CONTEXT_CACHE.clear()
-    ProjectAnalysisService._PROJECT_CONTEXT_IN_FLIGHT.clear()
+    project_parse_cache._PROJECT_CONTEXT_CACHE.clear()
+    project_parse_cache._PROJECT_CONTEXT_IN_FLIGHT.clear()
 
     entered = threading.Event()
     release = threading.Event()
@@ -1185,12 +1226,12 @@ def test_project_context_cache_coalesces_parallel_html_context_builds(tmp_path: 
             "metric_glossary": {},
         }
 
-    monkeypatch.setattr(ProjectAnalysisService, "_build_project_context", classmethod(fake_build_context))
+    monkeypatch.setattr(ProjectContextBuilderService, "build_project_context", classmethod(fake_build_context))
 
     with ThreadPoolExecutor(max_workers=2) as pool:
-        first = pool.submit(ProjectAnalysisService._build_cached_project_context, project_root, True)
+        first = pool.submit(project_parse_cache.build_cached_project_context, project_root, True)
         assert entered.wait(timeout=2)
-        second = pool.submit(ProjectAnalysisService._build_cached_project_context, project_root, True)
+        second = pool.submit(project_parse_cache.build_cached_project_context, project_root, True)
         release.set()
         first_result = first.result(timeout=2)
         second_result = second.result(timeout=2)
@@ -1220,7 +1261,10 @@ def test_followup_execution_prompt_uses_bound_project_context():
 
 
 def test_cause_graph_ranks_independently_supported_cause():
-    graph = ProjectAnalysisService._build_cause_graph(
+    # 2026-07-03 修复：因果图构建已迁移到 project_cause_analysis_service.py
+    # （见 CLAUDE.md 服务职责表："因果图构建、假说排名、竞争假说对比"）——
+    # 这条是搬迁前遗留的孤儿测试。
+    graph = ProjectCauseAnalysisService.build_cause_graph(
         question="为什么线粒体 reads 比例高",
         analysis_plan={
             "target_metrics": ["mt_rate_percent"],
@@ -1303,7 +1347,7 @@ def test_cause_graph_ranks_independently_supported_cause():
 
 
 def test_target_metric_alone_does_not_confirm_root_cause():
-    graph = ProjectAnalysisService._build_cause_graph(
+    graph = ProjectCauseAnalysisService.build_cause_graph(
         question="为什么线粒体 reads 比例高",
         analysis_plan={"target_metrics": ["mt_rate_percent"]},
         evidence_chain=[
@@ -1329,7 +1373,7 @@ def test_target_metric_alone_does_not_confirm_root_cause():
 
 
 def test_duplicate_sources_do_not_inflate_independent_cause_support():
-    graph = ProjectAnalysisService._build_cause_graph(
+    graph = ProjectCauseAnalysisService.build_cause_graph(
         question="为什么线粒体 reads 比例高",
         analysis_plan={
             "metric_evidence_plan": {
@@ -1508,7 +1552,10 @@ def test_pipeline_failure_analysis_reads_only_log_files_and_short_circuits(tmp_p
     def fail_expert_loop(*args, **kwargs):
         raise AssertionError("pipeline_failure must not run expert loop")
 
-    monkeypatch.setattr(ProjectAnalysisService, "_build_cached_project_context", fail_build_context)
+    # 2026-07-03 修复：`analyze()` 现在直接调用 project_parse_cache.
+    # build_cached_project_context（见该文件同名方法），不再经过
+    # ProjectAnalysisService 自己的方法——这条用例是搬迁前遗留的孤儿测试。
+    monkeypatch.setattr(project_parse_cache, "build_cached_project_context", fail_build_context)
     monkeypatch.setattr(
         "multi_agent.backed.app.services.project_analysis_service.project_expert_tool_service.run_loop",
         fail_expert_loop,

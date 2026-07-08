@@ -25,6 +25,7 @@ class MetricSchemaService:
     METRICS: dict[str, dict[str, Any]] = {
         "adapter_percent": {
             "label": "Adapter read-through rate",
+            "label_zh": "原始 reads 接头检出率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -39,6 +40,7 @@ class MetricSchemaService:
         },
         "clean_read_retention_percent": {
             "label": "Read-pair retention after trimming",
+            "label_zh": "过滤后 reads 保留率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -53,6 +55,7 @@ class MetricSchemaService:
         },
         "frip_ratio": {
             "label": "FRiP",
+            "label_zh": "FRiP",
             "unit": "fraction",
             "display_unit": "%",
             "value_scale": "fraction",
@@ -67,6 +70,7 @@ class MetricSchemaService:
         },
         "mapping_rate_percent": {
             "label": "Mapping rate",
+            "label_zh": "比对率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -81,6 +85,7 @@ class MetricSchemaService:
         },
         "unique_mapping_rate_percent": {
             "label": "Unique mapping rate",
+            "label_zh": "唯一比对率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -95,6 +100,7 @@ class MetricSchemaService:
         },
         "duplicate_rate_percent": {
             "label": "Duplicate rate",
+            "label_zh": "重复率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -109,6 +115,7 @@ class MetricSchemaService:
         },
         "picard_duplicate_pair_rate_percent": {
             "label": "Picard duplicate pair rate",
+            "label_zh": "Picard read-pair 重复率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -123,6 +130,7 @@ class MetricSchemaService:
         },
         "mt_rate_percent": {
             "label": "Organelle alignment rate",
+            "label_zh": "线粒体比对 reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -140,6 +148,7 @@ class MetricSchemaService:
         },
         "q20_ratio": {
             "label": "Q20",
+            "label_zh": "Q20 碱基比例",
             "unit": "fraction",
             "display_unit": "%",
             "value_scale": "fraction",
@@ -155,6 +164,7 @@ class MetricSchemaService:
         },
         "q30_ratio": {
             "label": "Q30",
+            "label_zh": "Q30 碱基比例",
             "unit": "fraction",
             "display_unit": "%",
             "value_scale": "fraction",
@@ -169,6 +179,7 @@ class MetricSchemaService:
         },
         "nrf": {
             "label": "NRF",
+            "label_zh": "NRF 文库复杂度",
             "unit": "fraction",
             "display_unit": "",
             "value_scale": "fraction",
@@ -197,6 +208,7 @@ class MetricSchemaService:
         },
         "pbc1": {
             "label": "PBC1",
+            "label_zh": "PBC1 文库复杂度",
             "unit": "fraction",
             "display_unit": "",
             "value_scale": "fraction",
@@ -218,6 +230,7 @@ class MetricSchemaService:
         },
         "pbc2": {
             "label": "PBC2",
+            "label_zh": "PBC2 文库复杂度",
             "unit": "ratio",
             "display_unit": "",
             "value_scale": "ratio",
@@ -239,6 +252,7 @@ class MetricSchemaService:
         },
         "spikein_mapped_reads": {
             "label": "Spike-in mapped reads",
+            "label_zh": "Spike-in mapped reads",
             "unit": "reads",
             "display_unit": "reads",
             "value_scale": "count",
@@ -255,6 +269,7 @@ class MetricSchemaService:
         },
         "spikein_unique_mapping_rate_percent": {
             "label": "Spike-in unique mapping rate",
+            "label_zh": "Spike-in 唯一比对率",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -270,6 +285,7 @@ class MetricSchemaService:
         },
         "spikein_scaling_factor": {
             "label": "Spike-in scaling factor",
+            "label_zh": "Spike-in scaling factor",
             "unit": "factor",
             "display_unit": "",
             "value_scale": "number",
@@ -287,6 +303,7 @@ class MetricSchemaService:
         },
         "correlation": {
             "label": "Sample correlation",
+            "label_zh": "样本信号相关性",
             "unit": "coefficient",
             "display_unit": "",
             "value_scale": "coefficient",
@@ -320,6 +337,7 @@ class MetricSchemaService:
         },
         "peak_count": {
             "label": "Peak count",
+            "label_zh": "Peak 数量",
             "unit": "peaks",
             "display_unit": "peaks",
             "value_scale": "count",
@@ -334,6 +352,7 @@ class MetricSchemaService:
         },
         "sequencing_depth": {
             "label": "Sequencing depth",
+            "label_zh": "测序深度",
             "unit": "reads",
             "display_unit": "reads",
             "value_scale": "count",
@@ -348,6 +367,7 @@ class MetricSchemaService:
         },
         "control_binding_status": {
             "label": "Control binding status",
+            "label_zh": "对照可用性与绑定状态",
             "unit": "categorical",
             "display_unit": "",
             "value_scale": "categorical",
@@ -363,6 +383,7 @@ class MetricSchemaService:
         # ── RNA-seq 专属指标 ───────────────────────────────────────────────
         "mrna_ratio_percent": {
             "label": "mRNA reads ratio",
+            "label_zh": "mRNA reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -377,6 +398,7 @@ class MetricSchemaService:
         },
         "rrna_ratio_percent": {
             "label": "rRNA reads ratio",
+            "label_zh": "rRNA reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -391,6 +413,7 @@ class MetricSchemaService:
         },
         "silva_total_ratio_percent": {
             "label": "Silva rRNA total ratio",
+            "label_zh": "Silva rRNA 总比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -405,6 +428,7 @@ class MetricSchemaService:
         },
         "exon_ratio_percent": {
             "label": "Exon reads ratio",
+            "label_zh": "外显子 reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -419,6 +443,7 @@ class MetricSchemaService:
         },
         "intronic_ratio_percent": {
             "label": "Intronic reads ratio",
+            "label_zh": "内含子 reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -433,6 +458,7 @@ class MetricSchemaService:
         },
         "intergenic_ratio_percent": {
             "label": "Intergenic reads ratio",
+            "label_zh": "基因间区 reads 比例",
             "unit": "%",
             "display_unit": "%",
             "value_scale": "percent",
@@ -447,6 +473,7 @@ class MetricSchemaService:
         },
         "detected_gene_count": {
             "label": "Detected genes",
+            "label_zh": "检测到基因数",
             "unit": "genes",
             "display_unit": "genes",
             "value_scale": "count",
@@ -456,6 +483,58 @@ class MetricSchemaService:
             "denominator": "",
             "source_scale": "count",
             "assay_scope": ["rnaseq"],
+            "recompute": "display",
+            "verifier_contract": "display_value_only",
+        },
+        # ── 2026-07-06 fact_packet 增强补录：此前只在 answer_quality_service /
+        # claim_service 的本地 METRIC_LABELS 里出现过标签，metric_schema_service
+        # 注册表里完全没有条目。三者都是 project_expert_tool_service.run_enrichment_
+        # expert() 里直接读汇总表的 median/mean 展示值（median/mean fragment size、
+        # median/mean peak width、TSS enrichment score），源头拿不到可重算的分子分母，
+        # 定性上和 peak_count/sequencing_depth 同类，recompute=display、
+        # verifier_contract=display_value_only。
+        "peak_width": {
+            "label": "Peak width",
+            "label_zh": "Peak 宽度",
+            "unit": "bp",
+            "display_unit": "bp",
+            "value_scale": "number",
+            "valid_range": [0.0, None],
+            "formula": "median/mean interval width across called peaks",
+            "numerator": "",
+            "denominator": "called peak intervals",
+            "source_scale": "number",
+            "assay_scope": ["cuttag", "chipseq", "cutrun", "atacseq"],
+            "recompute": "display",
+            "verifier_contract": "display_value_only",
+        },
+        "tss_enrichment": {
+            "label": "TSS enrichment",
+            "label_zh": "TSS enrichment",
+            "unit": "score",
+            "display_unit": "",
+            "value_scale": "number",
+            "valid_range": [0.0, None],
+            "formula": "normalized TSS-centered signal relative to flanking background",
+            "numerator": "",
+            "denominator": "TSS flanking background signal",
+            "source_scale": "number",
+            "assay_scope": ["cuttag", "chipseq", "cutrun", "atacseq"],
+            "recompute": "display",
+            "verifier_contract": "display_value_only",
+        },
+        "fragment_size": {
+            "label": "Fragment size",
+            "label_zh": "Fragment size",
+            "unit": "bp",
+            "display_unit": "bp",
+            "value_scale": "number",
+            "valid_range": [0.0, None],
+            "formula": "median/mean fragment size reported by fragment-size QC",
+            "numerator": "",
+            "denominator": "fragments included in the size summary",
+            "source_scale": "number",
+            "assay_scope": ["all"],
             "recompute": "display",
             "verifier_contract": "display_value_only",
         },
@@ -492,6 +571,9 @@ class MetricSchemaService:
         "intronic_ratio_percent": ["intron"],
         "intergenic_ratio_percent": ["intergenic"],
         "detected_gene_count": ["detected genes", "gene count", "genes_expressed"],
+        "peak_width": ["peak width", "peak_width", "峰宽"],
+        "tss_enrichment": ["tss enrichment", "tss_enrichment", "tss score", "tss_score"],
+        "fragment_size": ["fragment size", "fragment_size", "insert size", "片段长度"],
     }
 
     # ── Phase 0：formula_variants（人工预审的公式变体，见 2.2 节） ──────────

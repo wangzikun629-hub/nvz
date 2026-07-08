@@ -162,7 +162,12 @@ class FactVerificationService:
             # 的分子/分母时，追加一条 warning：不计入 unit_errors / severe，不影响
             # verify_fact_packet 的 passed 判定，但让"引用了展示值、没真正重算过"这件事
             # 对下游可见，不再像改造前那样彻底沉默。
-            if schema_check.get("recompute_status") in ("inputs_missing", "not_applicable"):
+            # 2026-07-06 fact_packet 增强（任务②）：recompute_status 现在优先读
+            # evidence_card_service.validate_cards() 已经算好并写在 card/project_evidence
+            # 上的值，只有旧数据没有这个字段时才回退到这里现算，避免两处各算一遍、
+            # 可能因为传参差异而互相不一致。
+            recompute_status = ev.get("recompute_status") or schema_check.get("recompute_status")
+            if recompute_status in ("inputs_missing", "not_applicable"):
                 issues.append(
                     {
                         "rule": "recalculation_inputs_missing",
@@ -515,7 +520,10 @@ class FactVerificationService:
                     )
                 # 2026-07-02 止血：同 verify_fact_packet，诚实失败信号只在这里（真正的
                 # 验证网关）判定，warning 级别，不计入 unit_errors。
-                if schema_check.get("recompute_status") in ("inputs_missing", "not_applicable"):
+                # 2026-07-06 fact_packet 增强（任务②）：同上，优先读 card 上已经算好的
+                # recompute_status，没有才回退现算。
+                recompute_status = card.get("recompute_status") or schema_check.get("recompute_status")
+                if recompute_status in ("inputs_missing", "not_applicable"):
                     issues.append(
                         {
                             "rule": "recalculation_inputs_missing",

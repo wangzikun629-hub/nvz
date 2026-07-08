@@ -85,14 +85,43 @@ def _pick_sample_field(headers: list[str]) -> str | None:
     return headers[0] if headers else None
 
 
+_GENERIC_SHORT_LABEL_TOKENS = frozenset(
+    {
+        "total", "count", "counts", "rate", "ratio", "percent", "percentage",
+        "value", "score", "status", "sample", "samples", "result", "results",
+        "summary", "data", "number", "all", "raw", "clean", "name", "reads",
+        "read",
+    }
+)
+
+
 def _score_header(header: str, tokens: list[str]) -> int:
+    """Token/header 双向子串打分。
+
+    2026-07-03 真实项目排查修复：`normalized_header in normalized_token`（短的一边
+    被长的一边"包含"）这个方向单独拿出来看风险很高——像行标签"Total"这种通用词，
+    几乎必然是某个 metric_id/label 拼接后字符串的偶然子串（例如
+    "silva_total_ratio_percent" 去掉下划线就是 "silvatotalratiopercent"，里面天然
+    带着 "total"），这纯属字符串巧合碰撞，不代表真的识别出了这一行/这一列对应
+    这个指标。真实案例：`AllSamples.silva.xls` 里物种表的汇总行就叫 "Total"，
+    被 `_discover_transposed_summary_table` 误判命中 `silva_total_ratio_percent`，
+    产出了看似合法、实际张冠李戴的证据。这里给这个方向加一条限制：被包含的
+    一边如果本身就是这类过于宽泛的通用词，不计分——只有 `normalized_token in
+    normalized_header`（长的、更具体的 token 出现在待匹配文本里）这个安全方向，
+    或者完全相等，才无条件计分。"""
     normalized_header = _normalize_token(header)
     if not normalized_header:
         return 0
     score = 0
     for token in tokens:
         normalized_token = _normalize_token(token)
-        if normalized_token and (normalized_token in normalized_header or normalized_header in normalized_token):
+        if not normalized_token:
+            continue
+        if normalized_token == normalized_header:
+            score += 1
+        elif normalized_token in normalized_header:
+            score += 1
+        elif normalized_header in normalized_token and normalized_header not in _GENERIC_SHORT_LABEL_TOKENS:
             score += 1
     return score
 
@@ -463,16 +492,172 @@ def _discover_transposed_summary_table(
     return results
 
 
+def _discover_from_exploration_hint(
+    file_path: Path,
+    target_metrics: list[str],
+    exploration_hint: dict[str, Any],
+    known_samples: list[str] | None,
+) -> list[dict[str, Any]]:
+    """Stage B-补 Step 3：把探索 agent 提交的 `value` 当作第三候选来源。
+
+    只在调用方已经确认两条规则化字段发现（按列匹配 + 按行匹配转置表）都没有
+    产出任何结果时才会被调用（见 `discover_and_extract`）。这里不重新猜字段
+    位置——agent 已经读过文件、报了它认为的值，这里只做两件事：
+    1. 如果提供了 `known_samples`（项目已知样本列表），hint 里的 `sample` 必须
+       在这个列表里，否则直接拒绝——这是给没有公式重算、`normalize()` 校验力度
+       偏弱的 `display_value_only`/`citation_only` 类指标补的安全网，不能只靠
+       数值范围检查兜底（`known_samples` 为空/未提供时跳过这条，不因为没有
+       样本清单信息就一律拒绝）。
+    2. 把 `value` 交给 `metric_schema_service.normalize()` 做该指标本身的
+       自洽/范围校验，不通过就丢弃——和其它两条规则化路径的红线完全一致。
+    """
+    metric_id = metric_schema_service.canonical_id(exploration_hint.get("candidate_metric_type"))
+    canonical_targets = {metric_schema_service.canonical_id(m) for m in target_metrics}
+    if not metric_id or metric_id not in canonical_targets:
+        return []
+    contract = metric_schema_service.verifier_contract(metric_id)
+    if contract in _NOT_APPLICABLE_CONTRACTS:
+        return []
+    value = str(exploration_hint.get("value") or "").strip()
+    if not value:
+        return []
+    sample = str(exploration_hint.get("sample") or "").strip()
+    source_field = str(exploration_hint.get("source_field") or "").strip()
+    if known_samples:
+        known_normalized = {str(s or "").strip().lower() for s in known_samples if str(s or "").strip()}
+        if known_normalized and (not sample or sample.strip().lower() not in known_normalized):
+            logger.info(
+                "project_field_discovery stage=exploration_hint status=rejected_sample_mismatch "
+                "file=%s metric=%s sample=%r known_sample_count=%d",
+                str(file_path),
+                metric_id,
+                sample,
+                len(known_normalized),
+            )
+            return []
+    normalized = metric_schema_service.normalize(
+        metric_id,
+        value,
+        source_field=source_field or "exploration_agent_hint",
+    )
+    if not normalized.get("valid"):
+        logger.info(
+            "project_field_discovery stage=exploration_hint status=rejected_normalize_failed "
+            "file=%s metric=%s value=%r",
+            str(file_path),
+            metric_id,
+            value,
+        )
+        return []
+    try:
+        confidence = min(0.6, float(exploration_hint.get("confidence") or 0.5))
+    except (TypeError, ValueError):
+        confidence = 0.5
+    mapping = FieldMapping(
+        file_path=str(file_path),
+        metric_id=metric_id,
+        sample=sample or "-",
+        display_field=source_field or "-",
+        numerator_field="",
+        denominator_field="",
+        value=float(normalized["value"]),
+        display_value=str(normalized.get("display_value") or "-"),
+        confidence=confidence,
+        discovered_by="exploration_agent_hint",
+    )
+    logger.info(
+        "project_field_discovery stage=exploration_hint status=accepted file=%s metric=%s sample=%s",
+        str(file_path),
+        metric_id,
+        sample,
+    )
+    return [mapping.to_dict()]
+
+
+# 2026-07-03 修复（真实项目排查：Silva_total_ratio(%) 撞车 bug）：字段发现层此前对
+# "同一个 (metric_id, sample) 被多个文件各自独立命中"完全没有裁决——`discover_and_
+# extract()` 是逐文件调用的，只要某个文件的列名字面匹配上就会产出一条通过校验的
+# 证据，不知道、也不关心别的文件是否也命中了同一个指标。真实项目里 `SilvaBlast/
+# Blast_result/AllSamples.silva.xls`（单样本 blast 明细）里恰好也有一列字面叫
+# `Silva_total_ratio(%)`，和真正的项目级汇总表 `All_Sample_Stat.xls` 撞了同一个
+# metric_id+sample，规则化按列匹配对两个文件都会"成功"，谁先被处理、谁的证据就留
+# 在 evidence_chain 里，纯属偶然。这里加一层路径启发式的择优规则，在
+# `project_analysis_service._build_evidence_chain` 消费 `field_discovery` 列表前
+# 调用：汇总目录（如 `Statistic`）/ 项目级汇总表命名（如 `All_Sample_Stat`）优先，
+# blast/明细目录降权；同一 (metric_id, sample) 只保留最高优先级的一条。
+# 没有命中任何路径规则的情况下保持先到先得（stable），不引入新的不确定性。
+_DEMOTED_SOURCE_PATH_TOKENS = ("blast_result", "silvablast", "_blast", ".blast.", "blast.xls")
+_PROMOTED_SOURCE_PATH_TOKENS = ("statistic", "all_sample_stat")
+
+
+def _field_discovery_source_priority(source_file: str, trust_level: str = "") -> tuple[int, int]:
+    """返回 (path_score, trust_score)，数值越大越优先；用于跨文件择优排序。"""
+    lower = str(source_file or "").lower().replace("/", "\\")
+    demoted = any(token in lower for token in _DEMOTED_SOURCE_PATH_TOKENS)
+    promoted = any(token in lower for token in _PROMOTED_SOURCE_PATH_TOKENS)
+    path_score = (1 if promoted else 0) - (1 if demoted else 0)
+    trust_score = 1 if str(trust_level or "").strip() == "recalculated" else 0
+    return (path_score, trust_score)
+
+
+def dedupe_by_source_priority(hits: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """同一个 (metric_id, sample) 出现多条字段发现证据时，按来源路径优先级只保留一条。
+
+    `metric_id`/`sample` 缺失的条目不参与去重（原样保留，避免误伤），因为分组键
+    本身没有意义。有意义的分组里，优先级并列时保留先出现的一条（stable），不新增
+    随机性。这不改变"通过 normalize() 校验才会出现在这里"这条既有红线——去重只在
+    多条都已经是"合法证据"的前提下选一条展示，不影响校验逻辑本身。
+    """
+    best: dict[tuple[str, str], dict[str, Any]] = {}
+    best_score: dict[tuple[str, str], tuple[int, int]] = {}
+    order: list[tuple[str, str]] = []
+    passthrough: list[dict[str, Any]] = []
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        metric_id = str(hit.get("metric_id") or "").strip()
+        sample = str(hit.get("sample") or "").strip()
+        if not metric_id or not sample:
+            passthrough.append(hit)
+            continue
+        key = (metric_id, sample)
+        score = _field_discovery_source_priority(
+            str(hit.get("source_file") or ""), str(hit.get("trust_level") or "")
+        )
+        if key not in best:
+            best[key] = hit
+            best_score[key] = score
+            order.append(key)
+        elif score > best_score[key]:
+            best[key] = hit
+            best_score[key] = score
+    return [best[key] for key in order] + passthrough
+
+
 def discover_and_extract(
     file_path: Path,
     target_metrics: list[str],
     *,
     formula_hints: list[dict[str, Any]] | None = None,
+    exploration_hint: dict[str, Any] | None = None,
+    known_samples: list[str] | None = None,
 ) -> list[dict[str, Any]]:
     """对一个未被 resolve_table_kind() 认出的表格文件，猜字段映射并抽取已验证的指标值。
 
     只返回通过 `metric_schema_service.normalize()` 自洽/重算校验的结果；猜测失败的字段
     组合直接丢弃，调用方拿到的每一条都可以像正常证据一样使用。
+
+    Stage B-补（project_analysis_exploration_and_evolution_plan.md）：`exploration_
+    hint` 是 Stage B 探索 agent 通过 `propose_evidence(value=...)` 提交的字段级线索
+    （见 `project_file_discovery_service.to_candidate_hints()`）。只有前两条规则化
+    发现（按列匹配 + 按行匹配转置表）都完全没找到任何证据时，才会尝试把这个 hint
+    当作第三候选来源，且同样要过 `metric_schema_service.normalize()` 校验——这是
+    2026-07-03 review 的结论：让 agent 只给已有规则候选"排序打分"，在两条规则都
+    失效的场景里等于没有真正的决定权；只有让它的读值作为独立候选、和规则候选一样
+    过同一道真值校验，它才有独立于规则之外的话语权。`known_samples` 提供时会额外
+    核对 hint 里的 `sample` 是否在项目已知样本列表里——这条是给
+    `display_value_only`/`citation_only` 这类没有公式重算、`normalize()` 校验力度
+    偏弱的指标补的安全网，样本对不上直接拒绝，不能只靠数值范围检查兜底。
     """
     if file_path.suffix.lower() not in _TABLE_SUFFIXES:
         return []
@@ -520,6 +705,20 @@ def discover_and_extract(
         except Exception:  # noqa: BLE001
             logger.warning(
                 "project_field_discovery stage=transposed_summary_table status=failed file=%s",
+                str(file_path),
+                exc_info=True,
+            )
+
+    # Stage B-补 Step 3：两条规则化发现都交白卷，且有探索 agent 的 hint 时，把它
+    # 当第三候选来源，仍然强制过 normalize() 校验。
+    if not all_results and exploration_hint:
+        try:
+            all_results = _discover_from_exploration_hint(
+                file_path, target_metrics, exploration_hint, known_samples
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning(
+                "project_field_discovery stage=exploration_hint status=failed file=%s",
                 str(file_path),
                 exc_info=True,
             )

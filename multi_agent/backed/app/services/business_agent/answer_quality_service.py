@@ -7,27 +7,20 @@ from multi_agent.backed.app.services.business_agent.claim_service import claim_s
 from multi_agent.backed.app.services.business_agent.fact_verification_service import (
     fact_verification_service,
 )
+from multi_agent.backed.app.services.business_agent.metric_schema_service import (
+    metric_schema_service,
+)
 
 
 class BusinessAnswerQualityService:
     PASS_SCORE = 70
+    # 2026-07-06 fact_packet 增强：中文指标名此前在本文件、claim_service、
+    # metric_schema_service 三处独立维护且用词不一致（见迁移记录）。现在统一以
+    # metric_schema_service.label_zh 为唯一来源，这里只做一次性派生，
+    # 不再手工维护重复字典。cls.METRIC_LABELS.get(...) 的既有调用方式不变。
     METRIC_LABELS = {
-        "adapter_percent": "Adapter（原始 reads 接头检出率）",
-        "q30_ratio": "Q30",
-        "mapping_rate_percent": "比对率",
-        "unique_mapping_rate_percent": "唯一比对率",
-        "duplicate_rate_percent": "重复率",
-        "mt_rate_percent": "线粒体 reads 比例",
-        "frip_ratio": "FRiP",
-        "correlation": "样本相关性",
-        "peak_count": "Peak 数量",
-        "peak_width": "Peak 宽度",
-        "tss_enrichment": "TSS enrichment",
-        "fragment_size": "Fragment size",
-        "spikein_mapped_reads": "Spike-in mapped reads",
-        "spikein_unique_mapping_rate_percent": "Spike-in 唯一比对率",
-        "spikein_scaling_factor": "Spike-in scaling factor",
-        "control_binding_status": "对照绑定状态",
+        metric_id: (metric_schema_service.get(metric_id).get("label_zh") or metric_id)
+        for metric_id in metric_schema_service.all_metric_ids()
     }
     METRIC_ALIASES = {
         "adapter_percent": ("adapter", "接头检出率", "接头比例"),

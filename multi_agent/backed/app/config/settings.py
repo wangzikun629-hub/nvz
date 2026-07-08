@@ -179,10 +179,78 @@ class Settings(BaseSettings):
         default=6.0,
         description="字段发现/转置表解析单阶段硬子预算（秒），超时降级返回已取得的证据"
     )
-    FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS: float = Field(
-        default=6.0,
-        description="文件发现启发式探测单阶段硬子预算（秒）"
+
+    # F-0（docs/project_planner_orchestrator_agent_design.md 第 1.5/4 节）：修复"外层
+    # 25s 总预算装不下文件发现子阶段自己配置的 30s 硬预算"这个现状矛盾。做法是把
+    # 外层总预算显式搬到这里做唯一真值源，`FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS` 的
+    # 有效值不再是一个与总预算无关的独立常量，而是 clamp 到
+    # `PROJECT_ANALYSIS_TIMEOUT_SECONDS - OTHER_STAGES_RESERVED_SECONDS` 之内
+    # （见下面 `effective_file_discovery_budget_seconds` 属性）。
+    #
+    # 这里的具体秒数（尤其 OTHER_STAGES_RESERVED_SECONDS=5.0）是保守估算，不是真实
+    # 项目压测结论——本次会话明确决定："先用原型里的保守值上线，后续用真实项目的
+    # 耗时分布数据再调"，所有数字都可以用对应环境变量覆盖，不需要改代码。
+    PROJECT_ANALYSIS_TIMEOUT_SECONDS: float = Field(
+        default=60.0,
+        description="analyze() 整个同步分析主流程的外层总预算（秒），与 "
+        "runtime_service.py 现状值保持一致，是本次 F-0 唯一真值源"
     )
+    OTHER_STAGES_RESERVED_SECONDS: float = Field(
+        default=5.0,
+        description="项目上下文构建/解析/建卡/因果图等除'文件发现'与'重探索'之外"
+        "其余阶段的预留耗时（秒），保守估算，未经真实项目压测校准"
+    )
+    AGENT_TIMEOUT_SAFETY_MARGIN_SECONDS: float = Field(
+        default=2.0,
+        description="探索 agent 单次调用超时必须严格小于文件发现子预算，这里是"
+        "预留给 agent 自行收尾（把已收集候选序列化返回）的安全边际（秒）"
+    )
+
+    # Stage B（project_analysis_exploration_and_evolution_plan.md）：文件发现的模型
+    # 增强分支从"单轮分类调用"换成多轮工具调用探索 agent 后，单次往返耗时明显高于
+    # 之前的单轮调用，6.0s 的旧预算大概率不够用（agent 内部自己的
+    # `_DEFAULT_AGENT_TIMEOUT_SECONDS`（2026-07-03 真实回放排查后调到 25.0s）会先一步
+    # 自行收尾并返回已收集到的候选，但这里的外层硬预算必须留出比它更长的余量，否则
+    # agent 还没来得及自行收尾就被外层 ThreadPoolExecutor 直接抛弃、连部分候选都拿不到）。
+    # 默认值同样是待压测校准的经验值，可通过 PROJECT_FILE_DISCOVERY_BUDGET_SECONDS
+    # 环境变量覆盖。
+    #
+    # F-0 修订：这个字段现在只是"文件发现子阶段的名义上限"，真正生效的值见下面
+    # `effective_file_discovery_budget_seconds`——会被 clamp 到不超过
+    # `PROJECT_ANALYSIS_TIMEOUT_SECONDS - OTHER_STAGES_RESERVED_SECONDS`，不再允许
+    # 子阶段预算独立于总预算配置成一个总预算根本装不下的数字。
+    FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS: float = Field(
+        default=30.0,
+        description="文件发现启发式探测 + 探索 agent 单阶段硬预算上限（秒）——实际"
+        "生效值见 effective_file_discovery_budget_seconds，会被 clamp 到总预算内"
+    )
+
+    @property
+    def effective_file_discovery_budget_seconds(self) -> float:
+        """F-0：文件发现子阶段的实际生效预算 = min(名义上限, 总预算 - 其余阶段预留)。
+
+        这是本次修复的核心——现状 bug 是 `FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS` 与
+        `PROJECT_ANALYSIS_TIMEOUT_SECONDS` 互不知情，子阶段配置的硬预算（30s）可以
+        大于外层总预算本身（25s）。这里强制子阶段预算不能超过总预算刨去其余阶段
+        预留后剩下的部分。
+        """
+        return max(
+            0.0,
+            min(
+                self.FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS,
+                self.PROJECT_ANALYSIS_TIMEOUT_SECONDS - self.OTHER_STAGES_RESERVED_SECONDS,
+            ),
+        )
+
+    @property
+    def effective_exploration_agent_timeout_seconds(self) -> float:
+        """F-0：探索 agent 单次调用超时，必须严格小于文件发现子预算减去安全边际，
+        否则 agent 还没来得及自行收尾就被外层 ThreadPoolExecutor 直接抛弃（见
+        docs/project_planner_orchestrator_agent_design.md 第 1.5 节）。"""
+        return max(
+            0.5,
+            self.effective_file_discovery_budget_seconds - self.AGENT_TIMEOUT_SAFETY_MARGIN_SECONDS,
+        )
 
     # 离线 harness 的确定性门禁（project_analysis_phase1.5_auto_promotion_revision.md §11）：
     # 开启后，file discovery / field discovery / code semantics 的模型增强分支在离线模式下
@@ -191,6 +259,42 @@ class Settings(BaseSettings):
     HARNESS_DETERMINISTIC_MODE: bool = Field(
         default=True,
         description="离线 harness 是否强制关闭所有模型增强分支以保证结果确定性"
+    )
+
+    # Phase 5（2026-07-06-fact-packet-first-refactor-plan.md / docs/
+    # project_planner_orchestrator_agent_design.md F-5）：planner-orchestrator 实际
+    # 派发子任务的总开关，默认关闭。关闭时 `_reexplore_unresolved_metrics` 完全走
+    # Phase 4 之前的既有单轮判断，`planner_orchestrator_trace.mode` 恒为 "dry_run"，
+    # `fact_packet`/`evidence_cards` 行为字节级不变。只有确认 dry-run trace 在真实
+    # 项目上可信之后才应该打开。
+    PLANNER_DISPATCH_ENABLED: bool = Field(
+        default=False,
+        description="是否允许 planner-orchestrator 真实调用 explore_files/"
+        "check_code_semantics 补证据缺口；默认关闭，行为等价于只产出 dry-run trace"
+    )
+    PLANNER_MAX_DISPATCH_ROUNDS: int = Field(
+        default=2,
+        description="PLANNER_DISPATCH_ENABLED 开启时，重探索循环允许的最大轮数；"
+        "轮数和 _REEXPLORE_SOFT_DEADLINE_SECONDS 墙钟预算是双重上限，谁先触发谁生效，"
+        "不是互相替代关系"
+    )
+    CODE_SEMANTICS_TOOL_CONFIDENCE_THRESHOLD: float = Field(
+        default=0.6,
+        description="planner 在 explore_files / check_code_semantics 两个工具之间"
+        "选择的置信度阈值，与 project_file_discovery_service."
+        "_CODE_SEMANTICS_TRIGGER_MAX_CONFIDENCE 语义一致（迁移为可配置项，避免两处"
+        "各自维护一份 0.6）：某指标当前最高规则命中置信度低于此值时派 "
+        "check_code_semantics，否则派 explore_files"
+    )
+    EXPLORATION_ALWAYS_ON_ENABLED: bool = Field(
+        default=False,
+        description="Stage G-2（2026-07-07-stage-g-explorer-codesemantics-tiered-plan.md）："
+        "默认关闭时，_exploration_agent_augment() 维持现状，只对启发式未命中的"
+        "剩余指标（target_metrics - heuristic_hits）触发探索 agent。开启后对完整"
+        "target_metrics 无条件触发探索 agent，启发式/代码语义命中的候选改为以"
+        "\"确认优先\"提示词喂给探索 agent 的 task brief，不再作为是否调用的门槛。"
+        "这是一次实打实的调用量增加，必须先在关闭状态下合入并验证行为逐位不变，"
+        "收集真实调用量/耗时数据后再评估是否把默认值改为 True，不允许直接默认开启"
     )
 
     # ==================== 并发控制 ====================
@@ -280,6 +384,42 @@ class Settings(BaseSettings):
 
         return self
 
+    # ==================== F-0 预算自洽性校验 ====================
+    @model_validator(mode='after')
+    def check_stage_f_budget_consistency(self) -> Self:
+        """F-0（docs/project_planner_orchestrator_agent_design.md 第 1.5 节）：现状的
+        预算矛盾是"静默存在，只在真实超时时才被发现"——这里改成配置加载时就主动
+        检出并记录告警，不阻断启动（预算配置不自洽不代表服务不可用，只是文件发现/
+        重探索阶段会更容易提前降级），但必须让运维/开发者能第一时间在日志里看到。
+        """
+        problems: list[str] = []
+        if self.effective_file_discovery_budget_seconds <= 0:
+            problems.append(
+                "effective_file_discovery_budget_seconds<=0："
+                f"PROJECT_ANALYSIS_TIMEOUT_SECONDS={self.PROJECT_ANALYSIS_TIMEOUT_SECONDS} - "
+                f"OTHER_STAGES_RESERVED_SECONDS={self.OTHER_STAGES_RESERVED_SECONDS} 已经不剩"
+                "任何时间给文件发现阶段"
+            )
+        if self.effective_exploration_agent_timeout_seconds < 1.0:
+            problems.append(
+                "effective_exploration_agent_timeout_seconds="
+                f"{self.effective_exploration_agent_timeout_seconds:.2f}s 过小，探索 agent "
+                "几乎不可能在这个时间内完成任何有意义的多轮工具调用"
+            )
+        if problems:
+            try:
+                from multi_agent.backed.app.infrastructure.logging.logger import logger
+
+                logger.warning(
+                    "settings stage=stage_f_budget_check status=inconsistent problems=%s",
+                    problems,
+                )
+            except Exception:
+                # 日志基础设施本身不可用时不能阻断配置加载，退化为标准错误输出。
+                import sys as _sys
+
+                print(f"[settings] stage_f_budget_check inconsistent: {problems}", file=_sys.stderr)
+        return self
 
 
 # 创建全局配置实例

@@ -4,12 +4,15 @@ import csv
 import hashlib
 import os
 import posixpath
+import re
 import stat
 from dataclasses import dataclass
 from pathlib import Path
 from time import monotonic
 from typing import Iterable, Mapping
 from urllib.parse import quote, unquote, urlparse
+
+from multi_agent.backed.app.infrastructure.logging.logger import logger
 
 
 @dataclass(frozen=True)
@@ -462,7 +465,11 @@ def _infer_workflow_keywords(project_root: Path, project_config: Mapping[str, ob
     return matched
 
 
-def _sop_workflow_roots(project_root: Path, project_config: Mapping[str, object] | None = None) -> list[Path]:
+def _sop_workflow_roots(
+    project_root: Path,
+    project_config: Mapping[str, object] | None = None,
+    metric_keywords: list[str] | None = None,
+) -> list[Path]:
     roots: list[Path] = []
     seen: set[Path] = set()
 
@@ -490,12 +497,34 @@ def _sop_workflow_roots(project_root: Path, project_config: Mapping[str, object]
         if not raw_scripts:
             continue
         script_path = Path(raw_scripts)
+        before_count = len(roots)
         add_root(script_path)
         # 兼容镜像/本地挂载：脚本目录可能被同步到项目根下同名子目录
         try:
             add_root(project_root / script_path.name)
         except (OSError, ValueError):
             pass
+        # 2026-07-03 真实项目排查补充：以上两个 add_root 都覆盖的是"脚本目录与本次
+        # 进程在同一台机器上可直接访问"的情况——这是部署到生产环境后的真实状态
+        # （脚本与服务同机，`script_path.exists()` 会直接为真，下面这段永远不会被
+        # 触发，生产行为完全不变）。只有当前两个都没找到本地路径时，才尝试把这个
+        # config 声明的远端绝对路径当作需要 SFTP 镜像的目录去拉一次——这是当前
+        # 开发/测试环境（结果文件靠 SFTP 镜像到本地）特有的补充路径。
+        # 注意：不能用 `script_path.is_absolute()` 判断"这是一个远端绝对路径"——
+        # 服务实际跑在 Windows 上（`WindowsPath`）时，`Path("/mnt/data/...").is_absolute()`
+        # 返回 False（Windows 语义下"绝对路径"要求同时有盘符和根，纯 "/" 开头的
+        # POSIX 风格路径只有根、没有盘符，判定为非绝对），会导致这个兜底分支在
+        # Windows 部署下永远不触发。这里改成直接看原始字符串是不是以 "/" 开头
+        # （远端 Linux 服务器上的绝对路径的字面特征），不依赖 `Path` 在当前操作
+        # 系统下的语义判断。
+        looks_like_remote_posix_path = raw_scripts.startswith("/")
+        if len(roots) == before_count and looks_like_remote_posix_path:
+            try:
+                mirrored = _maybe_mirror_config_script_dir(raw_scripts, metric_keywords)
+            except Exception:  # noqa: BLE001 - 镜像失败绝不能影响主流程
+                mirrored = None
+            if mirrored is not None:
+                add_root(mirrored)
 
     keywords = _infer_workflow_keywords(project_root, project_config)
     for raw_sop_base in _get_sop_base_dirs():
@@ -884,6 +913,225 @@ def _mirror_sftp_workflow(
     finally:
         if client is not None:
             client.close()
+
+
+_CONFIG_SCRIPT_SCAN_MAX_FILES = 30
+_CONFIG_SCRIPT_SCAN_MAX_DEPTH = 3
+
+
+def _config_script_cache_root(location: SftpLocation) -> Path:
+    """项目 config.yaml 里 `scripts`/`pipeline_dir` 等 key 声明的远端脚本目录，
+    走 SFTP 镜像时的本地缓存根目录。按 host:port:remote_path 做 hash 键控，
+    与 `_sftp_sop_cache_root` 的键控方式一致，但放在独立的 `config_scripts/`
+    子目录下，避免和 SOP 仓库缓存混在一起。"""
+    digest = hashlib.sha1(
+        f"{location.host}:{location.port}:{location.remote_path}".encode("utf-8")
+    ).hexdigest()[:16]
+    return _sftp_cache_base() / "config_scripts" / digest
+
+
+def _resolve_config_script_sftp_host() -> SftpLocation | None:
+    """从已配置的 `PROJECT_BASE_DIRS`/`PROJECT_SOP_BASE_DIRS` 里找第一个 sftp:// 条目，
+    借用它的 host/port/凭据——项目 config.yaml 里的 `scripts` 路径本身只是一个远端
+    服务器上的绝对路径（例如 `/mnt/data/Pipeline/Yanfa_mRNA/RNA-QC-Pipline_v1.2`），
+    不带 host 信息，需要复用同一套已知能连通的 SFTP 连接信息。找不到任何 sftp://
+    条目时返回 None——这正是纯本地部署（脚本与服务同机）的情况，调用方应该直接
+    放弃镜像，不做任何网络尝试。"""
+    for raw in (*_get_env_project_base_dirs(), *_get_env_sop_base_dirs()):
+        if _is_sftp_url(raw):
+            try:
+                return _parse_sftp_url(raw)
+            except ValueError:
+                continue
+    return None
+
+
+def _mirror_remote_script_dir(
+    location: SftpLocation,
+    local_root: Path,
+    keywords: list[str] | None = None,
+) -> Path | None:
+    """浅层扫描 + 下载一个任意的远端脚本目录（不像 `_mirror_sftp_workflow` 那样假定
+    固定的 SOP 相对路径清单——这里目录内容未知，只能按后缀/文件名浅层枚举）。
+    只挑选看起来像工作流脚本的文件（复用 `_INTERNAL_WORKFLOW_SUFFIXES`/
+    `_INTERNAL_WORKFLOW_NAMES` 同一套判断标准），数量和深度都有硬上限，避免误配成
+    一个巨大目录时把整个目录都拖下来。
+
+    2026-07-03 补充：`keywords`（通常来自目标指标的 detection_signature，如
+    silva_total_ratio_percent -> ["silva"]）非空时，目录/文件按"文件名命中关键词
+    优先"排序，而不是纯字母序——真实项目里发现纯字母序会在字母序靠前但与目标
+    指标无关的子目录（cut/、Fastp/、filter/）上耗尽 `_CONFIG_SCRIPT_SCAN_MAX_FILES`
+    下载配额，导致真正相关的子目录（如包含 silva/rrna 的目录）根本没被扫到。
+    不传 keywords 时行为与改造前完全一致（纯字母序 BFS）。"""
+    keyword_tokens = [str(kw).strip().lower() for kw in (keywords or []) if str(kw or "").strip()]
+
+    def _matches_keywords(name: str) -> bool:
+        if not keyword_tokens:
+            return False
+        lowered = name.lower()
+        return any(token in lowered for token in keyword_tokens)
+
+    client = None
+    downloaded = 0
+    try:
+        client, sftp = _open_sftp(location)
+        if not _remote_is_dir(sftp, location.remote_path):
+            logger.warning(
+                "project_reader stage=config_script_mirror status=remote_path_not_a_directory "
+                "remote=%s",
+                location.remote_path,
+            )
+            return None
+        pending: list[tuple[str, int]] = [(location.remote_path, 0)]
+        scanned_files = 0
+        while pending and downloaded < _CONFIG_SCRIPT_SCAN_MAX_FILES:
+            if keyword_tokens:
+                # 关键词命中的目录整体优先出队（越浅越先），而不是严格按加入顺序。
+                pending.sort(key=lambda item: (0 if _matches_keywords(item[0]) else 1, item[1]))
+            current, depth = pending.pop(0)
+            try:
+                children = sorted(
+                    sftp.listdir_attr(current),
+                    key=lambda item: (0 if _matches_keywords(item.filename) else 1, item.filename.lower()),
+                )
+            except OSError:
+                continue
+            for child in children:
+                if downloaded >= _CONFIG_SCRIPT_SCAN_MAX_FILES:
+                    break
+                remote_child = posixpath.join(current, child.filename)
+                is_dir = stat.S_ISDIR(child.st_mode) or (
+                    stat.S_ISLNK(child.st_mode) and _remote_is_dir(sftp, remote_child)
+                )
+                if is_dir:
+                    if depth < _CONFIG_SCRIPT_SCAN_MAX_DEPTH and not _should_skip_remote_dir(remote_child):
+                        pending.append((remote_child, depth + 1))
+                    continue
+                scanned_files += 1
+                name_lower = child.filename.lower()
+                suffix = Path(child.filename).suffix.lower()
+                if name_lower not in _INTERNAL_WORKFLOW_NAMES and suffix not in _INTERNAL_WORKFLOW_SUFFIXES:
+                    continue
+                try:
+                    _download_remote_file(sftp, remote_child, location.remote_path, local_root)
+                except (OSError, PermissionError):
+                    continue
+                downloaded += 1
+        if downloaded:
+            marker = local_root / ".sftp-cache-complete"
+            marker.write_text("config script dir cache ready\n", encoding="utf-8")
+            logger.info(
+                "project_reader stage=config_script_mirror status=downloaded remote=%s "
+                "local=%s scanned_files=%d downloaded=%d keywords=%s",
+                location.remote_path,
+                str(local_root),
+                scanned_files,
+                downloaded,
+                keyword_tokens,
+            )
+        else:
+            logger.info(
+                "project_reader stage=config_script_mirror status=no_matching_files remote=%s "
+                "scanned_files=%d keywords=%s",
+                location.remote_path,
+                scanned_files,
+                keyword_tokens,
+            )
+        return local_root if downloaded else None
+    except Exception as exc:  # noqa: BLE001 - 任何 SFTP 异常都静默降级，不影响主流程
+        logger.warning(
+            "project_reader stage=config_script_mirror status=failed remote=%s error=%s",
+            location.remote_path,
+            exc,
+        )
+        return None
+    finally:
+        if client is not None:
+            client.close()
+
+
+def _cache_has_keyword_match(cache_root: Path, keywords: list[str]) -> bool:
+    """检查已镜像目录里是否存在文件名命中任一关键词的文件。用于判断一次已完成的
+    镜像缓存（`.sftp-cache-complete` 已写入）是不是"凑巧下载到 30 个无关文件、
+    真正需要的文件根本没被扫到"的历史遗留结果——如果是，不能简单信任缓存命中，
+    需要重新走一次关键词优先扫描去补齐。"""
+    tokens = [str(kw).strip().lower() for kw in (keywords or []) if str(kw or "").strip()]
+    if not tokens:
+        return True
+    try:
+        for path in cache_root.rglob("*"):
+            if path.is_file():
+                name_lower = path.name.lower()
+                if any(token in name_lower for token in tokens):
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def _maybe_mirror_config_script_dir(
+    raw_scripts: str,
+    keywords: list[str] | None = None,
+) -> Path | None:
+    """F-1 补充（2026-07-03 真实项目排查）：项目 config.yaml 里声明的 `scripts` 等
+    key 指向的是远端服务器上的绝对路径（部署时脚本与服务在同一台机器上，届时这个
+    路径会直接存在、`Path.exists()` 走原有分支即可命中，不会走到这里）。这个函数
+    只在"本地路径确实不存在"时才会被调用——典型场景是当前这套开发/测试环境用
+    SFTP 把项目结果镜像到本地、但脚本目录之前从未被镜像过。找不到可复用的 SFTP
+    host（说明本来就是纯本地部署，不需要任何网络兜底）或离线模式下直接返回 None，
+    不做任何网络尝试，不影响生产环境行为。
+
+    `keywords` 透传给关键词优先扫描（见 `_mirror_remote_script_dir`）。如果本地
+    已有"缓存完成"标记，但缓存里没有任何文件命中关键词（说明是改造前纯字母序
+    扫描留下的、凑巧下载到一批无关文件的旧缓存），不直接信任 cache_hit，重新
+    触发一次关键词优先扫描去补齐。"""
+    if _sftp_offline():
+        logger.info(
+            "project_reader stage=config_script_mirror status=skipped_offline raw_scripts=%s",
+            raw_scripts,
+        )
+        return None
+    base_location = _resolve_config_script_sftp_host()
+    if base_location is None:
+        logger.info(
+            "project_reader stage=config_script_mirror status=skipped_no_sftp_host "
+            "raw_scripts=%s note=local_deployment_or_missing_PROJECT_BASE_DIRS_sftp_entry",
+            raw_scripts,
+        )
+        return None
+    location = SftpLocation(
+        host=base_location.host,
+        port=base_location.port,
+        username=base_location.username,
+        password=base_location.password,
+        remote_path=raw_scripts.rstrip("/") or "/",
+        url=_build_sftp_url(base_location, raw_scripts),
+    )
+    cache_root = _config_script_cache_root(location)
+    cache_ready = _sop_cache_ready(cache_root)
+    if cache_ready and _cache_has_keyword_match(cache_root, keywords or []):
+        logger.info(
+            "project_reader stage=config_script_mirror status=cache_hit remote=%s local=%s",
+            location.remote_path,
+            str(cache_root),
+        )
+        return cache_root
+    if cache_ready:
+        logger.info(
+            "project_reader stage=config_script_mirror status=cache_stale_keyword_miss "
+            "remote=%s local=%s keywords=%s",
+            location.remote_path,
+            str(cache_root),
+            keywords,
+        )
+    logger.info(
+        "project_reader stage=config_script_mirror status=attempting host=%s:%d remote=%s keywords=%s",
+        location.host,
+        location.port,
+        location.remote_path,
+        keywords,
+    )
+    return _mirror_remote_script_dir(location, cache_root, keywords=keywords)
 
 
 def _mirror_sftp_project(
@@ -1431,11 +1679,12 @@ def find_internal_workflow_files(
     project_root: Path,
     limit: int = 6,
     project_config: Mapping[str, object] | None = None,
+    metric_keywords: list[str] | None = None,
 ) -> list[Path]:
     """Find private workflow/config inputs without making them visible evidence."""
     started_at = monotonic()
     root = project_root.resolve()
-    scan_roots = [root, *_sop_workflow_roots(root, project_config)]
+    scan_roots = [root, *_sop_workflow_roots(root, project_config, metric_keywords)]
     # 通用 + assay 无关的偏好文件（SOP whitelist 偏 CUT&Tag，补充跨 assay 常见入口）
     preferred_names = (
         *_SOP_CACHE_RELATIVE_FILES,

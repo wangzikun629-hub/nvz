@@ -9,6 +9,9 @@ from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.services.business_agent.bio_skill_reference_service import (
     bio_skill_reference_service,
 )
+from multi_agent.backed.app.services.business_agent.metric_schema_service import (
+    metric_schema_service,
+)
 from multi_agent.backed.app.services.business_agent.tool_registry_service import (
     business_tool_registry_service,
 )
@@ -298,6 +301,37 @@ class AnalysisPlannerService:
     )
 
     @classmethod
+    def _registered_metric_choices(cls) -> set[str]:
+        """A0-3（project_analysis_exploration_and_evolution_plan.md Stage A0）：
+        planner 可选的指标集合，从"手写的 ALLOWED_METRICS 子集"扩为
+        "ALLOWED_METRICS 里的特殊 token（all/overview 等）∪ metric_schema_service
+        的完整注册表"。改造前 LLM planner 即使被放行调用，产出的
+        silva_total_ratio_percent 这类未在 ALLOWED_METRICS 手写清单里的已注册指标，
+        也会在 `_normalize_metrics`/`_normalize_evidence_requests` 里被直接过滤掉——
+        这是指标层放权本该修的核心缺口，而不只是门控问题。
+        """
+        return set(cls.ALLOWED_METRICS) | set(metric_schema_service.all_metric_ids())
+
+    @classmethod
+    def _metric_catalog_prompt_lines(cls) -> list[str]:
+        """把 metric_schema_service 的注册表渲染成给 LLM planner 看的紧凑目录：
+        metric_id + 中文/英文 label + 适用实验类型 + detection_signature 同义词。
+        让 planner 能凭同义词/口语描述匹配已注册指标（比如用户说"核糖体RNA比例"
+        而不是逐字打出 silva_total_ratio_percent），而不再依赖字面命中。
+        """
+        lines: list[str] = []
+        for metric_id in sorted(metric_schema_service.all_metric_ids()):
+            schema = metric_schema_service.get(metric_id)
+            if not schema:
+                continue
+            label = str(schema.get("label") or "")
+            assays = ",".join(schema.get("assay_scope") or ["all"])
+            signature_tokens = [str(token) for token in (schema.get("detection_signature") or [])][:6]
+            aka = ",".join(signature_tokens)
+            lines.append(f"- {metric_id} | {label} | assay={assays}" + (f" | aka: {aka}" if aka else ""))
+        return lines
+
+    @classmethod
     def build_plan(
         cls,
         *,
@@ -459,7 +493,13 @@ class AnalysisPlannerService:
             return False, "force_rule_planner"
         if route in {"project_compare", "ai_report_summary"}:
             return True, f"route={route}"
-        if intent in {"project_comparison", "report_summary"}:
+        # A0-1（project_analysis_exploration_and_evolution_plan.md Stage A0）：
+        # 宽泛/诊断类问题一律放行给 LLM planner，不再靠 should_force_rule_planner
+        # 的关键词门控拦截——这正是"换个问法→走不同 planner→选出不同指标"这次真实
+        # bug 的直接成因。project_overview/anomaly_investigation 对应
+        # project_analysis_service 里的 overview/diagnostic 问题分类，本来就应该让
+        # planner 有机会从已注册指标全集里挑，而不是被 force_rule_planner 拦下来。
+        if intent in {"project_comparison", "report_summary", "anomaly_investigation", "project_overview"}:
             return True, f"intent={intent}"
         if not fallback.get("target_metrics"):
             return True, "no_target_metrics"
@@ -487,11 +527,18 @@ class AnalysisPlannerService:
         question: str,
         fallback: dict[str, Any],
     ) -> bool:
+        """A0-1（Stage A0）收窄后的确定性快路径。
+
+        改造前这里用一长串宽松条件（多指标子集、<=2 指标、<=2 工具、任意关键词命中
+        即可）几乎把所有问题都拦回规则 planner，导致"换个问法→走不同 planner→
+        选出不同指标"。收窄后只保留一条真正零成本、行为不应变化的快路径：
+        **明确单指标 + 该指标是已调好的通用指标 + 问题里有强关键词命中**。
+        其余情况一律交给上层 `_should_use_llm_planner` 按 intent 决定是否放权给
+        LLM planner，不再用指标数量/工具数量这类粗粒度信号代替真正的意图判断。
+        """
         normalized = " ".join(str(question or "").split()).strip().lower()
         route = str((question_route or {}).get("route") or "").strip()
         target_metrics = list(fallback.get("target_metrics", []) or [])
-        evidence_requests = list(fallback.get("evidence_requests", []) or [])
-        selected_tools = list(fallback.get("selected_tools", []) or [])
         common_metric_targets = {
             "adapter_percent",
             "mapping_rate_percent",
@@ -503,14 +550,6 @@ class AnalysisPlannerService:
         }
         if route == "chart":
             return True
-        if len(target_metrics) == 1:
-            return True
-        if target_metrics and set(target_metrics).issubset(common_metric_targets):
-            return True
-        if target_metrics and len(target_metrics) <= 2 and len(evidence_requests) <= 4:
-            return True
-        if selected_tools and len(selected_tools) <= 2 and target_metrics:
-            return True
         metric_hint_terms = (
             "frip",
             "mapping",
@@ -521,7 +560,13 @@ class AnalysisPlannerService:
             "图",
             "鍥捐〃",
         )
-        return any(term in normalized for term in metric_hint_terms) and bool(target_metrics)
+        if (
+            len(target_metrics) == 1
+            and target_metrics[0] in common_metric_targets
+            and any(term in normalized for term in metric_hint_terms)
+        ):
+            return True
+        return False
 
     @classmethod
     def _build_llm_messages(
@@ -532,18 +577,25 @@ class AnalysisPlannerService:
         question_route: dict[str, Any],
         fallback: dict[str, Any],
     ) -> list[dict[str, str]]:
-        metric_names = ", ".join(sorted(cls.ALLOWED_METRICS))
         request_types = ", ".join(sorted(cls.ALLOWED_REQUEST_TYPES))
         intents = ", ".join(sorted(cls.ALLOWED_INTENTS))
+        metric_catalog_lines = cls._metric_catalog_prompt_lines()
+        metric_catalog_text = "\n".join(metric_catalog_lines) if metric_catalog_lines else "-"
         system_prompt = (
             "你是生物信息项目分析的路线规划智能体，只输出 JSON。"
             "你只负责规划，不读取文件、不计算数值、不下整体项目合格/不合格结论。"
             f"intent 只能取: {intents}。"
             f"evidence_requests.type 只能取: {request_types}。"
-            f"target_metrics 和 evidence_requests.metric 只能使用这些指标或 overview/all: {metric_names}。"
+            "target_metrics 和 evidence_requests.metric 只能从下面『已注册指标目录』里按 metric_id "
+            "选择（可参考 label 与 aka 同义词判断用户问题里口语化描述对应哪个 metric_id），"
+            "或者用 overview/all 表示不针对单一指标。"
+            "不允许发明目录里没有的 metric_id；如果怀疑项目里存在目录外的新指标，"
+            "不要把它塞进 target_metrics，只在 planning_notes 里如实提一句『疑似存在未注册指标』。"
             "允许规划读取指标表、脚本/规则来源、历史项目、绘图数据或项目摘要。"
             "必须保留回答边界：允许指出单项指标高低和通用参考阈值；禁止整体项目合格/交付/下游判断。"
-            "只返回 JSON，不要 Markdown，不要解释。"
+            "只返回 JSON，不要 Markdown，不要解释。\n\n"
+            "## 已注册指标目录（metric_id | label | assay | aka 同义词）\n"
+            f"{metric_catalog_text}"
         )
         schema_hint = {
             "intent": "metric_explanation | anomaly_investigation | project_comparison | chart_request | report_summary | project_overview",
@@ -811,10 +863,16 @@ class AnalysisPlannerService:
 
     @classmethod
     def _normalize_metrics(cls, value: Any, fallback: Any) -> list[str]:
+        # A0-3: 允许集合从 ALLOWED_METRICS 扩为"特殊 token ∪ 完整注册表"，并对
+        # LLM 输出做一次 canonical_id() 规范化（同义词/别名收敛到唯一 metric_id），
+        # 这样已注册但未在 ALLOWED_METRICS 手写清单里的指标（如 silva_total_ratio_percent）
+        # 才能真正被 planner 选中，而不是在这里被静默过滤掉。
+        allowed = cls._registered_metric_choices()
         metrics: list[str] = []
         for item in (value if isinstance(value, list) else []):
-            metric = str(item or "").strip().lower()
-            if metric in cls.ALLOWED_METRICS and metric not in metrics:
+            raw = str(item or "").strip().lower()
+            metric = raw if raw in {"all", "overview"} else metric_schema_service.canonical_id(raw)
+            if metric in allowed and metric not in metrics:
                 metrics.append(metric)
         if metrics:
             return metrics[:8]
@@ -843,8 +901,9 @@ class AnalysisPlannerService:
             request_type = str(item.get("type") or "").strip()
             if request_type not in cls.ALLOWED_REQUEST_TYPES:
                 continue
-            metric = str(item.get("metric") or "").strip().lower()
-            if metric and metric not in cls.ALLOWED_METRICS:
+            raw_metric = str(item.get("metric") or "").strip().lower()
+            metric = raw_metric if raw_metric in {"all", "overview", ""} else metric_schema_service.canonical_id(raw_metric)
+            if metric and metric not in cls._registered_metric_choices():
                 metric = target_metrics[0] if target_metrics else "overview"
             module = re.sub(r"\s+", " ", str(item.get("module") or "")).strip()[:80]
             reason = re.sub(r"\s+", " ", str(item.get("reason") or "")).strip()[:160]
@@ -964,6 +1023,21 @@ class AnalysisPlannerService:
         for metric, tokens, _ in cls.METRIC_RULES:
             if any(token.lower() in lowered_question for token in tokens) and metric not in metrics:
                 metrics.append(metric)
+        # A0-2（project_analysis_exploration_and_evolution_plan.md Stage A0）：
+        # 原来"问题里字面提及已注册指标"的检测（detect_metrics_in_text）是
+        # project_analysis_service._select_evidence_files / analyze() 里两处独立的
+        # 下游补丁，和这里的规则推断并行、互不知情，形成第 3/4 层之外的又一套指标
+        # 来源。收敛成规则 planner（这里）自己的一部分：任何时候规则 fallback 生效
+        # （包括 LLM planner 抛异常时的兜底），都应该已经把问题里字面点名的已注册
+        # 指标（含别名/detection_signature 同义词）纳入 target_metrics，不需要再靠
+        # project_analysis_service 里的独立补丁去补救。
+        try:
+            for metric_id in metric_schema_service.detect_metrics_in_text(lowered_question):
+                canonical = metric_schema_service.canonical_id(metric_id)
+                if canonical and canonical not in metrics:
+                    metrics.append(canonical)
+        except Exception:
+            pass
         if not metrics and any(token in lowered_question for token in ("质控", "qc", "质量")):
             metrics.extend(["adapter_percent", "mapping_rate_percent", "unique_mapping_rate_percent"])
         if not metrics and any(token in lowered_question for token in ("项目", "整体", "分析")):

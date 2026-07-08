@@ -779,6 +779,8 @@ class ProjectFileParserService:
         summarize_text_fn: Any,  # callable(file_path, preview) -> dict
         target_metrics: list[str] | None = None,
         project_id: str = "",
+        exploration_hint: dict[str, Any] | None = None,
+        project_config: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         from multi_agent.backed.app.infrastructure.tools.local.project_reader import (
             read_log_snippet,
@@ -895,6 +897,7 @@ class ProjectFileParserService:
             # 自洽/重算校验的值才会被采信，不影响上面已识别文件类型的既有 11 个 build_*_summary
             # 路径。target_metrics 为空（默认值，兼容旧调用方）时行为与改造前完全一致。
             if target_metrics and file_path.suffix.lower() in {".xls", ".csv", ".tab", ".tsv"}:
+                formula_hints: list[dict[str, Any]] = []
                 try:
                     from multi_agent.backed.app.services.project_field_discovery_service import (
                         discover_and_extract,
@@ -923,7 +926,9 @@ class ProjectFileParserService:
                     # analyze_project_data 的整体预算，超时直接跳过这一步，降级为"没有字段
                     # 发现证据"，不影响其它已识别文件类型的证据继续正常产出。
                     _field_discovery_started_at = perf_counter()
-                    formula_hints = analyze_project_workflow_scripts(root, assay=assay)
+                    formula_hints = analyze_project_workflow_scripts(
+                        root, assay=assay, project_config=project_config, target_metrics=target_metrics
+                    )
                     _stage_budget = float(getattr(settings, "FIELD_DISCOVERY_STAGE_TIMEOUT_SECONDS", 6.0))
                     if perf_counter() - _field_discovery_started_at > _stage_budget:
                         logger.warning(
@@ -935,8 +940,27 @@ class ProjectFileParserService:
                         )
                         field_discovery_hits = []
                     else:
+                        # Stage B-补（project_analysis_exploration_and_evolution_plan.md）：
+                        # known_samples 直接从 experiment_design 派生，和
+                        # project_analysis_service.py 里 user_assertion_service 用的
+                        # 同一套取值逻辑，不新增一个独立参数。
+                        known_samples = [
+                            str(
+                                item.get("sample")
+                                or item.get("sample_id")
+                                or item.get("name")
+                                or ""
+                            )
+                            for item in experiment_design.get("samples", []) or []
+                            if isinstance(item, dict)
+                        ]
+                        known_samples = [s for s in known_samples if s]
                         field_discovery_hits = discover_and_extract(
-                            file_path, target_metrics, formula_hints=formula_hints
+                            file_path,
+                            target_metrics,
+                            formula_hints=formula_hints,
+                            exploration_hint=exploration_hint,
+                            known_samples=known_samples,
                         )
                     for hit in field_discovery_hits:
                         hit["source_file"] = relative

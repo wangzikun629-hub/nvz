@@ -352,7 +352,15 @@ TARGET_METRIC_FILE_HINTS: dict[str, tuple] = {
     "exon_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
     "intronic_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
     "intergenic_ratio_percent": ("Samples.rRNA_Globin_stat.xls",),
-    "silva_total_ratio_percent": ("SilvaBlast", ".stat.xls", "AllSamples.silva.xls"),
+    # 2026-07-03 修复：真实项目排查发现这条 hint 之前只指向 SilvaBlast 目录下的
+    # blast 明细文件（`AllSamples.silva.xls`），真正的项目级汇总表
+    # `All_Sample_Stat.xls`（在 `5.Statistic/` 目录，和 Stage A/B 用的
+    # silva_filename_collision_project harness fixture 里的正确来源同名）反而
+    # 因为文件名不含 "silva" 字面词从未进入候选列表——`_select_evidence_files`
+    # 只按这三个关键词找文件，找不到就没有第二次机会。这里把 `All_Sample_Stat.xls`
+    # 加进来且放在最前面（`ordered.extend` 是顺序累加，不代表唯一胜出，真正的
+    # 跨文件择优见 project_field_discovery_service.dedupe_by_source_priority()）。
+    "silva_total_ratio_percent": ("All_Sample_Stat.xls", "SilvaBlast", ".stat.xls", "AllSamples.silva.xls"),
     "detected_gene_count": ("Samples.ExpRange.xls",),
 }
 

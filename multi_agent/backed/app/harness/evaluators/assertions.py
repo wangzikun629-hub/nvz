@@ -430,6 +430,35 @@ def evaluate_project_analysis(result: dict[str, Any], expect: dict[str, Any]) ->
                     f"denominators={[item.get('denominator') for item in matched_cards]!r}",
                 )
             )
+        # Stage E（project_analysis_exploration_and_evolution_plan.md）：光断言"这个
+        # 指标产出了 evidence_card"还不够——本次真实 bug 的核心症状是"产出了 card，
+        # 但来源文件是撞词的无关明细表，值是错的"。下面两条断言直接检查 card 的
+        # `source_file` 字段，确保证据真的来自期望的文件、且不是来自已知的撞词
+        # 无关文件，堵住"卡片存在但来源错误"这个更隐蔽的假阳性。
+        if matched_cards and "required_evidence_card_source_file_contains" in expect:
+            expected_fragment = _as_text(expect["required_evidence_card_source_file_contains"])
+            actual_sources = [_as_text(item.get("source_file")) for item in matched_cards]
+            checks.append(
+                HarnessCheck(
+                    "required_evidence_card_source_file_contains",
+                    any(expected_fragment in source for source in actual_sources),
+                    f"expected contains={expected_fragment!r} actual={actual_sources!r}",
+                )
+            )
+        if matched_cards and "evidence_card_source_file_must_not_contain" in expect:
+            blocked_fragments = [str(item) for item in expect["evidence_card_source_file_must_not_contain"]]
+            actual_sources = [_as_text(item.get("source_file")) for item in matched_cards]
+            offenders = [
+                source for source in actual_sources
+                if any(fragment in source for fragment in blocked_fragments)
+            ]
+            checks.append(
+                HarnessCheck(
+                    "evidence_card_source_file_must_not_contain",
+                    not offenders,
+                    f"blocked={blocked_fragments!r} actual={actual_sources!r}",
+                )
+            )
     if "required_processing_phase" in expect:
         phase = _as_text(expect["required_processing_phase"])
         actual_phases = [_as_text(item.get("processing_phase")) for item in evidence_cards]

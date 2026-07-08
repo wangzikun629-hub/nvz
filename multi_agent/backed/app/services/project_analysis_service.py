@@ -66,6 +66,9 @@ from multi_agent.backed.app.services.business_agent.user_assertion_service impor
 from multi_agent.backed.app.services.business_agent.bio_skill_reference_service import (
     bio_skill_reference_service,
 )
+from multi_agent.backed.app.services.business_agent.planner_orchestrator_service import (
+    planner_orchestrator_service,
+)
 
 
 from multi_agent.backed.app.services.project_analysis_constants import (
@@ -94,7 +97,14 @@ from multi_agent.backed.app.services.project_context_builder_service import proj
 from multi_agent.backed.app.services.project_cause_analysis_service import project_cause_analysis_service
 from multi_agent.backed.app.services.project_file_discovery_service import (
     discover_file_role_assignments,
+    to_candidate_hints,
     to_candidate_paths,
+)
+from multi_agent.backed.app.services.project_field_discovery_service import (
+    dedupe_by_source_priority,
+)
+from multi_agent.backed.app.services.project_exploration_monitor_service import (
+    project_exploration_monitor_service,
 )
 
 
@@ -104,10 +114,35 @@ class ProjectAnalysisService:
     # （PROJECT_ANALYSIS_TIMEOUT_SECONDS，见 business_agent/runtime_service.py）。
     # 这里单独给它一个更短的硬预算，超时即放弃候选、回退到关键词命中的证据，
     # 而不是拖累整个分析阶段一起超时。可通过环境变量覆盖，便于线上按需调整。
+    # F-0（docs/project_planner_orchestrator_agent_design.md 第 1.5/4 节）：这里曾经
+    # 直接读 `settings.FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS`（名义上限，默认 30s），
+    # 与上层 `business_agent/runtime_service.py` 的
+    # `PROJECT_ANALYSIS_TIMEOUT_SECONDS`（25s）互不知情——子阶段硬预算可以大于它
+    # 所在的总预算，实际效果是外层 `asyncio.wait_for` 在文件发现真正跑满之前就
+    # 先判超时。现在改成读 `settings.effective_file_discovery_budget_seconds`
+    # （= min(名义上限, 总预算 - 其余阶段预留)），保证子阶段预算永远装得进总预算。
     _FILE_DISCOVERY_BUDGET_SECONDS = float(
         os.environ.get("PROJECT_FILE_DISCOVERY_BUDGET_SECONDS")
-        or getattr(settings, "FILE_DISCOVERY_STAGE_TIMEOUT_SECONDS", 8.0)
+        or settings.effective_file_discovery_budget_seconds
     )
+
+    # Stage C（project_analysis_exploration_and_evolution_plan.md）：触发条件从
+    # "文件选择阶段有没有关键词/启发式命中"补上最后一环——"解析完之后这个指标到底
+    # 有没有产出证据卡"。即使 _select_evidence_files 阶段某个候选文件"看起来能解析"
+    # （resolve_table_kind 非空），实际 parse+build_cards 后仍可能一张 evidence_card
+    # 都没产出（比如文件里根本没有这个指标对应的字段）。_reexplore_unresolved_metrics()
+    # 在这种情况下做一次、且只做一次（_MAX_REEXPLORATION_ROUNDS）有限重试。
+    # 这里不直接 import business_agent/runtime_service.py 的
+    # PROJECT_ANALYSIS_TIMEOUT_SECONDS——那是上层服务，project_analysis_service
+    # 不应该反向依赖它——但通过 settings.py 里已经搬过去的同一份总预算配置对齐，
+    # 不再是与总预算脱节、各自硬编码的独立数字（F-0 修复的核心）。
+    _MAX_REEXPLORATION_ROUNDS = 1
+    _REEXPLORE_SOFT_DEADLINE_SECONDS = float(
+        os.environ.get("PROJECT_REEXPLORE_SOFT_DEADLINE_SECONDS")
+        or min(20.0, settings.effective_file_discovery_budget_seconds)
+    )
+    _REEXPLORE_MIN_BUDGET_SECONDS = 3.0
+    _MAX_REEXPLORE_FILES_TO_PARSE = 8
 
     @classmethod
     def classify_question(cls, question: str) -> str:
@@ -251,11 +286,28 @@ class ProjectAnalysisService:
         evidence_catalog: dict[str, Any] | None = None,
         assay_type: str = "generic",
         question: str = "",
-    ) -> list[Path]:
+        return_hints: bool = False,
+        project_config: dict[str, Any] | None = None,
+    ) -> list[Path] | tuple[list[Path], dict[Path, dict[str, Any]]]:
+        """Stage B-补 Step 2b（project_analysis_exploration_and_evolution_plan.md）：
+        `return_hints=False`（默认）时行为和改造前完全一致，只返回 `list[Path]`，
+        不影响 `tests/test_project_analysis.py` 等已直接依赖这个返回类型的调用方。
+        只有 `analyze()` 主流程解析证据文件之前会传 `return_hints=True`，额外拿到
+        一份"文件路径 -> 探索 agent 字段级线索"的映射（`to_candidate_hints()` 的
+        产出），解析每个文件时把对应线索传给 `parse_evidence_file`——语义和
+        Stage C 的 `_reexplore_unresolved_metrics` 完全一致，只是这里的候选来自
+        `_select_evidence_files` 自己触发的第一轮探索（而不是 Stage C 的重试轮）。
+
+        2026-07-07：曾经的 `return_candidate_packets` 开关（Phase 3 统一候选协议）
+        已下线，见 `project_file_discovery_service.py` 同批次改动说明——该协议只用
+        于日志/trace，从未接入 `evidence_card_service`/`fact_packet`。
+        """
         # Pipeline failure questions: ONLY read log files, skip all QC evidence.
         if "pipeline_failure" in question_types:
-            return find_log_files(project_root, limit=max_evidence_files)
+            log_files = find_log_files(project_root, limit=max_evidence_files)
+            return (log_files, {}) if return_hints else log_files
         ordered: list[Path] = []
+        collected_hints: dict[Path, dict[str, Any]] = {}
         analysis_plan = (planning_hints or {}).get("analysis_plan") or {}
         target_metrics = [
             metric_schema_service.canonical_id(metric)
@@ -310,13 +362,20 @@ class ProjectAnalysisService:
                 target_metrics = list(
                     cls._ASSAY_DEFAULT_METRICS.get(assay_type, cls._ASSAY_DEFAULT_METRICS["generic"])
                 )
-        # 2026-07-02 修复：question_type 分类表 / assay 默认指标集都是有限枚举，问题里
-        # 直接点名一个不在这两张表里的已注册指标（比如 RNA-seq 的 Silva_total_ratio）时，
-        # 上面两条路径永远凑不出这个指标，导致该指标既不会被当作目标、也不会触发下面
-        # Phase 1 的文件发现探索兜底（探索只在 unresolved_metrics 非空时才跑），
-        # 表现为该指标对应的证据文件完全不会被读取。这里把问题文本里字面提及的、
-        # 已在 metric_schema_service 注册的指标补进 target_metrics（去重），
-        # 不影响已有 question_type/assay 命中的指标，纯增量。
+        # A0-2（project_analysis_exploration_and_evolution_plan.md Stage A0）修订：
+        # 原方案设想是把这项检测完全收敛进 analysis_planner_service._infer_metrics()
+        # 后即可删除这里的补丁。但实测排查发现 ProjectAnalysisService.analyze() 有
+        # 多个真实调用方根本不经过 planner（harness runner 按 JSON 用例的
+        # planning_hints 直接调用、project_comparison_service、tests/ 下多个评测脚本），
+        # 这些调用方传入的 planning_hints 里没有 analysis_plan，_infer_metrics() 的
+        # 新增检测对它们完全不生效。如果删掉这里的兜底，会直接回归本次真实 bug 的
+        # 常驻回归用例（harness/cases/project_analysis/transposed_summary_table_silva_ratio.json，
+        # 该 fixture 没有 config，早期 assay 检测退化成 generic，_ASSAY_DEFAULT_METRICS
+        # 也覆盖不到 silva_total_ratio_percent，全靠这里的字面检测兜底）。
+        # 因此保留这里作为"不经过 planner 的调用方"的防御层，不再是和 planner 平行、
+        # 互不知情的第二套来源——两处调用的都是同一个 metric_schema_service.
+        # detect_metrics_in_text()，只是分别覆盖"经过 planner"和"不经过 planner"
+        # 两类调用方，逻辑单一、不会漂移。
         literal_metrics = [
             metric_schema_service.canonical_id(metric_id)
             for metric_id in metric_schema_service.detect_metrics_in_text(question)
@@ -397,6 +456,24 @@ class ProjectAnalysisService:
             if metric_schema_service.canonical_id(metric) not in metrics_with_parseable_evidence
             and metric_schema_service.get(metric)
         ]
+        # A0-4（project_analysis_exploration_and_evolution_plan.md Stage A0，降级路径）：
+        # 未注册指标此前是纯粹的"丢弃出探索链路、无日志"死角——metric_schema_service.get()
+        # 对它返回空 schema，上面的列表推导式直接把它排除在 unresolved_metrics 之外，
+        # 没有任何痕迹留下。主文档 Phase 0 的指标注册表 / Phase 1.5 候选指标审核 admin
+        # 尚未落地，因此这里按方案里约定的降级路径实现：只记日志、不提名、不进
+        # target_metrics、不产出 evidence_card；Phase 0 就绪后再把这条日志升级成真正
+        # 写入候选指标池的调用。
+        unregistered_metrics = [
+            metric for metric in target_metrics
+            if not metric_schema_service.get(metric)
+        ]
+        if unregistered_metrics:
+            logger.info(
+                "project_analysis stage=metric_layer status=unregistered_metric_observed "
+                "root=%s metrics=%s note=degraded_log_only_pending_phase0_registry",
+                str(project_root),
+                unregistered_metrics,
+            )
         if unresolved_metrics and "pipeline_failure" not in question_types:
             try:
                 # 硬预算兜底：discover_file_role_assignments 内部串联了代码语义解析
@@ -416,9 +493,12 @@ class ProjectAnalysisService:
                     project_root,
                     unresolved_metrics,
                     exclude_paths=set(),
+                    project_config=project_config,
                 )
                 try:
-                    assignments = _fd_future.result(timeout=cls._FILE_DISCOVERY_BUDGET_SECONDS)
+                    assignments = _fd_future.result(
+                        timeout=cls._FILE_DISCOVERY_BUDGET_SECONDS
+                    )
                 except FuturesTimeoutError:
                     assignments = []
                     logger.warning(
@@ -431,6 +511,7 @@ class ProjectAnalysisService:
                 finally:
                     _fd_executor.shutdown(wait=False)
                 ordered.extend(to_candidate_paths(assignments))
+                collected_hints.update(to_candidate_hints(assignments))
             except Exception:
                 logger.warning(
                     "project_analysis stage=file_discovery status=failed root=%s",
@@ -455,7 +536,360 @@ class ProjectAnalysisService:
             unique.append(resolved)
             if len(unique) >= max_evidence_files:
                 break
-        return unique
+        return (unique, collected_hints) if return_hints else unique
+
+    @classmethod
+    def _reexplore_unresolved_metrics(
+        cls,
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]], set[str], list[dict[str, Any]]]:
+        """`_reexplore_unresolved_metrics_impl()` 的薄包装，保留独立入口名供既有测试
+        （`test_stage_c_reexploration.py`/`test_stage_d_discovery_cache.py`/
+        `test_stage_e_exploration_monitor.py` 等）继续引用。
+
+        2026-07-07：曾经的 `return_candidate_packets` 开关（Phase 3 统一候选协议第五
+        个返回值）已下线，`_reexplore_unresolved_metrics_impl()` 现在直接返回 4 元组。
+        """
+        return cls._reexplore_unresolved_metrics_impl(**kwargs)
+
+    @classmethod
+    def _reexplore_unresolved_metrics_impl(
+        cls,
+        *,
+        root: Path,
+        run_id: str,
+        project_id: str,
+        analysis_plan: dict[str, Any],
+        project_context: dict[str, Any],
+        evidence_files: list[Path],
+        evidence_cards: list[dict[str, Any]],
+        evidence_chain: list[dict[str, Any]],
+        available_evidence: set[str],
+        started_at: float,
+        force_code_semantics: bool = False,
+        force_unresolved_metrics: list[str] | None = None,
+        confidence_sink: dict[str, float] | None = None,
+    ) -> tuple[
+        list[dict[str, Any]],
+        list[dict[str, Any]],
+        set[str],
+        list[dict[str, Any]],
+    ]:
+        """Stage C：解析+校验之后仍然零证据的已注册目标指标，做一次有限重试探索。
+
+        `force_code_semantics`（Phase 5）：透传给 `discover_file_role_assignments()`，
+        默认 `False` 时行为不变。只有 planner-orchestrator 的多轮派发循环
+        （`_reexplore_unresolved_metrics` 包装层，见其文档字符串）在后续轮次里才会
+        显式传 `True`，作为"这一轮明确升级到代码语义工具"的调用决策。
+
+        `force_unresolved_metrics`（Phase 5，2026-07-06 code review 修复）：默认 `None`
+        时行为完全不变——`unresolved` 仍然按"该指标在 `available_evidence` 里有没有
+        任意一张卡"这条既有的粗粒度判断（`PLANNER_DISPATCH_ENABLED` 关闭时的唯一
+        调用方式，必须保持字节级不变）。传入非 `None` 列表时，直接采信调用方算好的
+        指标集合，跳过粗粒度判断——这是修复 Phase 5 派发逻辑不完整的关键：粗粒度判断
+        只要"有任意一张 valid card"就认为已解决，即使样本覆盖不完整或存在未裁决冲突
+        也不会再触发下一轮；调用方（`analyze()` 的派发循环）应该用
+        `ProjectAnalysisService._planner_unresolved_target_metrics()`（三项确定性条件：
+        覆盖完整 + 无未裁决冲突 + 未被隔离）算出真正需要重试的指标集合，再显式传进来，
+        不能依赖这个函数自己的默认判断。传入的指标仍然会按 `metric_schema_service.
+        get()` 过滤未注册指标，与既有 A0-4 纪律一致。
+
+        关键约束：
+        - 只对已注册指标重试（`metric_schema_service.get()` 为真），未注册指标按
+          A0-4 的纪律仍然只记日志，不在这里参与重试。
+        - 最多 `_MAX_REEXPLORATION_ROUNDS`（=1）轮，`exclude_paths` 排除第一轮已经
+          试过的所有文件，避免探索 agent 重新挑中同一批已经证明解析不出东西的文件。
+        - 任何异常/超预算都直接原样返回传入的 cards/chain/available_evidence，
+          不影响主流程——这是"如实告知未找到可核实证据"的兜底，不是"必须找到"的
+          强保证；找不到就诚实地在 fact_packet 里体现为该指标没有证据，不编造。
+
+        返回值第四项 `quarantined_cards`：这一轮（如果真的跑了 validate_cards）产出的
+        校验失败证据，调用方需要合并进外层 `quarantined_evidence_cards`，否则这轮 reexplore
+        暴露出的证据问题会从 `fact_packet.quarantined_evidence_summary` 里彻底消失
+        （2026-07-06 code review 修复）。
+
+        2026-07-07：曾经的第五项返回值 `candidate_packets`（Phase 3 统一候选协议）
+        已下线——那套协议只用于日志/trace，从未接入 `evidence_card_service`/
+        `fact_packet`，见 2026-07-07 架构决策记录。
+        """
+        target_metrics = [
+            metric_schema_service.canonical_id(metric)
+            for metric in analysis_plan.get("target_metrics", []) or []
+            if str(metric or "").strip()
+        ]
+        if force_unresolved_metrics is not None:
+            # Phase 5：调用方已经用三项确定性条件算好了真正需要重试的指标集合，
+            # 直接采信，不再用"有没有任意一张卡"这条更宽松的判断覆盖它。
+            unresolved = [
+                metric for metric in dict.fromkeys(
+                    cls._canonical_metric_key(m) for m in force_unresolved_metrics
+                )
+                if metric_schema_service.get(metric)
+            ]
+        else:
+            unresolved = [
+                metric for metric in dict.fromkeys(target_metrics)
+                if metric not in available_evidence and metric_schema_service.get(metric)
+            ]
+        if not unresolved:
+            return evidence_cards, evidence_chain, available_evidence, []
+
+        elapsed = perf_counter() - started_at
+        remaining = cls._REEXPLORE_SOFT_DEADLINE_SECONDS - elapsed
+        if remaining < cls._REEXPLORE_MIN_BUDGET_SECONDS:
+            logger.info(
+                "project_analysis stage=reexplore status=skipped_low_budget run_id=%s project=%s "
+                "unresolved_metrics=%s elapsed_s=%.1f",
+                run_id,
+                project_id,
+                unresolved,
+                elapsed,
+            )
+            return evidence_cards, evidence_chain, available_evidence, []
+
+        retry_budget = min(cls._FILE_DISCOVERY_BUDGET_SECONDS, remaining)
+        exclude_paths = {p.resolve() for p in evidence_files}
+        assignments: list[dict[str, Any]] = []
+        # Stage D（project_analysis_exploration_and_evolution_plan.md）：只有探索
+        # 真正跑完（没有超时/异常）才算"确认结果"，才允许把 no_new_candidates/
+        # no_parseable_content/no_new_evidence_cards 这几个"探索了但没用"的分支
+        # 记成失败态缓存；超时/异常是基础设施层面的不确定性，不能当成"这个指标
+        # 确实不存在"的确定性结论去缓存，否则一次偶发超时会让后续同类请求被短 TTL
+        # 失败缓存误伤，短路掉本该继续尝试的探索。
+        #
+        # review 修订（2026-07-03）：`discover_file_role_assignments` 命中缓存
+        # （无论是"确认成功"的长期缓存还是"确认失败"的短 TTL 缓存）时会直接把
+        # 缓存内容原样返回，调用方单看返回值/有没有超时完全区分不出"这次是真的
+        # 重新探索了一遍"还是"只是读到了已有的缓存结果"。如果不区分就无条件
+        # 重新调用 record_file_discovery_outcome/record_attempt，会把短 TTL 失败
+        # 缓存的时间戳在每次命中时都刷新成"刚刚"——只要这个 (root, target_metrics)
+        # 组合持续有请求进来，失败态会被反复续期、实际上永远不过期，直接违背
+        # Stage D"TTL 过期后自动允许重试"的设计目标；同时也会让 Stage E 的
+        # unresolved 比例监控把"缓存命中"重复计成"探索了一次"，随请求量虚增
+        # total_attempts，稀释这个指标本该反映的真实探索次数。这里先探测一次
+        # 缓存里是不是已经有结果，只有确认这次调用真的触发了全新探索（缓存未命中）
+        # 时，才允许下面据结果回填 success/failure。存在一个理论上的竞态窗口
+        # （探测之后、真正调用前，缓存状态可能被其它并发请求改变），可接受——
+        # 这里只影响监控/缓存续期的精确度，不影响 fact_packet 的事实正确性。
+        cache_hit_before_call = (
+            project_parse_cache.get_cached_file_discovery(root, unresolved) is not None
+        )
+        discovery_confirmed = False
+        try:
+            _fd_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="file-discovery-reexplore")
+            _fd_future = _fd_executor.submit(
+                discover_file_role_assignments,
+                root,
+                unresolved,
+                exclude_paths=exclude_paths,
+                project_config=project_context.get("config") or {},
+                force_code_semantics=force_code_semantics,
+            )
+            try:
+                assignments = _fd_future.result(timeout=retry_budget)
+                discovery_confirmed = True
+            except FuturesTimeoutError:
+                logger.warning(
+                    "project_analysis stage=reexplore status=budget_exceeded run_id=%s project=%s "
+                    "unresolved_metrics=%s budget_seconds=%.1f",
+                    run_id,
+                    project_id,
+                    unresolved,
+                    retry_budget,
+                )
+            finally:
+                _fd_executor.shutdown(wait=False)
+        except Exception:
+            logger.warning(
+                "project_analysis stage=reexplore status=failed run_id=%s project=%s",
+                run_id,
+                project_id,
+                exc_info=True,
+            )
+            return evidence_cards, evidence_chain, available_evidence, []
+
+        # 只有"这次真的触发了全新探索"（没超时/异常 且 探索前缓存里还没有结果）
+        # 才允许下面据结果回填缓存/监控计数，避免缓存命中被反复当成新探索续期。
+        should_record_outcome = discovery_confirmed and not cache_hit_before_call
+
+        # Phase 5 二次修复：`confidence_sink` 非 None 时，把这一轮 `assignments`
+        # 算出的按指标最高置信度写回调用方传入的字典（out-parameter，不改变本函数
+        # 既有的返回值 arity，避免影响现有按 4/5 值解包的测试用例）。调用方
+        # （`analyze()` 派发循环）用它来决定*下一轮*是否需要 `force_code_semantics`，
+        # 而不是像改造前那样无条件在第二轮开始写死 True。
+        if confidence_sink is not None:
+            confidence_sink.clear()
+            confidence_sink.update(cls._confidence_by_metric_from_assignments(assignments))
+
+        retry_paths = [
+            path for path in to_candidate_paths(assignments)
+            if path.resolve() not in exclude_paths
+        ][: cls._MAX_REEXPLORE_FILES_TO_PARSE]
+        if not retry_paths:
+            logger.info(
+                "project_analysis stage=reexplore status=no_new_candidates run_id=%s project=%s "
+                "unresolved_metrics=%s",
+                run_id,
+                project_id,
+                unresolved,
+            )
+            if should_record_outcome:
+                project_parse_cache.record_file_discovery_outcome(
+                    root, unresolved, assignments, success=False
+                )
+                project_exploration_monitor_service.record_attempt(resolved=False)
+            return evidence_cards, evidence_chain, available_evidence, []
+
+        # Stage B-补 Step 2a（project_analysis_exploration_and_evolution_plan.md）：
+        # 这里发现候选（`assignments`）和解析文件（下面的循环）在同一个函数作用域
+        # 内完成，是打通"agent 字段级线索"成本最低的一处——不需要像 `_select_
+        # evidence_files` 那样把 hint 一路传出函数、贯穿 analyze() 主体。
+        exploration_hints = to_candidate_hints(assignments)
+
+        retry_parsed_metrics: dict[str, Any] = {}
+        retry_file_summaries: list[dict[str, Any]] = []
+        for file_path in retry_paths:
+            try:
+                result = project_file_parser_service.parse_evidence_file(
+                    root=root,
+                    file_path=file_path,
+                    experiment_design=project_context.get("experiment_design") or {},
+                    cache=project_parse_cache,
+                    summarize_text_fn=project_file_parser_service.summarize_text_evidence,
+                    target_metrics=unresolved,
+                    project_id=project_id,
+                    exploration_hint=exploration_hints.get(file_path.resolve()),
+                )
+            except Exception:
+                continue
+            if result.get("error"):
+                continue
+            project_file_parser_service.apply_parsed_metric_update(
+                retry_parsed_metrics, result.get("parsed_metric_update")
+            )
+            retry_file_summaries.append(result["file_summary"])
+
+        if not retry_parsed_metrics:
+            logger.info(
+                "project_analysis stage=reexplore status=no_parseable_content run_id=%s project=%s "
+                "unresolved_metrics=%s retry_file_count=%d",
+                run_id,
+                project_id,
+                unresolved,
+                len(retry_paths),
+            )
+            if should_record_outcome:
+                project_parse_cache.record_file_discovery_outcome(
+                    root, unresolved, assignments, success=False
+                )
+                project_exploration_monitor_service.record_attempt(resolved=False)
+            return evidence_cards, evidence_chain, available_evidence, []
+
+        # 2026-07-06 code review 修复（Phase 5 二次修复）：`_build_evidence_chain` /
+        # `evidence_card_service.build_cards|consolidate_cards|validate_cards|
+        # attach_ids|filter_chain_to_valid_cards` 都不是纯查表操作，真实项目里任何一个
+        # 都可能因为异常数据（畸形字段、非法类型等）抛出异常。这段代码此前完全没有
+        # try/except 包裹，一旦真的抛出，会带着一个未被捕获的异常直接冲出这个函数、
+        # 冲出 `_reexplore_unresolved_metrics` 包装层，与函数文档字符串里"任何异常都
+        # 直接原样返回传入的 cards/chain/available_evidence，不影响主流程"的承诺不符
+        # ——调用方（`analyze()` 的派发循环）会因为这个未捕获异常整体崩溃，而不是拿到
+        # 一个格式一致的兜底返回值。这里补上和上面 discovery 阶段同样风格的 try/except，
+        # 确保这一段的任何异常都退化成同一种 4 元组兜底，不假装有新证据。
+        try:
+            retry_chain = cls._build_evidence_chain(
+                retry_parsed_metrics,
+                retry_file_summaries,
+                project_context.get("metric_rule_sources", {}) or {},
+                project_context=project_context,
+            )
+            retry_cards = evidence_card_service.build_cards(
+                retry_chain, project_id=project_id, project_context=project_context
+            )
+            if not retry_cards:
+                logger.info(
+                    "project_analysis stage=reexplore status=no_new_evidence_cards run_id=%s project=%s "
+                    "unresolved_metrics=%s",
+                    run_id,
+                    project_id,
+                    unresolved,
+                )
+                if should_record_outcome:
+                    project_parse_cache.record_file_discovery_outcome(
+                        root, unresolved, assignments, success=False
+                    )
+                    project_exploration_monitor_service.record_attempt(resolved=False)
+                return evidence_cards, evidence_chain, available_evidence, []
+
+            merged_cards = evidence_card_service.consolidate_cards(list(evidence_cards) + retry_cards)
+            validation = evidence_card_service.validate_cards(merged_cards)
+            # 2026-07-06 code review 修复：
+            # 1) 这里的 validate_cards() 产出的 quarantined_cards 此前完全没有变量接住，
+            #    直接丢弃——这一轮 reexplore 暴露的校验失败证据永远进不了
+            #    fact_packet.quarantined_evidence_summary。现在显式取出，由调用方合并进
+            #    外层 quarantined_evidence_cards。
+            # 2) merged_available 此前用未校验的 retry_cards 更新，校验失败的 retry 证据也会
+            #    把 metric 标记成"已解决"，让 planner 误以为该指标已有有效证据、停止继续
+            #    探索。改成用校验通过后的 merged_cards（valid_cards）计算，不合法的证据不再
+            #    计入"已解决"。
+            quarantined_cards = validation.get("quarantined_cards", [])
+            merged_cards = validation.get("valid_cards", merged_cards)
+            # 2026-07-06 code review 修复（第4轮）：attach_ids() 对没匹配到 card 的条目仍会
+            # 原样保留（它只负责"补 id"，不负责"过滤"），如果直接把 retry_chain 整体拼进去，
+            # 被 validate_cards() 隔离的 retry 证据会带着原始（未验证通过的）数值原样进入
+            # evidence_chain——虽然它不会进 project_evidence/available_evidence，但
+            # evidence_chain 是 build_fact_packet() 的 validated_observations、以及
+            # reasoning/diagnostics 等下游模块直接读取的数据源，它们不会重新跑一遍
+            # validate_cards()，所以这条无效证据仍可能被当成"已验证"事实读到。先用
+            # valid_cards 过滤掉 retry_chain 里对应卡片被隔离的条目，再合并。
+            retry_chain_valid = evidence_card_service.filter_chain_to_valid_cards(
+                retry_chain, merged_cards
+            )
+            merged_chain = evidence_card_service.attach_ids(
+                evidence_chain + retry_chain_valid, merged_cards
+            )
+            merged_available = set(available_evidence)
+            merged_available.update(
+                metric_schema_service.canonical_id(card.get("metric_id"))
+                for card in merged_cards
+                if isinstance(card, dict) and card.get("metric_id")
+            )
+            newly_resolved = [metric for metric in unresolved if metric in merged_available]
+            still_unresolved = [metric for metric in unresolved if metric not in merged_available]
+            logger.info(
+                "project_analysis stage=reexplore status=completed run_id=%s project=%s "
+                "newly_resolved=%s still_unresolved=%s new_card_count=%d",
+                run_id,
+                project_id,
+                newly_resolved,
+                still_unresolved,
+                len(retry_cards),
+            )
+            # Stage D（2026-07-06 code review 修复）：此前这里无条件按 success=True/
+            # resolved=True 缓存，判断依据只是"`retry_cards` 非空"——但 retry_cards 非空
+            # 不代表这些证据通过了校验，如果这一轮产出的证据全部被 validate_cards() 隔离
+            # （newly_resolved 为空），继续记 success=True/resolved=True 就是把"探索到了
+            # 无效证据"污染成"成功解决"，会让 discovery cache 和 exploration monitor
+            # 都失真。改成按 `newly_resolved` 是否非空判定：真的有指标因为这一轮探索拿到
+            # 校验通过的证据，才算这次探索确认成功；`still_unresolved` 里的指标不单独打
+            # 失败标记——避免把"部分指标这次没解决"和"这批候选完全没用"混为一谈，下一轮
+            # 如果这些指标单独触发重探索，会用它们自己的 target_metrics 组合重新判断，
+            # 不受这里影响。
+            if should_record_outcome:
+                project_parse_cache.record_file_discovery_outcome(
+                    root, unresolved, assignments, success=bool(newly_resolved)
+                )
+                project_exploration_monitor_service.record_attempt(resolved=bool(newly_resolved))
+            return merged_cards, merged_chain, merged_available, quarantined_cards
+        except Exception:
+            logger.warning(
+                "project_analysis stage=reexplore status=card_build_failed run_id=%s project=%s "
+                "unresolved_metrics=%s",
+                run_id,
+                project_id,
+                unresolved,
+                exc_info=True,
+            )
+            return evidence_cards, evidence_chain, available_evidence, []
 
     @staticmethod
     def _explain_pipeline_error_line(error_line: str) -> str:
@@ -663,6 +1097,46 @@ class ProjectAnalysisService:
             "evidence_card_validation": {"valid_cards": [], "quarantined_evidence": []},
             "quarantined_evidence_cards": [],
             "evidence_conflicts": [],
+            # 2026-07-06 code review 修复（P3）：pipeline-failure 短路分支此前没有
+            # evidence_validation_status 键。正常分析路径（_analyze 主流程）在
+            # analysis_result 里稳定输出这个键（valid_count/quarantined_count/
+            # quarantined_cards/issue_counts/conflicts/coverage），下游
+            # response_service/fact_verification_service/前端一旦按 Phase 2 契约
+            # 假设这个键总是存在，这条只读日志的短路分支就会因为缺键而出错或被
+            # 当成"没有校验信息"处理。这里只做只读日志分析，没有 evidence_cards，
+            # 所以给出结构一致、值全部清零/置空的 evidence_validation_status，
+            # 保证 analysis_result 的 schema 在所有分支下都稳定。
+            "evidence_validation_status": {
+                "valid_count": 0,
+                "quarantined_count": 0,
+                "quarantined_cards": [],
+                "issue_counts": {},
+                "conflicts": [],
+                "coverage": [],
+            },
+            # Phase 4 schema 一致性延伸（2026-07-06 code review P3 修复）：pipeline-
+            # failure 短路分支此前手写了一份固定的 planner_orchestrator_trace
+            # （planning_mode 恒为 "full-planning"、fallback_used 恒为 False、
+            # target_metrics 恒为空），如果调用方在 analysis_plan 里传入了
+            # planner_llm_skipped/planner_skip_reason/planner_fallback_used/
+            # target_metrics（这条分支本身确实拿得到 analysis_plan，见上面第 1050
+            # 行 "analysis_plan": analysis_plan），trace 会和主返回里的 analysis_plan
+            # 各说各话。改成复用 _build_planner_orchestrator_trace()，用上面同一份
+            # 空 evidence_validation_status（没有 evidence_cards，天然没有
+            # coverage/conflicts 可言）：这样 target_metrics/planning_mode/
+            # fallback_used 永远和 analysis_plan 保持同一个真值来源，不会有第二份
+            # 手写逻辑将来独立漂移。
+            "planner_orchestrator_trace": cls._build_planner_orchestrator_trace(
+                analysis_plan=analysis_plan,
+                evidence_validation_status={
+                    "valid_count": 0,
+                    "quarantined_count": 0,
+                    "quarantined_cards": [],
+                    "issue_counts": {},
+                    "conflicts": [],
+                    "coverage": [],
+                },
+            ),
             "user_assertions": [],
             "read_lineage": {},
             "evidence_reasoning": {},
@@ -1288,7 +1762,11 @@ class ProjectAnalysisService:
         # _build_rule_entry() 会按现有约定把它标注为 formula/threshold 均未经项目脚本确认
         # （professional_default_unverified + screening_signal_only），与其他缺少
         # workflow-code 佐证的指标一致，不冒充"项目已验证"结论，也不带额外的"探索性"标记。
-        for item in parsed_metrics.get("field_discovery", []) or []:
+        # 2026-07-03 修复（真实项目排查：Silva_total_ratio(%) 撞车 bug）：不同文件各自
+        # 独立命中同一个 (metric_id, sample) 时，先按路径启发式择优去重，避免"哪个文件
+        # 先被处理就用哪个"的偶然性——见 project_field_discovery_service.
+        # dedupe_by_source_priority() 的详细说明。
+        for item in dedupe_by_source_priority(parsed_metrics.get("field_discovery", []) or []):
             metric_key = str(item.get("metric_id") or "").strip()
             if not metric_key:
                 continue
@@ -1523,16 +2001,242 @@ class ProjectAnalysisService:
         }
         return {metric: templates[metric] for metric in metrics if metric in templates}
 
-    @staticmethod
-    def _canonical_metric_key(metric: Any) -> str:
+    # 2026-07-06 code review 修复（P2）：_canonical_metric_key 应该复用
+    # metric_schema_service.ALIASES 作为主别名真值源（见下方 docstring），但
+    # "chrmt/pt" 和 "mt" 这两个 coverage 场景专用的别名不能塞进全局 ALIASES——
+    # metric_schema_service.detect_metrics_in_text() 会把 ALIASES 的 key 当子串
+    # 去匹配整段用户问题文本，"mt" 这种两字符通用缩写放进去会在大量无关问题里
+    # 造成误命中。所以只把这两个"不适合全局共享"的别名留在本地，其余全部委托
+    # 给注册表，避免出现两套互不同步的别名维护点。
+    _LOCAL_ONLY_METRIC_ALIASES = {
+        "chrmt/pt": "mt_rate_percent",
+        "mt": "mt_rate_percent",
+    }
+
+    @classmethod
+    def _canonical_metric_key(cls, metric: Any) -> str:
+        """Canonicalize a metric key, delegating to the shared registry alias table.
+
+        此前这里维护了一份只有 4 条别名的本地 alias 表（frip/chrmt_pt_rate_percent/
+        chrmt-pt/mt），和 metric_schema_service.ALIASES（约 20 条，覆盖
+        mapping/duplicate/RNA-seq 等简写）是两套互不同步的别名来源。target_metrics
+        里出现 "mapping" 这类 registry 已经承认的简写时，本地表识别不了，coverage
+        helper 会把它当成一个注册表里根本不存在的独立指标，即使项目里已经有
+        mapping_rate_percent 的有效证据卡，也会被误判为 missing。现在优先委托给
+        metric_schema_service.canonical_id()，只为文本检测场景不安全的两个别名保留
+        本地兜底（见 _LOCAL_ONLY_METRIC_ALIASES）。
+        """
         normalized = str(metric or "").strip().lower()
-        aliases = {
-            "frip": "frip_ratio",
-            "chrmt_pt_rate_percent": "mt_rate_percent",
-            "chrmt/pt": "mt_rate_percent",
-            "mt": "mt_rate_percent",
+        if normalized in cls._LOCAL_ONLY_METRIC_ALIASES:
+            return cls._LOCAL_ONLY_METRIC_ALIASES[normalized]
+        return metric_schema_service.canonical_id(metric)
+
+    @classmethod
+    def _build_evidence_coverage(
+        cls,
+        target_metrics: list[Any],
+        known_samples: list[str],
+        evidence_cards: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        """Deterministic per-metric sample coverage for evidence_validation_status.
+
+        candidate 指标（metric_status == "candidate"）不计入注册指标的 coverage，
+        避免 Phase 7 之前/之后的候选证据被误当成已注册目标指标"已覆盖"。
+        """
+        known_samples_set = {str(s) for s in known_samples if str(s).strip()}
+        ordered_metrics = list(
+            dict.fromkeys(
+                cls._canonical_metric_key(item)
+                for item in (target_metrics or [])
+                if str(item).strip()
+            )
+        )
+        coverage: list[dict[str, Any]] = []
+        for metric_id in ordered_metrics:
+            covered_samples = {
+                str(card.get("sample") or "")
+                for card in evidence_cards
+                if isinstance(card, dict)
+                and card.get("metric_status") != "candidate"
+                and cls._canonical_metric_key(card.get("metric_id")) == metric_id
+                and str(card.get("sample") or "").strip()
+            }
+            missing_samples = known_samples_set - covered_samples
+            if not known_samples_set:
+                coverage_status = "complete" if covered_samples else "missing"
+            elif not covered_samples:
+                coverage_status = "missing"
+            elif missing_samples:
+                coverage_status = "partial"
+            else:
+                coverage_status = "complete"
+            coverage.append(
+                {
+                    "metric_id": metric_id,
+                    "known_samples": sorted(known_samples_set),
+                    "covered_samples": sorted(covered_samples),
+                    "missing_samples": sorted(missing_samples),
+                    "coverage_status": coverage_status,
+                }
+            )
+        return coverage
+
+    @classmethod
+    def _confidence_by_metric_from_assignments(
+        cls,
+        assignments: list[dict[str, Any]],
+    ) -> dict[str, float]:
+        """从 `discover_file_role_assignments()` 返回的 `file_role_assignment` 列表里，
+        按指标取最高置信度（`FileRoleAssignment.confidence`/`candidate_metric_type`
+        已经原样保留在 `to_dict()` 里，见 `project_file_discovery_service.py`）。
+
+        Phase 5 二次修复：`planner_orchestrator_service.select_tool()` 需要这份信号才能
+        真正按置信度在 `explore_files`/`check_code_semantics` 之间做选择，此前这里没有
+        被算出来、也没有被传递，导致 `select_tool()` 在生产路径里从未被调用过，"该不该
+        看代码语义"退化成了循环里一句硬编码的"第二轮起无条件 True"。这里只做纯粹的
+        取最大值聚合，不调用任何模型、不产生副作用，供调用方（重探索循环）在决定下一轮
+        `force_code_semantics` 时使用。
+        """
+        confidence_by_metric: dict[str, float] = {}
+        for item in assignments:
+            if not isinstance(item, dict):
+                continue
+            metric_id = cls._canonical_metric_key(item.get("candidate_metric_type"))
+            if not metric_id:
+                continue
+            try:
+                confidence = float(item.get("confidence") or 0.0)
+            except (TypeError, ValueError):
+                confidence = 0.0
+            if confidence > confidence_by_metric.get(metric_id, -1.0):
+                confidence_by_metric[metric_id] = confidence
+        return confidence_by_metric
+
+    @classmethod
+    def _planner_unresolved_target_metrics(
+        cls,
+        *,
+        target_metrics: list[Any],
+        known_samples: list[str],
+        evidence_cards: list[dict[str, Any]],
+        quarantined_cards: list[dict[str, Any]],
+    ) -> tuple[list[str], list[dict[str, Any]], list[dict[str, Any]]]:
+        """Phase 5（2026-07-06-fact-packet-first-refactor-plan.md F-5，code review
+        修复）：按设计文档 3.3 节三项确定性条件（该指标样本覆盖完整 + 无未裁决冲突 +
+        该指标没有被隔离的证据）判断哪些目标指标仍然需要下一轮派发。
+
+        修复背景：`_reexplore_unresolved_metrics_impl` 自己的 `unresolved` 判断只看
+        "该指标在 `available_evidence` 里有没有任意一张卡"——只要有一张 valid card，
+        哪怕样本覆盖不完整或者存在未裁决冲突，也会被判定为"已解决"，不会再触发下一轮
+        派发。这和 Phase 5 的实际要求不符：本方法提供真正的三项条件判断，调用方
+        （`analyze()` 的派发循环）拿到这里返回的 `unresolved` 列表后，应该显式传给
+        `_reexplore_unresolved_metrics_impl(force_unresolved_metrics=...)`，覆盖掉
+        它自己那条过于宽松的默认判断，而不是依赖默认判断自然收敛。
+
+        返回 `(unresolved_metric_ids, coverage, conflicts)`：后两项同时供调用方直接
+        写入 `evidence_validation_status`，避免同一份 coverage/conflicts 在一轮里被
+        重复计算两次。
+        """
+        conflicts = evidence_card_service.detect_conflicts(
+            list(evidence_cards) + list(quarantined_cards)
+        )
+        coverage = cls._build_evidence_coverage(
+            target_metrics=target_metrics,
+            known_samples=known_samples,
+            evidence_cards=evidence_cards,
+        )
+        quarantined_metric_ids = {
+            metric_schema_service.canonical_id(card.get("metric_id"))
+            for card in quarantined_cards
+            if isinstance(card, dict) and card.get("metric_id")
         }
-        return aliases.get(normalized, normalized)
+        conflicted_metric_ids = {
+            cls._canonical_metric_key(c.get("metric_id") or c.get("metric_key"))
+            for c in conflicts
+            if isinstance(c, dict)
+        }
+        covered_metric_ids: set[str] = set()
+        unresolved: list[str] = []
+        for entry in coverage:
+            metric_id = str(entry.get("metric_id") or "")
+            if not metric_id:
+                continue
+            covered_metric_ids.add(metric_id)
+            stopped = planner_orchestrator_service.should_stop(
+                coverage_status=str(entry.get("coverage_status") or ""),
+                has_unresolved_conflict=metric_id in conflicted_metric_ids,
+                normalize_passed=metric_id not in quarantined_metric_ids,
+            )
+            if not stopped:
+                unresolved.append(metric_id)
+        # conflicts 里出现、coverage 没有对应条目的指标同样必须视为未解决，与
+        # build_trace() 的并集处理保持一致，不能悄悄漏判。
+        for metric_id in sorted(conflicted_metric_ids - covered_metric_ids):
+            unresolved.append(metric_id)
+        return unresolved, coverage, conflicts
+
+    @classmethod
+    def _build_planner_orchestrator_trace(
+        cls,
+        *,
+        analysis_plan: dict[str, Any],
+        evidence_validation_status: dict[str, Any],
+        mode: str = "dry_run",
+        heuristic_confidence_by_metric: dict[str, float] | None = None,
+    ) -> dict[str, Any]:
+        """Phase 4（2026-07-06-fact-packet-first-refactor-plan.md）planner-orchestrator
+        dry-run trace，对应 docs/project_planner_orchestrator_agent_design.md 的 F-2。
+
+        这是一个纯只读、纯确定性的复述层：只把 `_select_evidence_files`/
+        `_reexplore_unresolved_metrics` 已经做出的决定（`evidence_validation_status`
+        里的 coverage/conflicts）翻译成 `planned_actions` trace，不调用任何模型、
+        不引入新的裁决、不产生任何副作用，也不会改变 `fact_packet`/`evidence_cards`
+        的既有内容——`would_change_evidence` 恒为 False。
+
+        `mode` 固定为 "dry_run"，字面匹配
+        `2026-07-06-fact-packet-first-refactor-plan.md` Phase 4 契约（"mode": "dry_run"）
+        ——本方法产出的始终是不执行、不改变证据的 trace，不存在"dry_run 与其他
+        运行模式二选一"的语义，这个字段只是标注 trace 本身的性质。真正区分
+        "指标层是否由规则快路径固定"的细分状态放在独立的 `planning_mode` 字段：
+        复用 `analysis_planner_service.build_plan_with_llm()` 已经写入 `analysis_plan`
+        的 `planner_llm_skipped`/`planner_skip_reason` 信号，命中 `force_rule_planner`
+        快路径时记为 "evidence-repair"（指标已由规则固定，只关心证据缺口），否则记为
+        "full-planning"。这与设计文档 3.1 节第 1 条的红线一致：零成本快路径只短路
+        "指标层选择"这一步，文件层证据缺口（coverage/conflict）仍然要在 trace 里如实
+        体现，不能因为命中强关键词就视为"无需补证据"。
+
+        第一版 `tool` 字段统一标记为 "explore_files"——coverage/conflicts 信号
+        本身无法区分"该派探索 agent 还是该派代码语义工具"，这个区分留给 Phase 5
+        真实派发时再引入，避免在 dry-run 阶段编造一个当前证据里不存在的信号。
+
+        Phase 5 二次修复：`mode`/`heuristic_confidence_by_metric` 默认值保持
+        "dry_run"/`None`，逐位对应改造前的唯一调用方式，不影响 `PLANNER_DISPATCH_
+        ENABLED` 关闭时的既有行为。只有调用方（`analyze()` 派发循环）在
+        `PLANNER_DISPATCH_ENABLED` 开启且真的跑了不止一轮时，才会显式传
+        `mode="dispatch"` + 本轮 `_confidence_by_metric`，让 `planned_actions[].tool`
+        真正经 `planner_orchestrator_service.select_tool()` 判断，不再恒为
+        "explore_files"。
+
+        `planned_actions` 的指标集合是 `coverage` 和 `conflicts` 的并集，不是只看
+        `coverage`：`conflicts` 里出现、但 `coverage` 没有对应条目的指标（比如
+        target_metrics 之外、由重探索意外产生冲突的指标）也必须生成一条修复
+        action，否则 trace 会在 `input_feedback` 里保留这条冲突证据，却不给出
+        任何修复动作，等于让这条冲突缺口在 trace 里"看得见但追不到"。
+        """
+        # Phase 5：实际的 trace 构建逻辑已经搬迁到 planner_orchestrator_service.py
+        # （纯搬迁，行为不变，见该模块 build_trace() 的 docstring）。这里保留这个
+        # classmethod 作为向后兼容入口——现有测试
+        # （test_planner_orchestrator_dry_run.py）和 analyze() 内部调用点都直接引用
+        # `ProjectAnalysisService._build_planner_orchestrator_trace`，不改这些调用点，
+        # 只把实现委托出去，避免一次改动同时动"实现搬迁"和"调用方改名"两件事。
+        return planner_orchestrator_service.build_trace(
+            analysis_plan=analysis_plan,
+            evidence_validation_status=evidence_validation_status,
+            canonical_metric_key=cls._canonical_metric_key,
+            confidence_threshold=settings.CODE_SEMANTICS_TOOL_CONFIDENCE_THRESHOLD,
+            mode=mode,
+            heuristic_confidence_by_metric=heuristic_confidence_by_metric,
+        )
 
     @classmethod
     def _evidence_for_metrics(
@@ -2269,15 +2973,12 @@ class ProjectAnalysisService:
         analysis_plan = copy.deepcopy(
             (planning_hints or {}).get("analysis_plan") or {}
         )
-        # 2026-07-02 修复：`_select_evidence_files` 里加的问题文本字面提及指标检测
-        # （metric_schema_service.detect_metrics_in_text）只影响它自己局部的
-        # target_metrics 变量，用来决定"读哪些候选文件"；但真正把文件内容解析成
-        # evidence_card 的 parse_evidence_file 调用（下面 _parse_evidence_files 里）
-        # 读的是 analysis_plan["target_metrics"]，是完全独立的另一份数据——只做文件
-        # 选择侧的检测，转置表这类文件虽然会被选中读取，但因为 target_metrics 传给
-        # parser 时还是空的，解析器不知道要找哪个指标，产出 0 张 evidence_card。
-        # 这里把检测结果直接写回 analysis_plan，让文件选择和实际解析用同一份
-        # target_metrics，避免同一个检测结果要维护两份。只在指标不存在时追加，
+        # A0-2（Stage A0）修订：见 _select_evidence_files 里的同名注释——
+        # analyze() 本身也有不经过 planner 的直接调用方（harness runner、
+        # project_comparison_service、tests/ 评测脚本等），这里的字面检测把结果
+        # 写回 analysis_plan["target_metrics"]，让文件选择（_select_evidence_files）
+        # 和实际解析（下面 _parse_evidence_files）用同一份 target_metrics，避免
+        # "文件选中了、但 parser 不知道要找哪个指标"的错位。只在指标不存在时追加，
         # 不覆盖 planning_hints 显式传入的 analysis_plan。
         literal_metrics = [
             metric_schema_service.canonical_id(metric_id)
@@ -2345,11 +3046,19 @@ class ProjectAnalysisService:
         )
         project_version = project_context_builder_service.build_project_version(root, project_context)
         report_mode = cls._resolve_report_mode(question, question_types, project_context)
+        # Stage B-补 Step 2b（project_analysis_exploration_and_evolution_plan.md）：
+        # `evidence_exploration_hints` 是"文件路径 -> 探索 agent 字段级线索"的映射，
+        # 只有走 Stage B 探索发现的文件才会出现在里面；关键词命中的文件没有 hint，
+        # 下面解析时按 `.get(path, None)` 取值，取不到就是 None，行为和改造前一致。
+        evidence_exploration_hints: dict[Path, dict[str, Any]] = {}
         if report_mode == "existing_html_report_summary" and max_evidence_files <= 0:
             evidence_files = []
         else:
             evidence_started_at = perf_counter()
-            evidence_files = cls._select_evidence_files(
+            (
+                evidence_files,
+                evidence_exploration_hints,
+            ) = cls._select_evidence_files(
                 root,
                 question_types,
                 max_evidence_files,
@@ -2357,6 +3066,8 @@ class ProjectAnalysisService:
                 evidence_catalog=project_context.get("evidence_catalog") or {},
                 assay_type=early_assay,
                 question=question,
+                return_hints=True,
+                project_config=project_context.get("config") or {},
             )
             logger.info(
                 "project_analysis stage=select_evidence run_id=%s project=%s evidence=%d duration_ms=%.2f",
@@ -2386,6 +3097,11 @@ class ProjectAnalysisService:
             project_id,
             evidence_snapshot_status,
         )
+        # F-0 埋点（docs/project_planner_orchestrator_agent_design.md 第 4 节 F-5，
+        # 原文档称"给 OTHER_STAGES_RESERVED_SECONDS 标定数值需要真实项目压测数据"）：
+        # 这里开始计时"解析"阶段（含缓存命中跳过的情况），耗时汇总到 analyze() 末尾
+        # 的 stage_timing_summary 日志里，供后续统计真实分布来标定预算，不影响现有行为。
+        parse_stage_started_at = perf_counter()
         if evidence_snapshot is not None:
             parsed_metrics = evidence_snapshot.get("parsed_metrics", {}) or {}
             file_summaries = evidence_snapshot.get("file_summaries", []) or []
@@ -2422,6 +3138,8 @@ class ProjectAnalysisService:
                         summarize_text_fn=project_file_parser_service.summarize_text_evidence,
                         target_metrics=list(analysis_plan.get("target_metrics", []) or []),
                         project_id=project_id,
+                        exploration_hint=evidence_exploration_hints.get(file_path.resolve()),
+                        project_config=project_context.get("config") or {},
                     )
                     for file_path in evidence_files_to_parse
                 ]
@@ -2676,6 +3394,12 @@ class ProjectAnalysisService:
                     "metric_tables_ready": sorted(parsed_metrics.keys()),
                 },
             )
+        logger.info(
+            "project_analysis stage=parse_evidence run_id=%s project=%s duration_ms=%.2f",
+            run_id,
+            project_id,
+            (perf_counter() - parse_stage_started_at) * 1000,
+        )
         automatic_findings = list(dict.fromkeys(evidence_notes))
         if parsed_metrics.get("motif"):
             motif_summary = project_file_parser_service.aggregate_motif_metrics(parsed_metrics["motif"])
@@ -2689,6 +3413,7 @@ class ProjectAnalysisService:
                 item["organelle_metric_label"] = organelle_semantics["table_label"]
                 item["organelle_interpretation"] = organelle_semantics["interpretation"]
                 item["species"] = organelle_semantics["species"]
+        build_cards_started_at = perf_counter()
         evidence_chain = cls._build_evidence_chain(
             parsed_metrics,
             file_summaries,
@@ -2712,6 +3437,13 @@ class ProjectAnalysisService:
         )
         evidence_cards = evidence_card_service.consolidate_cards(
             agent_loop.get("evidence_cards", evidence_cards)
+        )
+        logger.info(
+            "project_analysis stage=build_cards run_id=%s project=%s cards=%d duration_ms=%.2f",
+            run_id,
+            project_id,
+            len(evidence_cards),
+            (perf_counter() - build_cards_started_at) * 1000,
         )
         evidence_card_validation = evidence_card_service.validate_cards(evidence_cards)
         quarantined_evidence_cards = evidence_card_validation.get(
@@ -2772,7 +3504,6 @@ class ProjectAnalysisService:
             if str(card.get("evidence_id") or "") in valid_evidence_ids:
                 evidence_chain.append(evidence_card_service.to_evidence_chain(card))
         evidence_chain = evidence_card_service.attach_ids(evidence_chain, evidence_cards)
-        evidence_conflicts = evidence_card_service.detect_conflicts(evidence_cards)
         available_evidence = {
             metric_schema_service.canonical_id(card.get("metric_id"))
             for card in evidence_cards
@@ -2786,6 +3517,226 @@ class ProjectAnalysisService:
                 .keys()
             )
         )
+        # Stage C（project_analysis_exploration_and_evolution_plan.md）：解析+校验
+        # 之后仍然零证据的已注册目标指标，做一次有限重试探索（见
+        # _reexplore_unresolved_metrics 文档字符串）。放在 evidence_conflicts 计算
+        # 之前，确保冲突检测跑在这一轮可能新增的证据卡之上，不遗漏。
+        # Phase 5（2026-07-06-fact-packet-first-refactor-plan.md F-5，docs/
+        # project_planner_orchestrator_agent_design.md 3.3/4.2 F-5）：
+        # `settings.PLANNER_DISPATCH_ENABLED` 关闭（默认）时，下面这个循环严格只跑
+        # 一轮，逐行为与 Phase 4 之前完全一致——`fact_packet`/`evidence_cards` 字节级
+        # 不变。开启时，改成由 `planner_orchestrator_service.should_stop()` 三项
+        # 确定性条件（覆盖完整 + 无未裁决冲突 + 该指标没有被隔离的证据）驱动的多轮
+        # 循环，最多 `settings.PLANNER_MAX_DISPATCH_ROUNDS` 轮；第二轮起对仍未解决的
+        # 指标显式传 `force_code_semantics=True`——把"是否值得看代码语义"的调用决策
+        # 从 `discover_file_role_assignments` 内部的固定阈值，收归到这一层，这是
+        # F-4 "调用决策由 planner 做，不由内部启发式做" 的落地。任何一轮判断三项
+        # 条件仍不满足、且轮数/墙钟预算已耗尽，如实标记 `dispatch_budget_exhausted`，
+        # 不会把未解决的指标伪装成已解决。
+        rounds_used = 0
+        dispatch_budget_exhausted = False
+        _force_code_semantics = False
+        # Phase 5 二次修复：每一轮 `_reexplore_unresolved_metrics` 用这个字典把
+        # 该轮 file_role_assignment 按指标聚合出的最高置信度写回来（见
+        # `_confidence_by_metric_from_assignments`/`confidence_sink` 参数说明），
+        # 供决定*下一轮*是否需要 `force_code_semantics` 时使用，也用于
+        # `_build_planner_orchestrator_trace` 的 `heuristic_confidence_by_metric`。
+        _confidence_by_metric: dict[str, float] = {}
+        _planner_dispatch_enabled = bool(settings.PLANNER_DISPATCH_ENABLED)
+        _max_dispatch_rounds = (
+            max(1, int(settings.PLANNER_MAX_DISPATCH_ROUNDS)) if _planner_dispatch_enabled else 1
+        )
+        _target_metrics_for_planner = (analysis_plan or {}).get("target_metrics", [])
+        # 2026-07-06 code review 修复（Phase 5 二次修复）：`_reexplore_unresolved_
+        # metrics_impl` 自己默认的 `unresolved` 判断只看"该指标有没有任意一张
+        # valid card"，只要有一张就认为已解决——即使样本覆盖不完整或存在未裁决冲突。
+        # 这会导致开启 `PLANNER_DISPATCH_ENABLED` 后，只要第一轮（甚至更早的初始
+        # 解析阶段）已经拿到任意一张卡，后续轮次的派发就变成空转：即使这里判断"三项
+        # 条件未满足、应该继续派发"，实际调用 `_reexplore_unresolved_metrics` 时如果
+        # 不显式覆盖它自己的判断，它会在函数入口就用宽松标准判定"已解决"，直接原样
+        # 返回、根本不会真的去调 `discover_file_role_assignments`。开启 flag 时，改成
+        # 用 `_planner_unresolved_target_metrics()` 算出的真正三项条件意义下的
+        # unresolved 集合，并通过 `force_unresolved_metrics` 显式传给每一轮调用，
+        # 覆盖掉它自己那条更宽松的默认判断；round 1 之前也要先算一次，因为"只在
+        # round 2 起才需要精确判断"这个假设本身就是不对的——即使是第一轮，只要
+        # 已经有部分样本覆盖或存在冲突，也必须按三项条件判断是否需要派发，而不是
+        # 无条件跑一轮再看结果。
+        _force_unresolved_metrics: list[str] | None = None
+        if _planner_dispatch_enabled:
+            _force_unresolved_metrics, evidence_coverage, evidence_conflicts = (
+                cls._planner_unresolved_target_metrics(
+                    target_metrics=_target_metrics_for_planner,
+                    known_samples=known_samples,
+                    evidence_cards=evidence_cards,
+                    quarantined_cards=quarantined_evidence_cards,
+                )
+            )
+        while True:
+            if _planner_dispatch_enabled and not _force_unresolved_metrics:
+                # 三项条件已经全部满足（或没有任何目标指标需要派发），不需要再跑
+                # 任何一轮——覆盖了"round 1 之前已经全部解决"和"某一轮结束后已经
+                # 全部解决"两种情况，不需要在循环底部再重复一次同样的判断。
+                break
+            (
+                evidence_cards,
+                evidence_chain,
+                available_evidence,
+                _reexplore_quarantined_cards,
+            ) = cls._reexplore_unresolved_metrics(
+                root=root,
+                run_id=run_id,
+                project_id=project_id,
+                analysis_plan=analysis_plan,
+                project_context=project_context,
+                evidence_files=evidence_files,
+                evidence_cards=evidence_cards,
+                evidence_chain=evidence_chain,
+                available_evidence=available_evidence,
+                started_at=started_at,
+                force_code_semantics=_force_code_semantics,
+                force_unresolved_metrics=(
+                    _force_unresolved_metrics if _planner_dispatch_enabled else None
+                ),
+                confidence_sink=_confidence_by_metric if _planner_dispatch_enabled else None,
+            )
+            rounds_used += 1
+            # 2026-07-06 code review 修复：reexplore 阶段产出的校验失败证据合并进外层
+            # quarantined_evidence_cards，否则这批证据不会出现在
+            # fact_packet.quarantined_evidence_summary 里（此前直接被丢弃）。
+            #
+            # 同时必须让 evidence_card_validation（第3069行那次初始校验的结果字典）跟着
+            # 刷新——它在 analysis_result 里单独占一个键（"evidence_card_validation"），
+            # 此前只在 reexplore 之前算过一次。
+            #
+            # 这里无条件重建（不只在 `_reexplore_quarantined_cards` 非空时才重建）：即使
+            # reexplore 这一轮没有产生任何 quarantine，只要它新增了校验通过的 valid card，
+            # `evidence_cards`/fact_packet 已经包含这些新 card 了，`evidence_card_validation.
+            # valid_cards`/`valid_count` 如果只在有 quarantine 时才刷新，会在"reexplore 只
+            # 新增了有效证据、没有失败证据"这种同样常见的情况下继续停留在 reexplore 之前
+            # 的旧状态——判断条件应该看 evidence_cards 本身是否变化，而不是只看 quarantine
+            # 是否非空。所以改成每次 reexplore 调用完之后都按当前 evidence_cards 和合并后的
+            # quarantined_evidence_cards 重建整个字典，不只是打个补丁改其中一个字段。
+            quarantined_evidence_cards = list(quarantined_evidence_cards) + list(
+                _reexplore_quarantined_cards
+            )
+            _merged_issue_counts: dict[str, int] = {}
+            for _q_card in quarantined_evidence_cards:
+                if not isinstance(_q_card, dict):
+                    continue
+                for _issue in _q_card.get("validation_issues") or []:
+                    if not isinstance(_issue, dict):
+                        continue
+                    _rule = str(_issue.get("rule") or "unknown")
+                    _merged_issue_counts[_rule] = _merged_issue_counts.get(_rule, 0) + 1
+            evidence_card_validation = {
+                **evidence_card_validation,
+                "passed": not quarantined_evidence_cards,
+                "valid_cards": evidence_cards,
+                "quarantined_cards": quarantined_evidence_cards,
+                "valid_count": len(evidence_cards),
+                "quarantined_count": len(quarantined_evidence_cards),
+                "issue_counts": _merged_issue_counts,
+            }
+            # 2026-07-06 code review 修复（P1）：consolidate_cards() 检测到冲突后会把
+            # 冲突双方的 conflict_status 标成 "unresolved"，validate_cards() 随即把
+            # conflict_status == "unresolved" 当成一条校验失败（"unresolved_evidence_
+            # conflict"）隔离进 quarantined_cards——也就是说真正冲突的证据卡这时已经
+            # 不在上面的 evidence_cards（=evidence_card_validation["valid_cards"]）里
+            # 了。如果这里只在过滤后的 evidence_cards 上重新跑一遍 detect_conflicts()，
+            # 冲突双方早就被剔除，永远检测不到任何冲突——evidence_validation_status.
+            # conflicts 会一直是空列表，issue_counts 里虽然能看到
+            # unresolved_evidence_conflict 计数，但看不到具体是哪些 evidence_id/哪些
+            # 值冲突，和 Phase 2 "即使存在 valid cards，也必须保留 unresolved
+            # conflicts" 的要求不符。改成在有效证据 + 已隔离证据的合并集合上检测冲突，
+            # 冲突判定本身只看数值是否一致，不受隔离状态影响，这样才能把已经被隔离的
+            # 冲突证据也纳入 conflicts 汇总。
+            if not _planner_dispatch_enabled:
+                # flag 关闭：逐行为与 Phase 4 之前完全一致，只跑这一轮，用最朴素的
+                # 方式重算一次 coverage/conflicts 供下面的 evidence_validation_status
+                # 使用，不经过 Phase 5 新增的 `_planner_unresolved_target_metrics()`。
+                evidence_conflicts = evidence_card_service.detect_conflicts(
+                    list(evidence_cards) + list(quarantined_evidence_cards)
+                )
+                evidence_coverage = cls._build_evidence_coverage(
+                    target_metrics=_target_metrics_for_planner,
+                    known_samples=known_samples,
+                    evidence_cards=evidence_cards,
+                )
+                break
+            # Phase 5（2026-07-06 code review 二次修复）：每一轮结束后都用同一个
+            # 三项确定性条件的判断口径重新计算真正的 unresolved 集合——循环顶部的
+            # `if _planner_dispatch_enabled and not _force_unresolved_metrics: break`
+            # 会在下一次迭代开始时读取这里刷新出来的值，不需要在循环底部再重复一次
+            # 单独的 should_stop 遍历逻辑。
+            _force_unresolved_metrics, evidence_coverage, evidence_conflicts = (
+                cls._planner_unresolved_target_metrics(
+                    target_metrics=_target_metrics_for_planner,
+                    known_samples=known_samples,
+                    evidence_cards=evidence_cards,
+                    quarantined_cards=quarantined_evidence_cards,
+                )
+            )
+            if not _force_unresolved_metrics:
+                break
+            if rounds_used >= _max_dispatch_rounds:
+                dispatch_budget_exhausted = True
+                break
+            _elapsed = perf_counter() - started_at
+            if cls._REEXPLORE_SOFT_DEADLINE_SECONDS - _elapsed < cls._REEXPLORE_MIN_BUDGET_SECONDS:
+                dispatch_budget_exhausted = True
+                break
+            # Phase 5 二次修复：下一轮该不该看代码语义，改成真正调用
+            # `planner_orchestrator_service.select_tool()`——按上一轮
+            # `_confidence_by_metric` 里每个仍未解决指标的最高规则匹配置信度判断，
+            # 而不是像改造前那样"第二轮起无条件 True"。任一仍未解决指标被 select_tool()
+            # 判定为 "check_code_semantics"（置信度低于阈值，或该指标这一轮完全没有
+            # 候选、置信度缺失），就对整轮升级触发代码语义——`force_code_semantics`
+            # 目前仍是一个覆盖全部指标的全局开关（`discover_file_role_assignments()`
+            # 尚未支持按指标粒度分别决定是否触发，见 F-4 已知限制），先在这个粒度上
+            # 让决策真正过 select_tool()，比"round>=2 就无条件 True"更贴近置信度信号。
+            _force_code_semantics = any(
+                planner_orchestrator_service.select_tool(
+                    heuristic_confidence=_confidence_by_metric.get(metric_id),
+                    confidence_threshold=settings.CODE_SEMANTICS_TOOL_CONFIDENCE_THRESHOLD,
+                )
+                == "check_code_semantics"
+                for metric_id in _force_unresolved_metrics
+            )
+        evidence_validation_status = {
+            "valid_count": evidence_card_validation.get("valid_count", 0),
+            "quarantined_count": evidence_card_validation.get("quarantined_count", 0),
+            "quarantined_cards": evidence_card_validation.get("quarantined_cards", []),
+            "issue_counts": evidence_card_validation.get("issue_counts", {}),
+            "conflicts": evidence_conflicts,
+            "coverage": evidence_coverage,
+        }
+        # Phase 4（2026-07-06-fact-packet-first-refactor-plan.md，对应
+        # docs/project_planner_orchestrator_agent_design.md F-2）：纯只读 dry-run
+        # trace，复述上面已经算好的 evidence_validation_status，不改变任何既有
+        # 事实/证据判定，见 _build_planner_orchestrator_trace 文档字符串。
+        # Phase 5 二次修复：`PLANNER_DISPATCH_ENABLED` 开启且真的跑了不止一轮时，
+        # 提前算出 `mode="dispatch"` 并把这一轮 `_confidence_by_metric` 一并传入
+        # `_build_planner_orchestrator_trace()`——`planned_actions[].tool` 需要在
+        # `build_trace()` 构造 trace 的当下就拿到置信度才能真正走 `select_tool()`
+        # 判断，事后再覆盖顶层 `mode` 字段没法让已经写死成 "explore_files" 的
+        # `tool` 字段跟着改过来（这是设计文档 6.5 节记录的已知限制，这里一并修复）。
+        _dispatch_mode = "dispatch" if (_planner_dispatch_enabled and rounds_used > 1) else "dry_run"
+        planner_orchestrator_trace = cls._build_planner_orchestrator_trace(
+            analysis_plan=analysis_plan,
+            evidence_validation_status=evidence_validation_status,
+            mode=_dispatch_mode,
+            heuristic_confidence_by_metric=(
+                _confidence_by_metric if _dispatch_mode == "dispatch" else None
+            ),
+        )
+        # Phase 5：附加派发元信息。`PLANNER_DISPATCH_ENABLED` 关闭时
+        # rounds_used 恒为 1、budget_exhausted 恒为 False、mode 恒为 "dry_run"，
+        # 与 Phase 4 契约逐位一致。
+        planner_orchestrator_trace["rounds_used"] = rounds_used
+        planner_orchestrator_trace["budget_exhausted"] = dispatch_budget_exhausted
+        # F-0 埋点：因果图/诊断汇总阶段计时起点，见上面 parse_evidence/build_cards
+        # 埋点同一批说明。
+        causal_stage_started_at = perf_counter()
         if analysis_plan:
             selected_skill_references = bio_skill_reference_service.select_for_project(
                 question=question,
@@ -2952,6 +3903,13 @@ class ProjectAnalysisService:
         )
         validated_claims = claim_validation.get("valid_claims", [])
         claim_layers = claim_service.build_render_layers(validated_claims)
+        logger.info(
+            "project_analysis stage=causal_diagnostics run_id=%s project=%s duration_ms=%.2f",
+            run_id,
+            project_id,
+            (perf_counter() - causal_stage_started_at) * 1000,
+        )
+        reasoning_stage_started_at = perf_counter()
         evidence_reasoning = evidence_reasoning_service.build(
             question=question,
             analysis_plan=analysis_plan,
@@ -2966,10 +3924,17 @@ class ProjectAnalysisService:
             user_assertions=user_assertions,
             evidence_conflicts=evidence_conflicts,
         )
+        logger.info(
+            "project_analysis stage=reasoning_packet run_id=%s project=%s duration_ms=%.2f",
+            run_id,
+            project_id,
+            (perf_counter() - reasoning_stage_started_at) * 1000,
+        )
         # Phase 2: fact_packet is now assembled from canonical evidence_cards,
         # not from free-text diagnosis_summary strings.  This makes fact_packet
         # the single source of truth that verify_fact_packet() can structurally
         # check without any text parsing.
+        fact_packet_stage_started_at = perf_counter()
         fact_packet = evidence_card_service.build_fact_packet(
             evidence_cards,
             analysis_result={
@@ -2978,6 +3943,13 @@ class ProjectAnalysisService:
             },
             question=question,
             project_id=project_id,
+            quarantined_cards=quarantined_evidence_cards,
+        )
+        logger.info(
+            "project_analysis stage=fact_packet run_id=%s project=%s duration_ms=%.2f",
+            run_id,
+            project_id,
+            (perf_counter() - fact_packet_stage_started_at) * 1000,
         )
         # Overlay priority 1: pipeline log errors take precedence over all speculation.
         #
@@ -3247,6 +4219,11 @@ class ProjectAnalysisService:
             "evidence_card_validation": evidence_card_validation,
             "quarantined_evidence_cards": quarantined_evidence_cards,
             "evidence_conflicts": evidence_conflicts,
+            "evidence_validation_status": evidence_validation_status,
+            # Phase 4（2026-07-06-fact-packet-first-refactor-plan.md）：dry-run 调度
+            # trace，见 _build_planner_orchestrator_trace 文档字符串。纯附加字段，
+            # 不参与 fact_packet/evidence_cards 的任何判定。
+            "planner_orchestrator_trace": planner_orchestrator_trace,
             "user_assertions": user_assertions,
             "read_lineage": read_lineage,
             "evidence_reasoning": evidence_reasoning,

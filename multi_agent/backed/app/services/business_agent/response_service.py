@@ -2875,12 +2875,13 @@ class BusinessResponseService:
             for item in analysis_result.get("validated_claims", []) or []
             if isinstance(item, dict)
         ]
-        fact_packet = analysis_result.get("fact_packet") or {}
-        reasoning_packet = analysis_result.get("reasoning_packet") or {}
-        if fact_packet or reasoning_packet:
-            rendered_packet_answer = self._render_fact_and_reasoning_packets(analysis_result)
-            if rendered_packet_answer:
-                return self.clean_final_answer(rendered_packet_answer, analysis_result=analysis_result)
+        # 2026-07-03 修复：`_render_fact_and_reasoning_packets` 在这个类里从未真正
+        # 实现过（grep 全仓库确认没有任何同名方法定义）——只要 fact_packet 非空
+        # （analyze() 里 fact_packet 几乎总是非空字典）就会触发 AttributeError，
+        # 使 build_fallback_answer 在最需要兜底的场景下反而直接崩溃。这里改为
+        # 直接走下面已经在正常工作的 validated_claims / diagnosis_summary 渲染
+        # 路径（同样以 fact_packet 派生的 validated_claims 为输入），不再调用这个
+        # 从未存在过的方法。
         response_plan = (analysis_result.get("analysis_plan") or {}).get("response_plan") or {}
         if response_plan.get("reasoning_mode") == "integrative_reasoning":
             structured = self._build_grounded_integrative_answer(analysis_result)

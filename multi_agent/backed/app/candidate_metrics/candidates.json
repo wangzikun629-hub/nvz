@@ -65,6 +65,2446 @@
       "updated_at": "2026-07-01T09:49:43+00:00",
       "distinct_project_count": 1,
       "occurrence_count": 5
+    },
+    "alignment_length": {
+      "candidate_key": "alignment_length",
+      "metric_guess": "alignment_length",
+      "label": "alignment_length",
+      "unit_guess": "ratio",
+      "occurrences": [
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T02:51:41+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T02:51:41+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "q_end",
+          "denominator_field": "q_start",
+          "display_field": "alignment_length",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-03T03:39:05+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-06T08:51:20+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 44
+    },
+    "gap_opens": {
+      "candidate_key": "gap_opens",
+      "metric_guess": "gap_opens",
+      "label": "gap_opens",
+      "unit_guess": "%",
+      "occurrences": [
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2001",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0002",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2001",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1001",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2002",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1002",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1002",
+          "value": 0.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:56+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_0001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1001",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1002",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_1003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "evalue",
+          "denominator_field": "identity",
+          "display_field": "gap_opens",
+          "sample": "read_2003",
+          "value": 0.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-03T03:39:05+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-06T08:51:20+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 45
+    },
+    "q_start": {
+      "candidate_key": "q_start",
+      "metric_guess": "q_start",
+      "label": "q_start",
+      "unit_guess": "ratio",
+      "occurrences": [
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0002",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2001",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2001",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_1001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_0003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2001",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2002",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_end",
+          "display_field": "q_start",
+          "sample": "read_2003",
+          "value": 1.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-03T03:39:05+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-06T08:51:20+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 51
+    },
+    "q_end": {
+      "candidate_key": "q_end",
+      "metric_guess": "q_end",
+      "label": "q_end",
+      "unit_guess": "ratio",
+      "occurrences": [
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1003",
+          "value": 144.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1002",
+          "value": 147.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0001",
+          "value": 150.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0002",
+          "value": 148.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_1001",
+          "value": 151.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_0003",
+          "value": 145.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2001",
+          "value": 152.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2002",
+          "value": 149.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "alignment_length",
+          "denominator_field": "q_start",
+          "display_field": "q_end",
+          "sample": "read_2003",
+          "value": 146.0,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-03T03:39:05+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-06T08:51:20+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 49
+    },
+    "evalue": {
+      "candidate_key": "evalue",
+      "metric_guess": "evalue",
+      "label": "evalue",
+      "unit_guess": "%",
+      "occurrences": [
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0001",
+          "value": 1e-70,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1003",
+          "value": 7e-64,
+          "observed_at": "2026-07-03T03:39:05+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1003",
+          "value": 7e-64,
+          "observed_at": "2026-07-03T03:51:15+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1003",
+          "value": 7e-64,
+          "observed_at": "2026-07-03T07:17:44+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0001",
+          "value": 1e-70,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0002",
+          "value": 2e-68,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0003",
+          "value": 5e-65,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-06T02:37:54+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1003",
+          "value": 7e-64,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-06T02:51:42+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0001",
+          "value": 1e-70,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1002",
+          "value": 4e-67,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1003",
+          "value": 7e-64,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-06T03:04:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0001",
+          "value": 1e-70,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0002",
+          "value": 2e-68,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0003",
+          "value": 5e-65,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-06T08:30:57+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0001",
+          "value": 1e-70,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0002",
+          "value": 2e-68,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\VZ20260529017_Silva_Result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_1001",
+          "value": 3e-71,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "SilvaBlast\\Blast_result\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_0003",
+          "value": 5e-65,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2001",
+          "value": 1e-72,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2002",
+          "value": 6e-69,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        },
+        {
+          "project_id": "HARNESS_SILVA_FILENAME_COLLISION",
+          "source_file": "VZ20260529017_result\\6.Silva_rRNA_blast\\AllSamples.silva.xls",
+          "numerator_field": "gap_opens",
+          "denominator_field": "identity",
+          "display_field": "evalue",
+          "sample": "read_2003",
+          "value": 9e-65,
+          "observed_at": "2026-07-06T08:51:20+00:00"
+        }
+      ],
+      "status": "shadow",
+      "created_at": "2026-07-03T03:39:05+00:00",
+      "reviewed_by": null,
+      "review_note": null,
+      "promoted_metric_id": null,
+      "updated_at": "2026-07-06T08:51:20+00:00",
+      "distinct_project_count": 1,
+      "occurrence_count": 48
     }
   },
   "blacklist": []

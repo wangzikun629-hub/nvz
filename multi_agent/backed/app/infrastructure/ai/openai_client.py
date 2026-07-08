@@ -48,8 +48,29 @@ exploration_model_client = OpenAI(
     api_key=EXPLORATION_API_KEY or "unconfigured",
 )
 
+# Stage B（project_analysis_exploration_and_evolution_plan.md）：文件发现探索层从
+# "单轮分类调用"升级为真正的多轮工具调用 agent（project_exploration_agent_service.py），
+# 需要走 Agents SDK 的 `Agent(model=...)`，这要求一个 AsyncOpenAI 客户端包装成
+# `OpenAIChatCompletionsModel`（同 main_model/sub_model 的接线方式），不能复用上面
+# 同步的 exploration_model_client。沿用同一套 EXPLORATION_* 配置项，未配置时
+# EXPLORATION_CLIENT_CONFIGURED 仍为 False，新 agent 一样会被跳过、不产生新的运行时依赖。
+exploration_agent_client = AsyncOpenAI(
+    base_url=EXPLORATION_BASE_URL or "http://placeholder",
+    api_key=EXPLORATION_API_KEY or "unconfigured",
+)
+exploration_agent_model = OpenAIChatCompletionsModel(
+    model=EXPLORATION_MODEL_NAME or MAIN_MODEL_NAME,
+    openai_client=exploration_agent_client,
+)
+
 # Phase 1.1：代码语义解析 agent 专用配置（project_analysis_agent_upgrade_plan.md 2.1/3 节）。
-# 同样从同步调用链触发，使用同步 OpenAI 客户端。
+# Stage G-3（2026-07-07-stage-g-explorer-codesemantics-tiered-plan.md 第 305-330 行）：
+# 从"静态正则 + 至多一次单轮模型调用"升级为对等于探索 agent 的真正多轮 Agent + Runner
+# 子智能体，因此和 exploration_agent_model 一样需要走 Agents SDK 的 `Agent(model=...)`，
+# 要求一个 AsyncOpenAI 客户端包装成 OpenAIChatCompletionsModel——旧的同步
+# `code_semantics_model_client`（单轮 `chat.completions.create`）随旧的 `_model_augment()`
+# 一起下线，不保留双路径。沿用同一套 CODE_SEMANTICS_* 配置项，未配置时
+# CODE_SEMANTICS_CLIENT_CONFIGURED 仍为 False，新 agent 一样会被跳过、不产生新的运行时依赖。
 CODE_SEMANTICS_MODEL_NAME = settings.CODE_SEMANTICS_MODEL_NAME
 CODE_SEMANTICS_API_KEY = settings.CODE_SEMANTICS_API_KEY
 CODE_SEMANTICS_BASE_URL = settings.CODE_SEMANTICS_BASE_URL
@@ -63,9 +84,13 @@ if not CODE_SEMANTICS_CLIENT_CONFIGURED:
         "project_code_semantics_service 将只使用静态规则提取，不调用模型。"
     )
 
-code_semantics_model_client = OpenAI(
+code_semantics_agent_client = AsyncOpenAI(
     base_url=CODE_SEMANTICS_BASE_URL or "http://placeholder",
     api_key=CODE_SEMANTICS_API_KEY or "unconfigured",
+)
+code_semantics_agent_model = OpenAIChatCompletionsModel(
+    model=CODE_SEMANTICS_MODEL_NAME or MAIN_MODEL_NAME,
+    openai_client=code_semantics_agent_client,
 )
 
 # 创建模型客户端

@@ -3,33 +3,20 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from multi_agent.backed.app.services.business_agent.metric_schema_service import (
+    metric_schema_service,
+)
+
 
 class ClaimService:
     """Build structured claims and deterministic rendering layers."""
 
+    # 2026-07-06 fact_packet 增强：统一改为引用 metric_schema_service.label_zh，
+    # 不再和 answer_quality_service / metric_schema_service 各自维护一份可能
+    # 用词不一致的中文标签字典。
     METRIC_LABELS = {
-        "adapter_percent": "原始 reads 接头检出率",
-        "clean_read_retention_percent": "过滤后 reads 保留率",
-        "q20_ratio": "Q20 碱基比例",
-        "q30_ratio": "Q30 碱基比例",
-        "mapping_rate_percent": "比对率",
-        "unique_mapping_rate_percent": "唯一比对率",
-        "duplicate_rate_percent": "重复率",
-        "picard_duplicate_pair_rate_percent": "Picard read-pair 重复率",
-        "mt_rate_percent": "线粒体比对 reads 比例",
-        "frip_ratio": "FRiP",
-        "peak_count": "Peak 数量",
-        "peak_width": "Peak 宽度",
-        "tss_enrichment": "TSS enrichment",
-        "fragment_size": "Fragment size",
-        "spikein_mapped_reads": "Spike-in mapped reads",
-        "spikein_unique_mapping_rate_percent": "Spike-in 唯一比对率",
-        "spikein_scaling_factor": "Spike-in scaling factor",
-        "control_binding_status": "对照可用性与绑定状态",
-        "correlation": "样本信号相关性",
-        "nrf": "NRF 文库复杂度",
-        "pbc1": "PBC1 文库复杂度",
-        "pbc2": "PBC2 文库复杂度",
+        metric_id: (metric_schema_service.get(metric_id).get("label_zh") or metric_id)
+        for metric_id in metric_schema_service.all_metric_ids()
     }
 
     @classmethod

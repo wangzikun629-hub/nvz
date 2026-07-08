@@ -23,7 +23,8 @@ class ProjectParseCache:
     _PROJECT_CONTEXT_IN_FLIGHT: dict[tuple[str, bool], threading.Event] = {}
     _PROJECT_CONTEXT_LOCK = threading.Lock()
 
-    # ── File-discovery cache（Phase 1，见 project_analysis_agent_upgrade_plan.md）──
+    # ── File-discovery cache（Phase 1，见 project_analysis_agent_upgrade_plan.md；
+    # 缓存语义 Stage D 改造，见 project_analysis_exploration_and_evolution_plan.md）──
     # 按项目根目录 mtime + 目标指标集合缓存 file_role_assignment 候选列表，
     # 避免每次提问都重新触发探索（关键词表命中的路径不经过这里，见调用方）。
     #
@@ -32,8 +33,25 @@ class ProjectParseCache:
     # file_role_assignment 缓存失效，即使实际改动和候选文件毫无关系。当前项目规模下足够用，
     # 先记一笔；如果观测到失效过于频繁（比如项目目录里有频繁更新的日志/进度文件），再考虑
     # 细化为按子目录或按目标指标分片缓存，不必现在就做。
+    #
+    # Stage D 修订（2026-07-03）：改造前这里"探索返回了候选"就无条件永久缓存，不管这批
+    # 候选后来解析/校验有没有真正产出 evidence_card——一次探索失误（比如 agent 选错文件、
+    # 目标指标其实不在项目里）会被当成"确定结果"缓存到项目根目录 mtime 不变为止，后续同类
+    # 请求永远拿到同一个错误/空结果，不会重试。现在拆成两张表：
+    #   - `_FILE_DISCOVERY_SUCCESS_CACHE`：只在调用方确认这批候选最终至少产出了 1 张
+    #     evidence_card 后才写入（`record_file_discovery_outcome(..., success=True)`），
+    #     和之前一样按 mtime 隐式失效，长期有效。
+    #   - `_FILE_DISCOVERY_FAILURE_CACHE`：调用方确认这批候选没有产出任何 evidence_card
+    #     时写入一个短 TTL 的"最近失败"时间戳（`success=False`），在 TTL 内直接短路返回
+    #     空列表，避免同一个必然失败的场景被反复触发探索；TTL 过期后自动允许重试，
+    #     不会无限期卡死后续请求。
+    # `discover_file_role_assignments()` 本身不再在探索完成后自动写入这两张表——它没有
+    # 下游解析/校验结果的可见性，无法判断"探索出来的候选"是否真的有用；写入职责交给
+    # 明确知道结果的调用方（目前是 `ProjectAnalysisService._reexplore_unresolved_metrics`）。
     _FILE_DISCOVERY_CACHE_MAX_ENTRIES = 256
-    _FILE_DISCOVERY_CACHE: dict[tuple[str, int, tuple[str, ...]], list[dict[str, Any]]] = {}
+    _FILE_DISCOVERY_FAILURE_TTL_SECONDS = 300.0
+    _FILE_DISCOVERY_SUCCESS_CACHE: dict[tuple[str, int, tuple[str, ...], str], list[dict[str, Any]]] = {}
+    _FILE_DISCOVERY_FAILURE_CACHE: dict[tuple[str, int, tuple[str, ...], str], float] = {}
     _FILE_DISCOVERY_LOCK = threading.Lock()
 
     # ── Code-semantics cache（Phase 1.1，见 project_analysis_agent_upgrade_plan.md 2.1 节）──
@@ -132,35 +150,84 @@ class ProjectParseCache:
     # ── File-discovery cache helpers ───────────────────────────────────────
 
     @staticmethod
-    def _file_discovery_key(root: Path, target_metrics: list[str]) -> tuple[str, int, tuple[str, ...]]:
+    def _file_discovery_key(
+        root: Path, target_metrics: list[str]
+    ) -> tuple[str, int, tuple[str, ...], str]:
         resolved = str(root.resolve())
         try:
             mtime_ns = root.stat().st_mtime_ns
         except OSError:
             mtime_ns = 0
         metrics_key = tuple(sorted({str(m or "").strip().lower() for m in target_metrics if str(m or "").strip()}))
-        return (resolved, mtime_ns, metrics_key)
+        # Stage G-2 P2 修复（2026-07-07 code review）：`EXPLORATION_ALWAYS_ON_ENABLED`
+        # 改变了 `_exploration_agent_augment()` 对 explore_with_agent 的调用方式
+        # （对哪些指标触发、prompt 里带不带确认优先线索），如果不纳入缓存 key，
+        # 先在 flag 关闭时缓存过的成功/失败结果，会在之后打开 flag 做真实回放时
+        # 被直接命中，Explorer 全量 target_metrics 分支根本不会跑，回放数据不可信。
+        # 这里直接读当前的 settings 值算进 key，不改 get_cached_file_discovery()/
+        # record_file_discovery_outcome() 的调用签名——两者在同一个进程里读同一个
+        # settings 单例，读写双方天然用同一个 flag 状态算 key，不需要每个调用点
+        # （project_analysis_service.py 里有 5 处）都显式透传这个参数，避免读写
+        # 用不同 key 导致缓存错位这个更隐蔽的问题。
+        from multi_agent.backed.app.config.settings import settings
+
+        exploration_mode = "always_on" if settings.EXPLORATION_ALWAYS_ON_ENABLED else "default"
+        return (resolved, mtime_ns, metrics_key, exploration_mode)
 
     def get_cached_file_discovery(
         self, root: Path, target_metrics: list[str]
     ) -> list[dict[str, Any]] | None:
-        key = self._file_discovery_key(root, target_metrics)
-        with self._FILE_DISCOVERY_LOCK:
-            cached = self._FILE_DISCOVERY_CACHE.get(key)
-        if cached is None:
-            return None
-        return [dict(item) for item in cached]
+        """返回缓存的探索候选，仅在"已确认结果"时命中：
 
-    def set_cached_file_discovery(
-        self, root: Path, target_metrics: list[str], assignments: list[dict[str, Any]]
-    ) -> list[dict[str, Any]]:
+        - 曾被 `record_file_discovery_outcome(success=True)` 确认过至少产出 1 张
+          evidence_card 的候选列表——长期有效（随 mtime 隐式失效）。
+        - 曾被确认 `success=False`（探索完成但没有产出任何 evidence_card）且仍在
+          短 TTL 窗口内——直接返回空列表，短路掉这一轮必然复现的失败探索。
+        - 其余情况（从未探索过，或失败 TTL 已过期）返回 `None`，调用方需要真正
+          触发一次探索。
+        """
         key = self._file_discovery_key(root, target_metrics)
-        cloned = [dict(item) for item in assignments]
         with self._FILE_DISCOVERY_LOCK:
-            self._FILE_DISCOVERY_CACHE[key] = cloned
-            while len(self._FILE_DISCOVERY_CACHE) > self._FILE_DISCOVERY_CACHE_MAX_ENTRIES:
-                self._FILE_DISCOVERY_CACHE.pop(next(iter(self._FILE_DISCOVERY_CACHE)))
-        return [dict(item) for item in cloned]
+            success_cached = self._FILE_DISCOVERY_SUCCESS_CACHE.get(key)
+            failure_ts = self._FILE_DISCOVERY_FAILURE_CACHE.get(key)
+        if success_cached is not None:
+            return [dict(item) for item in success_cached]
+        if failure_ts is not None:
+            if (perf_counter() - failure_ts) < self._FILE_DISCOVERY_FAILURE_TTL_SECONDS:
+                return []
+            with self._FILE_DISCOVERY_LOCK:
+                self._FILE_DISCOVERY_FAILURE_CACHE.pop(key, None)
+        return None
+
+    def record_file_discovery_outcome(
+        self,
+        root: Path,
+        target_metrics: list[str],
+        assignments: list[dict[str, Any]],
+        *,
+        success: bool,
+    ) -> None:
+        """由调用方在解析/校验结束后回填这一轮探索的真实结果。
+
+        `success=True` 表示这批 `assignments` 最终至少产出了 1 张 evidence_card，
+        长期缓存复用；`success=False` 表示探索完成但没有产出任何 evidence_card，
+        只写一个短 TTL 的失败标记（不缓存 `assignments` 本身，TTL 内直接短路为
+        空列表），既不会让同一个必然失败的场景被反复触发探索，也不会无限期卡住
+        后续同类请求——TTL 过期后自动允许重试。
+        """
+        key = self._file_discovery_key(root, target_metrics)
+        if success:
+            cloned = [dict(item) for item in assignments]
+            with self._FILE_DISCOVERY_LOCK:
+                self._FILE_DISCOVERY_FAILURE_CACHE.pop(key, None)
+                self._FILE_DISCOVERY_SUCCESS_CACHE[key] = cloned
+                while len(self._FILE_DISCOVERY_SUCCESS_CACHE) > self._FILE_DISCOVERY_CACHE_MAX_ENTRIES:
+                    self._FILE_DISCOVERY_SUCCESS_CACHE.pop(next(iter(self._FILE_DISCOVERY_SUCCESS_CACHE)))
+        else:
+            with self._FILE_DISCOVERY_LOCK:
+                self._FILE_DISCOVERY_FAILURE_CACHE[key] = perf_counter()
+                while len(self._FILE_DISCOVERY_FAILURE_CACHE) > self._FILE_DISCOVERY_CACHE_MAX_ENTRIES:
+                    self._FILE_DISCOVERY_FAILURE_CACHE.pop(next(iter(self._FILE_DISCOVERY_FAILURE_CACHE)))
 
     # ── Code-semantics cache helpers ───────────────────────────────────────
 
@@ -174,21 +241,80 @@ class ProjectParseCache:
         return (resolved, mtime_ns)
 
     def get_cached_formula_hint(self, script_path: Path) -> dict[str, Any] | None:
+        """按入口脚本自身 `(resolved path, mtime)` 查缓存。
+
+        Stage G-3 七次修订（code review P2）：入口脚本自己的 mtime 没变不代表缓存
+        一定还有效——Stage G-3 六次修订允许一条候选通过 `source_path` 归因到同目录
+        的 helper 文件后，仍然缓存在"入口脚本"这个槽位下（`FormulaHint.script_path`
+        指向 helper 的真实路径，但缓存 key 只看入口脚本）。如果之后 helper 文件改了、
+        入口脚本本身没改，入口脚本的 `(resolved, mtime)` key 不变，缓存会继续命中，
+        返回 helper 改动前的旧公式——这是"陈旧"问题，和六次修订解决的"丢失"问题不是
+        一回事。这里在命中缓存后，额外校验 `set_cached_formula_hint` 写入时记录的
+        依赖文件（`_dep_mtimes`，见该函数）的当前 mtime 是否和写入时一致；任何一个
+        依赖文件的 mtime 变了（或者已经不存在），就当缓存失效，直接淘汰这条缓存并
+        返回 None，让调用方重新触发一次 agent 会话。
+        """
         key = self._code_semantics_key(script_path)
         with self._CODE_SEMANTICS_LOCK:
             cached = self._CODE_SEMANTICS_CACHE.get(key)
         if cached is None:
             return None
-        return dict(cached)
+        dep_mtimes = cached.get("_dep_mtimes") or []
+        for dep_path_str, dep_mtime_ns in dep_mtimes:
+            try:
+                current_mtime_ns = Path(dep_path_str).stat().st_mtime_ns
+            except OSError:
+                current_mtime_ns = None
+            if current_mtime_ns != dep_mtime_ns:
+                with self._CODE_SEMANTICS_LOCK:
+                    # 依赖文件已经变了，这条缓存整体不可信，直接淘汰，不留半失效状态。
+                    self._CODE_SEMANTICS_CACHE.pop(key, None)
+                return None
+        result = dict(cached)
+        result.pop("_dep_mtimes", None)
+        return result
 
-    def set_cached_formula_hint(self, script_path: Path, formula_hint: dict[str, Any]) -> dict[str, Any]:
+    def set_cached_formula_hint(
+        self,
+        script_path: Path,
+        formula_hint: dict[str, Any],
+        *,
+        dependency_paths: list[Path] | None = None,
+    ) -> dict[str, Any]:
+        """写入按入口脚本 `(resolved path, mtime)` 分槽位的 formula_hint 缓存。
+
+        `dependency_paths`：这次结果里除了入口脚本自身之外，实际依赖的其它文件
+        （典型场景是 Stage G-3 的 helper 文件归因——某条候选通过 `source_path`
+        指向同目录的 helper，缓存槽位仍然是入口脚本，但内容依赖 helper 的当前状态）。
+        这里记录下每个依赖文件写入时的 mtime，`get_cached_formula_hint` 命中时会
+        重新核对这些 mtime，任何一个变了就整体判定缓存失效。和入口脚本自身重复的
+        路径会被跳过（入口脚本的 mtime 已经是缓存 key 的一部分，不需要再存一份）。
+        """
         key = self._code_semantics_key(script_path)
         cloned = dict(formula_hint)
+        entry_resolved = key[0]
+        dep_mtimes: list[tuple[str, int]] = []
+        for dep_path in dependency_paths or []:
+            try:
+                resolved_dep = str(dep_path.resolve())
+            except OSError:
+                continue
+            if resolved_dep == entry_resolved:
+                continue
+            try:
+                dep_mtime_ns = dep_path.stat().st_mtime_ns
+            except OSError:
+                continue
+            dep_mtimes.append((resolved_dep, dep_mtime_ns))
+        if dep_mtimes:
+            cloned["_dep_mtimes"] = dep_mtimes
         with self._CODE_SEMANTICS_LOCK:
             self._CODE_SEMANTICS_CACHE[key] = cloned
             while len(self._CODE_SEMANTICS_CACHE) > self._CODE_SEMANTICS_CACHE_MAX_ENTRIES:
                 self._CODE_SEMANTICS_CACHE.pop(next(iter(self._CODE_SEMANTICS_CACHE)))
-        return dict(cloned)
+        result = dict(cloned)
+        result.pop("_dep_mtimes", None)
+        return result
 
     def build_cached_project_context(self, root: Path, include_html_body: bool) -> dict[str, Any]:
         """Build or return cached project context, with in-flight deduplication."""

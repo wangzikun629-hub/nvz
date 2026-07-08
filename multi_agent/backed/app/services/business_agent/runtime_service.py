@@ -8,6 +8,7 @@ from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
+from multi_agent.backed.app.config.settings import settings
 from multi_agent.backed.app.infrastructure.logging.logger import logger
 from multi_agent.backed.app.multi_agent.project_progress import (
     publish_project_answer_delta,
@@ -68,7 +69,12 @@ from multi_agent.backed.app.services.business_agent.workspace import ProjectWork
 
 class BusinessAgentRuntimeService:
     KNOWLEDGE_RETRIEVAL_TIMEOUT_SECONDS = 20.0
-    PROJECT_ANALYSIS_TIMEOUT_SECONDS = 25.0
+    # F-0（docs/project_planner_orchestrator_agent_design.md 第 1.5/4 节）：这个 25.0
+    # 曾经是这里唯一定义、`project_analysis_service.py` 只在注释里"对齐"但读不到的
+    # 独立常量，导致两边可能不同步。现在改为读 `settings.PROJECT_ANALYSIS_TIMEOUT_SECONDS`
+    # ——同一份配置，`project_analysis_service.py` 的 `effective_file_discovery_budget_seconds`
+    # 也是基于它算出来的，默认值不变（25.0），只是不再有两处硬编码分别维护。
+    PROJECT_ANALYSIS_TIMEOUT_SECONDS = settings.PROJECT_ANALYSIS_TIMEOUT_SECONDS
     # 2026-07-02 修复：本轮 code review 修复了 evidence_card_service 的 trust_level
     # 兜底逻辑 bug（详见 docs/project_analysis_agent_upgrade_plan.md 第三轮记录），
     # analysis_result 的结构化内容因此发生了变化。在此之前（project-review-v3）生成
